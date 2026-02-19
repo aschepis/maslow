@@ -1,0 +1,4 @@
+mas: "1.0"
+project:
+  name: minimal-test
+  description: A minimal valid MAS file

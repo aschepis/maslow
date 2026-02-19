@@ -1,0 +1,8 @@
+mas: "1.0"
+project:
+  name: bad-check
+checks:
+  runner:
+    - name: broken
+      kind: invalid_kind
+      run: "echo hello"

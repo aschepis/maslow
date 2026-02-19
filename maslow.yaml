@@ -1,0 +1,151 @@
+mas: "1.0"
+project:
+  name: maslow
+  description: Executable specification system for agent-built software
+  version: "0.1.0"
+  license: MIT
+  repository: https://github.com/aschepis/maslow-agentic
+
+toolchain:
+  manager: asdf
+  tools:
+    - name: go
+      version: "1.25"
+      required: true
+    - name: cue
+      version: "0.15"
+      required: true
+  lockfiles:
+    - go.sum
+
+refs:
+  - kind: file
+    path: go.mod
+    description: Go module definition
+  - kind: file
+    path: schema/maslow.cue
+    description: CUE schema for MAS validation
+  - kind: file
+    path: maslow.yaml
+    description: Self-hosting MAS spec
+  - kind: binary
+    path: bin/maslow
+    description: Built Maslow binary
+    required: false
+
+policy:
+  deny:
+    - "vendor/**"
+    - "**/.env"
+    - "**/credentials*"
+  protected:
+    - maslow.yaml
+    - schema/maslow.cue
+    - docs/REQUIREMENTS.md
+
+checks:
+  runner:
+    - name: go-build
+      kind: command
+      run: "go build -o bin/maslow ./cmd/maslow/"
+      timeout: 120s
+      tags:
+        - build
+    - name: go-test
+      kind: command
+      run: "go test ./..."
+      timeout: 300s
+      tags:
+        - test
+    - name: go-vet
+      kind: command
+      run: "go vet ./..."
+      timeout: 60s
+      tags:
+        - lint
+    - name: cue-vet
+      kind: command
+      run: "cue vet schema/maslow.cue"
+      timeout: 30s
+      tags:
+        - lint
+    - name: self-validate
+      kind: command
+      run: "go run ./cmd/maslow/ validate maslow.yaml"
+      timeout: 30s
+      tags:
+        - self-host
+
+profiles:
+  quick:
+    description: Fast checks for development
+    checks:
+      - go-build
+      - go-vet
+      - cue-vet
+      - self-validate
+  full:
+    description: All checks including tests
+    checks:
+      - go-build
+      - go-test
+      - go-vet
+      - cue-vet
+      - self-validate
+
+contracts:
+  - name: validate-command
+    description: The validate command correctly validates MAS files
+    scenarios:
+      - name: valid-file-passes
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - validate
+              - testdata/valid/minimal.yaml
+          - action: assert
+            expect:
+              exit_code: 0
+      - name: invalid-file-fails
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - validate
+              - testdata/invalid/missing_project.yaml
+          - action: assert
+            expect:
+              exit_code: 1
+  - name: version-command
+    description: The version command outputs version info
+    scenarios:
+      - name: prints-version
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - version
+          - action: assert
+            expect:
+              exit_code: 0
+
+budgets:
+  - name: binary-size
+    kind: artifact_size
+    target: bin/maslow
+    max: 50MB
+  - name: quick-verify-speed
+    kind: performance
+    target: "maslow verify --profile quick"
+    p95: 5s
+    max: 10s
+
+audit:
+  targets:
+    - kind: binary
+      path: bin/maslow
+      timeout: 60s
+      retries: 0
+      checks:
+        - version-check

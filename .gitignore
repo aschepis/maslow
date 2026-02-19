@@ -1,0 +1,5 @@
+bin/
+reports/
+/maslow
+*.exe
+.DS_Store

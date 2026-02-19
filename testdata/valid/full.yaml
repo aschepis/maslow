@@ -1,0 +1,122 @@
+mas: "1.0"
+project:
+  name: full-test
+  description: A fully-featured MAS file
+  version: "0.1.0"
+  license: MIT
+  repository: https://github.com/example/full-test
+
+toolchain:
+  manager: mise
+  tools:
+    - name: go
+      version: "1.25"
+      required: true
+    - name: cue
+      version: "0.11"
+      required: true
+  lockfiles:
+    - go.sum
+
+refs:
+  - kind: file
+    path: go.mod
+    description: Go module definition
+  - kind: binary
+    path: bin/maslow
+    description: Built binary
+
+policy:
+  deny:
+    - "vendor/**"
+  allow:
+    - "cmd/**"
+    - "internal/**"
+  protected:
+    - maslow.yaml
+    - schema/maslow.cue
+
+checks:
+  runner:
+    - name: go-build
+      kind: command
+      run: "go build ./..."
+      timeout: 120s
+      tags:
+        - build
+    - name: go-test
+      kind: command
+      run: "go test ./..."
+      timeout: 300s
+      tags:
+        - test
+    - name: go-vet
+      kind: command
+      run: "go vet ./..."
+      timeout: 60s
+      tags:
+        - lint
+    - name: cue-vet
+      kind: command
+      run: "cue vet schema/maslow.cue"
+      timeout: 30s
+      tags:
+        - lint
+
+profiles:
+  quick:
+    description: Fast checks only
+    checks:
+      - go-build
+      - go-vet
+  full:
+    description: All checks
+    checks:
+      - go-build
+      - go-test
+      - go-vet
+      - cue-vet
+
+contracts:
+  - name: validate-command
+    scenarios:
+      - name: valid-file-passes
+        steps:
+          - action: cli
+            command: maslow
+            args:
+              - validate
+              - testdata/valid/minimal.yaml
+          - action: assert
+            expect:
+              exit_code: 0
+      - name: invalid-file-fails
+        steps:
+          - action: cli
+            command: maslow
+            args:
+              - validate
+              - testdata/invalid/missing_project.yaml
+          - action: assert
+            expect:
+              exit_code: 1
+
+budgets:
+  - name: binary-size
+    kind: artifact_size
+    target: bin/maslow
+    max: 50MB
+  - name: quick-verify-speed
+    kind: performance
+    target: "maslow verify --profile quick"
+    p95: 5s
+    max: 10s
+
+audit:
+  targets:
+    - kind: binary
+      path: bin/maslow
+      timeout: 60s
+      retries: 0
+      checks:
+        - version-check
