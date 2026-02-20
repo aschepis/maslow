@@ -1,7 +1,9 @@
 ---
 id: 3
 title: Build maslow agent skill
-status: todo
+status: done
+assigned_to: claude
+assigned_at: 2026-02-19
 created: 2026-02-19
 tags: [agents]
 ---

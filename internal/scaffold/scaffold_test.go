@@ -30,6 +30,7 @@ func TestRun_BasicScaffold(t *testing.T) {
 		filepath.Join("docs", "PLAN.md"),
 		filepath.Join("docs", "tasks", "CONVENTION.md"),
 		filepath.Join("reports", ".gitkeep"),
+		filepath.Join(".skills", "maslow", "SKILL.md"),
 	}
 	for _, f := range expectedFiles {
 		path := filepath.Join(projectDir, f)
@@ -440,6 +441,53 @@ func TestRun_TaskConventionContent(t *testing.T) {
 	for _, check := range expectedContent {
 		if !strings.Contains(content, check) {
 			t.Errorf("docs/tasks/CONVENTION.md missing expected content: %q", check)
+		}
+	}
+}
+
+func TestRun_SkillMDContent(t *testing.T) {
+	dir := t.TempDir()
+	projectDir := filepath.Join(dir, "skill-test")
+
+	err := Run(Options{
+		ProjectName: "skill-test",
+		Dir:         projectDir,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(projectDir, ".skills", "maslow", "SKILL.md"))
+	if err != nil {
+		t.Fatalf("failed to read .skills/maslow/SKILL.md: %v", err)
+	}
+	content := string(data)
+
+	expectedContent := []string{
+		"name: maslow",
+		"description: >-",
+		"Maslow Agent Skill",
+		"Core Commands",
+		"maslow validate",
+		"maslow verify",
+		"maslow scaffold",
+		"maslow init",
+		"Workflow: Starting a New Project",
+		"Workflow: Working on an Existing Project",
+		"maslow.yaml Structure",
+		"Minimal Example",
+		"Task System",
+		"Discovering Tasks",
+		"Claiming a Task",
+		"Completing a Task",
+		"Status Lifecycle",
+		"Verification Evidence",
+		"Key Conventions",
+		"reports/verify.json",
+	}
+	for _, check := range expectedContent {
+		if !strings.Contains(content, check) {
+			t.Errorf(".skills/maslow/SKILL.md missing expected content: %q", check)
 		}
 	}
 }
