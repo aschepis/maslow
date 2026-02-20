@@ -118,6 +118,7 @@ package maslow
 		url:     string
 		headers?: [string]: string
 		body?:   string
+		expect?: #Expectation
 	}
 
 	// CLI action fields.
@@ -158,6 +159,7 @@ package maslow
 	value?:    _
 	headers?: [string]: string
 	body_contains?: string
+	body_matches?:  string
 	exit_code?: int
 }
 

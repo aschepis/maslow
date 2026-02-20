@@ -1,0 +1,45 @@
+mas: "1.0"
+project:
+  name: http-contracts-test
+  description: Tests enhanced HTTP contract features
+
+contracts:
+  - name: api-contract
+    description: HTTP contract with all assertion types
+    scenarios:
+      - name: get-with-status
+        steps:
+          - action: http
+            method: GET
+            url: "http://localhost:8080/api/items"
+            expect:
+              status: 200
+              headers:
+                Content-Type: application/json
+              body_contains: "items"
+              body_matches: '"id":\s*\d+'
+              json_path: "$[0].id"
+              value: 1
+
+      - name: post-with-inline-expect
+        steps:
+          - action: http
+            method: POST
+            url: "http://localhost:8080/api/items"
+            headers:
+              Content-Type: application/json
+            body: '{"name": "test"}'
+            expect:
+              status: 201
+              json_path: "$.name"
+              value: "test"
+
+      - name: assert-after-http
+        steps:
+          - action: http
+            method: GET
+            url: "http://localhost:8080/api/items/1"
+          - action: assert
+            expect:
+              status: 200
+              body_matches: '"name":\s*"[^"]+"'

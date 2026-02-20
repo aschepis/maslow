@@ -114,6 +114,7 @@ type Expectation struct {
 	Value        any               `yaml:"value,omitempty"`
 	Headers      map[string]string `yaml:"headers,omitempty"`
 	BodyContains string            `yaml:"body_contains,omitempty"`
+	BodyMatches  string            `yaml:"body_matches,omitempty"`
 	ExitCode     *int              `yaml:"exit_code,omitempty"`
 }
 

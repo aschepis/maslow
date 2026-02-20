@@ -1,7 +1,7 @@
 ---
 id: 7
 title: improved actions/contracts/verifications in maslow
-status: in_progress
+status: done
 assigned_to: claude-opus
 assigned_at: "2026-02-19T00:00:00Z"
 created: 2026-02-19

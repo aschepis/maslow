@@ -94,32 +94,38 @@ contracts:
     scenarios:
       - name: create-todo
         steps:
-          - action: cli
-            command: curl
-            args:
-              - "-s"
-              - "-X"
-              - "POST"
-              - "-H"
-              - "Content-Type: application/json"
-              - "-d"
-              - '{"title":"Test TODO","completed":false}'
-              - "http://localhost:8080/api/todos"
-          - action: assert
+          - action: http
+            method: POST
+            url: "http://localhost:8080/api/todos"
+            headers:
+              Content-Type: application/json
+            body: '{"title":"Test TODO","completed":false}'
             expect:
-              exit_code: 0
+              status: 201
+              headers:
+                Content-Type: application/json
               body_contains: "Test TODO"
+              json_path: "$.title"
+              value: "Test TODO"
 
       - name: list-todos
         steps:
-          - action: cli
-            command: curl
-            args:
-              - "-s"
-              - "http://localhost:8080/api/todos"
-          - action: assert
+          - action: http
+            method: GET
+            url: "http://localhost:8080/api/todos"
             expect:
-              exit_code: 0
+              status: 200
+              headers:
+                Content-Type: application/json
+              body_matches: '"id":\s*\d+'
+
+      - name: delete-todo
+        steps:
+          - action: http
+            method: DELETE
+            url: "http://localhost:8080/api/todos/1"
+            expect:
+              status: 200
 
 budgets:
   - name: backend-binary-size

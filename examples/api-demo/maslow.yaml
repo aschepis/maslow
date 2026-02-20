@@ -1,0 +1,80 @@
+mas: "1.0"
+project:
+  name: api-demo
+  description: "Simple API server demonstrating Maslow HTTP contract verification"
+  version: "0.1.0"
+
+checks:
+  runner:
+    - name: build
+      kind: command
+      run: "go build -o bin/api-demo ."
+      timeout: 60s
+      tags: [build]
+    - name: test
+      kind: command
+      run: "go test ./..."
+      timeout: 60s
+      tags: [test]
+    - name: vet
+      kind: command
+      run: "go vet ./..."
+      timeout: 30s
+      tags: [lint]
+
+profiles:
+  quick:
+    description: Fast checks
+    checks: [build, vet]
+  full:
+    description: All checks
+    checks: [build, test, vet]
+
+contracts:
+  - name: items-api
+    description: Items API supports full CRUD operations
+    scenarios:
+      - name: list-items
+        steps:
+          - action: http
+            method: GET
+            url: "http://localhost:8080/api/items"
+            expect:
+              status: 200
+              headers:
+                Content-Type: application/json
+              json_path: "$[0].name"
+              value: "example"
+
+      - name: create-item
+        steps:
+          - action: http
+            method: POST
+            url: "http://localhost:8080/api/items"
+            headers:
+              Content-Type: application/json
+            body: '{"name":"new item","done":false}'
+            expect:
+              status: 201
+              body_contains: "new item"
+              json_path: "$.name"
+              value: "new item"
+
+      - name: get-item
+        steps:
+          - action: http
+            method: GET
+            url: "http://localhost:8080/api/items/1"
+            expect:
+              status: 200
+              body_matches: '"id":\s*1'
+              json_path: "$.id"
+              value: 1
+
+      - name: delete-item
+        steps:
+          - action: http
+            method: DELETE
+            url: "http://localhost:8080/api/items/1"
+            expect:
+              status: 200
