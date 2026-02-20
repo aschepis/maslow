@@ -28,6 +28,7 @@ func TestRun_BasicScaffold(t *testing.T) {
 		".gitignore",
 		filepath.Join("docs", "MAP.md"),
 		filepath.Join("docs", "PLAN.md"),
+		filepath.Join("docs", "tasks", "CONVENTION.md"),
 		filepath.Join("reports", ".gitkeep"),
 	}
 	for _, f := range expectedFiles {
@@ -41,6 +42,7 @@ func TestRun_BasicScaffold(t *testing.T) {
 		"docs",
 		filepath.Join("docs", "adr"),
 		filepath.Join("docs", "templates"),
+		filepath.Join("docs", "tasks"),
 		"reports",
 	}
 	for _, d := range expectedDirs {
@@ -183,11 +185,13 @@ func TestRun_CLAUDEMDContent(t *testing.T) {
 		"Agent Guide",
 		"Operating Principles",
 		"Non-Negotiable Behaviors",
+		"Task System",
 		"Process for New Work",
 		"Key Paths",
 		"Conventions",
 		"Verification",
 		"Adding a New Feature",
+		"Harness Propagation Rule",
 		"Repository knowledge is the system of record",
 		"Humans steer, agents execute",
 		"Agent legibility is the goal",
@@ -197,7 +201,12 @@ func TestRun_CLAUDEMDContent(t *testing.T) {
 		"maslow verify --profile quick",
 		"docs/adr/",
 		"docs/templates/",
+		"docs/tasks/",
+		"docs/tasks/CONVENTION.md",
 		"Architecture Decision Records",
+		"Scan frontmatter only",
+		"status: todo",
+		"assigned_to",
 	}
 	for _, section := range expectedSections {
 		if !strings.Contains(content, section) {
@@ -236,6 +245,8 @@ func TestRun_MapMDContent(t *testing.T) {
 		"Canonical File Locations",
 		"Multi-Agent Conventions",
 		"maslow verify",
+		"docs/tasks/",
+		"Task convention",
 	}
 	for _, check := range expectedContent {
 		if !strings.Contains(content, check) {
@@ -387,6 +398,49 @@ func TestRun_MaslowYAMLWithToolchainIsSchemaValid(t *testing.T) {
 			t.Errorf("schema validation error: %s", e.Message)
 		}
 		t.Fatal("generated maslow.yaml with toolchain is not valid against CUE schema")
+	}
+}
+
+func TestRun_TaskConventionContent(t *testing.T) {
+	dir := t.TempDir()
+	projectDir := filepath.Join(dir, "task-test")
+
+	err := Run(Options{
+		ProjectName: "task-test",
+		Dir:         projectDir,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(projectDir, "docs", "tasks", "CONVENTION.md"))
+	if err != nil {
+		t.Fatalf("failed to read docs/tasks/CONVENTION.md: %v", err)
+	}
+	content := string(data)
+
+	expectedContent := []string{
+		"Task Convention",
+		"Status Lifecycle",
+		"Agent Protocol",
+		"Discovering Tasks",
+		"Claiming a Task",
+		"File Format",
+		"Frontmatter Fields",
+		"Naming Convention",
+		"draft",
+		"todo",
+		"in_progress",
+		"done",
+		"blocked",
+		"assigned_to",
+		"depends_on",
+		"git pull",
+	}
+	for _, check := range expectedContent {
+		if !strings.Contains(content, check) {
+			t.Errorf("docs/tasks/CONVENTION.md missing expected content: %q", check)
+		}
 	}
 }
 

@@ -69,6 +69,8 @@ reports/verify.json         <- output evidence file; written by verify and audit
 | Documentation | `docs/` | MAP, PLAN, ADRs, templates, runbooks |
 | ADRs | `docs/adr/` | Architecture and agent decision records |
 | Templates | `docs/templates/` | Decision templates; unfilled design questions |
+| Tasks | `docs/tasks/` | Human-authored tasks with YAML frontmatter |
+| Task convention | `docs/tasks/CONVENTION.md` | Task format, lifecycle, and agent protocol |
 
 ---
 
@@ -106,12 +108,25 @@ The file is stable, deterministic, diffable, and machine-readable.
 
 ---
 
+## Task System
+
+Tasks in `docs/tasks/` are the mechanism for humans to inject work and for agents to discover it.
+See `docs/tasks/CONVENTION.md` for the full protocol.
+
+- Tasks use YAML frontmatter for status, priority, assignment, and dependencies
+- Agents scan frontmatter only (not full body) to find actionable work
+- Multi-agent claiming uses git commit-and-push as a distributed lock
+- Status lifecycle: `draft` → `todo` → `in_progress` → `done`
+
+---
+
 ## Multi-Agent Conventions
 
 - Each workstream owns a distinct directory scope; see `docs/PLAN.md` for assignments.
 - Policy enforcement in `maslow.yaml` governs which paths agents may modify.
 - Verification is the shared integration point; all agents must leave `maslow verify` green.
 - Every material decision is recorded as an ADR in `docs/adr/`.
+- Tasks are claimed via the protocol in `docs/tasks/CONVENTION.md` to prevent duplicate work.
 
 ---
 
@@ -121,3 +136,4 @@ The file is stable, deterministic, diffable, and machine-readable.
 - Execution plan and milestones: `docs/PLAN.md`
 - Requirements source of truth: `docs/REQUIREMENTS.md`
 - Decision templates (unfilled questions): `docs/templates/`
+- Task queue and convention: `docs/tasks/`

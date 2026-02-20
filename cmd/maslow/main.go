@@ -295,6 +295,7 @@ func cmdScaffold(args []string) int {
 	fmt.Println("  docs/PLAN.md   — execution plan")
 	fmt.Println("  docs/adr/      — architecture decision records")
 	fmt.Println("  docs/templates/— decision templates")
+	fmt.Println("  docs/tasks/    — task queue for agents")
 	fmt.Println("  .gitignore     — git ignore rules")
 	fmt.Println()
 	fmt.Println("Next steps:")
