@@ -58,6 +58,7 @@ Stack: Go CLI, CUE schema, YAML specs.
 | `internal/audit/` | Black-box audit against artifacts |
 | `internal/evidence/` | Report creation and JSON emission |
 | `internal/runner/` | Check, contract, and budget execution |
+| `internal/scaffold/` | Project scaffolding with agentic harness |
 | `testdata/valid/` | Fixtures that must pass validation |
 | `testdata/invalid/` | Fixtures that must fail validation |
 | `reports/` | Generated output (gitignored) |

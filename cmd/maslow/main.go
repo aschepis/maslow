@@ -4,9 +4,11 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/aschepis/maslow-agentic/internal/audit"
 	"github.com/aschepis/maslow-agentic/internal/evidence"
+	"github.com/aschepis/maslow-agentic/internal/scaffold"
 	"github.com/aschepis/maslow-agentic/internal/schema"
 	"github.com/aschepis/maslow-agentic/internal/spec"
 	"github.com/aschepis/maslow-agentic/internal/verify"
@@ -31,6 +33,8 @@ func main() {
 		os.Exit(cmdVerify(os.Args[2:]))
 	case "audit":
 		os.Exit(cmdAudit(os.Args[2:]))
+	case "scaffold":
+		os.Exit(cmdScaffold(os.Args[2:]))
 	case "init":
 		os.Exit(cmdInit(os.Args[2:]))
 	case "version":
@@ -52,7 +56,8 @@ Commands:
   validate <file>              Validate a maslow.yaml against the CUE schema
   verify   --profile <name>    Run verification checks
   audit    --profile <name>    Run black-box audit
-  init     [--apply]           Initialize or scaffold maslow.yaml
+  scaffold <name> [options]    Scaffold a new Maslow-managed project with agentic harness
+  init     [--apply]           Initialize or scaffold maslow.yaml in current directory
   version                      Print version information`)
 }
 
@@ -219,6 +224,106 @@ func cmdAudit(args []string) int {
 		return 1
 	}
 	return 0
+}
+
+func cmdScaffold(args []string) int {
+	var name, dir, description string
+
+	i := 0
+	for i < len(args) {
+		switch args[i] {
+		case "--dir":
+			if i+1 >= len(args) {
+				fmt.Fprintln(os.Stderr, "maslow scaffold: --dir requires a value")
+				return 2
+			}
+			i++
+			dir = args[i]
+		case "--description":
+			if i+1 >= len(args) {
+				fmt.Fprintln(os.Stderr, "maslow scaffold: --description requires a value")
+				return 2
+			}
+			i++
+			description = args[i]
+		default:
+			if name == "" && !isFlag(args[i]) {
+				name = args[i]
+			} else {
+				fmt.Fprintf(os.Stderr, "maslow scaffold: unknown option %q\n", args[i])
+				fmt.Fprintln(os.Stderr, "Usage: maslow scaffold <name> [--dir <path>] [--description <text>]")
+				return 2
+			}
+		}
+		i++
+	}
+
+	if name == "" {
+		fmt.Fprintln(os.Stderr, "maslow scaffold: missing project name")
+		fmt.Fprintln(os.Stderr, "Usage: maslow scaffold <name> [--dir <path>] [--description <text>]")
+		return 2
+	}
+
+	opts := scaffold.Options{
+		ProjectName: name,
+		Dir:         dir,
+		Description: description,
+	}
+
+	// Detect toolchain in the target directory if it already exists.
+	targetDir := dir
+	if targetDir == "" {
+		targetDir = name
+	}
+	if info, err := os.Stat(targetDir); err == nil && info.IsDir() {
+		opts.Toolchain = detectToolchainManagerIn(targetDir)
+		if opts.Toolchain != "" {
+			fmt.Printf("maslow scaffold: detected toolchain manager: %s\n", opts.Toolchain)
+		}
+	}
+
+	if err := scaffold.Run(opts); err != nil {
+		fmt.Fprintf(os.Stderr, "maslow scaffold: %v\n", err)
+		return 1
+	}
+
+	fmt.Printf("maslow scaffold: created project %q in %s/\n", name, targetDir)
+	fmt.Println("maslow scaffold: files created:")
+	fmt.Println("  maslow.yaml    — project spec")
+	fmt.Println("  CLAUDE.md      — agentic harness guide")
+	fmt.Println("  docs/MAP.md    — architecture map")
+	fmt.Println("  docs/PLAN.md   — execution plan")
+	fmt.Println("  docs/adr/      — architecture decision records")
+	fmt.Println("  docs/templates/— decision templates")
+	fmt.Println("  .gitignore     — git ignore rules")
+	fmt.Println()
+	fmt.Println("Next steps:")
+	fmt.Printf("  cd %s\n", targetDir)
+	fmt.Println("  # Edit maslow.yaml to configure your checks")
+	fmt.Println("  # Edit CLAUDE.md to describe your project")
+	fmt.Println("  maslow validate maslow.yaml")
+	return 0
+}
+
+func isFlag(s string) bool {
+	return len(s) > 0 && s[0] == '-'
+}
+
+func detectToolchainManagerIn(dir string) string {
+	check := func(name string) bool {
+		_, err := os.Stat(filepath.Join(dir, name))
+		return err == nil
+	}
+	if check(".mise.toml") || check(".mise") {
+		return "mise"
+	}
+	if check(".tool-versions") {
+		return "asdf"
+	}
+	if check("flake.nix") || check("shell.nix") {
+		return "nix"
+	}
+	return ""
 }
 
 func cmdInit(args []string) int {
