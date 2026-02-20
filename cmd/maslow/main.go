@@ -8,6 +8,7 @@ import (
 
 	"github.com/aschepis/maslow-agentic/internal/audit"
 	"github.com/aschepis/maslow-agentic/internal/evidence"
+	"github.com/aschepis/maslow-agentic/internal/harness"
 	"github.com/aschepis/maslow-agentic/internal/scaffold"
 	"github.com/aschepis/maslow-agentic/internal/schema"
 	"github.com/aschepis/maslow-agentic/internal/spec"
@@ -35,6 +36,8 @@ func main() {
 		os.Exit(cmdAudit(os.Args[2:]))
 	case "scaffold":
 		os.Exit(cmdScaffold(os.Args[2:]))
+	case "harness":
+		os.Exit(cmdHarness(os.Args[2:]))
 	case "init":
 		os.Exit(cmdInit(os.Args[2:]))
 	case "version":
@@ -57,6 +60,7 @@ Commands:
   verify   --profile <name>    Run verification checks
   audit    --profile <name>    Run black-box audit
   scaffold <name> [options]    Scaffold a new Maslow-managed project with agentic harness
+  harness  <subcommand>        Manage the agentic harness (install, update, detach)
   init     [--apply]           Initialize or scaffold maslow.yaml in current directory
   version                      Print version information`)
 }
@@ -303,6 +307,90 @@ func cmdScaffold(args []string) int {
 	fmt.Println("  # Edit maslow.yaml to configure your checks")
 	fmt.Println("  # Edit CLAUDE.md to describe your project")
 	fmt.Println("  maslow validate maslow.yaml")
+	return 0
+}
+
+func cmdHarness(args []string) int {
+	if len(args) == 0 {
+		printHarnessUsage()
+		return 2
+	}
+
+	switch args[0] {
+	case "install":
+		return cmdHarnessInstall(args[1:])
+	case "update":
+		return cmdHarnessUpdate(args[1:])
+	case "detach":
+		return cmdHarnessDetach(args[1:])
+	case "help", "--help", "-h":
+		printHarnessUsage()
+		return 0
+	default:
+		fmt.Fprintf(os.Stderr, "maslow harness: unknown subcommand %q\n", args[0])
+		printHarnessUsage()
+		return 2
+	}
+}
+
+func printHarnessUsage() {
+	fmt.Fprintln(os.Stderr, `Usage: maslow harness <subcommand> [options]
+
+Subcommands:
+  install    Install the agentic harness into a project
+  update     Update harness files to the latest version
+  detach     Detach the harness to prevent future updates
+
+Options:
+  --dir <path>    Target directory (default: current directory)
+  --force         Overwrite existing files without prompting
+  --dry-run       Show what would happen without writing anything`)
+}
+
+func parseHarnessFlags(args []string) harness.Options {
+	var opts harness.Options
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--dir":
+			if i+1 < len(args) {
+				i++
+				opts.Dir = args[i]
+			}
+		case "--force":
+			opts.Force = true
+		case "--dry-run":
+			opts.DryRun = true
+		}
+	}
+	opts.Stdin = os.Stdin
+	opts.Stdout = os.Stdout
+	return opts
+}
+
+func cmdHarnessInstall(args []string) int {
+	opts := parseHarnessFlags(args)
+	if err := harness.Install(opts); err != nil {
+		fmt.Fprintf(os.Stderr, "maslow: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+func cmdHarnessUpdate(args []string) int {
+	opts := parseHarnessFlags(args)
+	if err := harness.Update(opts); err != nil {
+		fmt.Fprintf(os.Stderr, "maslow: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+func cmdHarnessDetach(args []string) int {
+	opts := parseHarnessFlags(args)
+	if err := harness.Detach(opts); err != nil {
+		fmt.Fprintf(os.Stderr, "maslow: %v\n", err)
+		return 1
+	}
 	return 0
 }
 

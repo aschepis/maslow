@@ -1,8 +1,11 @@
 ---
 id: 8
 title: Add a maslow harness command
-status: todo
+status: done
 created: 2026-02-19
+updated: 2026-02-19
+assigned_to: claude
+assigned_at: 2026-02-19T00:00:00Z
 tags: [maslow, harness]
 ---
 

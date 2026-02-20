@@ -20,6 +20,7 @@ cmd/maslow/main.go          <- CLI entrypoint; parses subcommands and flags
      +-- verify             <- runs check harness, emits reports/verify.json
      +-- audit              <- black-box mode; runs against artifact/endpoint targets
      +-- scaffold           <- scaffolds a new project with agentic harness
+     +-- harness            <- manages harness lifecycle (install, update, detach)
      +-- init               <- scaffolds maslow.yaml; detects toolchain
      +-- version            <- prints build metadata
      |
@@ -33,6 +34,7 @@ internal/
      +-- audit/             <- black-box audit execution; target abstraction layer
      +-- evidence/          <- emits reports/verify.json; deterministic serialization
      +-- scaffold/          <- project scaffolding with agentic harness generation
+     +-- harness/           <- harness lifecycle management (install, update, detach)
      |
      v
 schema/maslow.cue           <- CUE schema; single source of truth for MAS structure
@@ -53,6 +55,7 @@ reports/verify.json         <- output evidence file; written by verify and audit
 | `internal/audit/` | Black-box audit mode; supports binary, container, and HTTP endpoint targets |
 | `internal/evidence/` | Serializes and writes `reports/verify.json`; ensures determinism |
 | `internal/scaffold/` | Generates new project structure with agentic harness (CLAUDE.md, docs/, maslow.yaml) |
+| `internal/harness/` | Manages harness lifecycle: install into existing projects, update to latest, detach |
 | `schema/maslow.cue` | CUE schema defining the MAS format |
 
 ---

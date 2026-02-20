@@ -107,6 +107,7 @@ contracts:
           - action: assert
             expect:
               exit_code: 0
+              body_contains: "is valid"
       - name: invalid-file-fails
         steps:
           - action: cli
@@ -117,6 +118,16 @@ contracts:
           - action: assert
             expect:
               exit_code: 1
+      - name: missing-argument
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - validate
+          - action: assert
+            expect:
+              exit_code: 2
+
   - name: version-command
     description: The version command outputs version info
     scenarios:
@@ -129,6 +140,169 @@ contracts:
           - action: assert
             expect:
               exit_code: 0
+              body_contains: "maslow"
+
+  - name: help-command
+    description: The help command displays usage information
+    scenarios:
+      - name: help-subcommand
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - help
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "Usage:"
+      - name: help-flag
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - --help
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "Usage:"
+
+  - name: usage-errors
+    description: Invalid usage produces exit code 2
+    scenarios:
+      - name: unknown-command
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - nonexistent
+          - action: assert
+            expect:
+              exit_code: 2
+      - name: no-arguments
+        steps:
+          - action: cli
+            command: bin/maslow
+          - action: assert
+            expect:
+              exit_code: 2
+
+  - name: scaffold-command
+    description: The scaffold command creates a new project structure
+    scenarios:
+      - name: creates-project
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - scaffold
+              - contract-test-proj
+              - --dir
+              - /tmp/maslow-contract-scaffold
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "created project"
+      - name: missing-name
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - scaffold
+          - action: assert
+            expect:
+              exit_code: 2
+
+  - name: init-command
+    description: The init command manages maslow.yaml in the current directory
+    scenarios:
+      - name: existing-spec-detected
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - init
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "already exists"
+
+  - name: harness-command
+    description: The harness command manages the agentic harness lifecycle
+    scenarios:
+      - name: install-force
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - harness
+              - install
+              - --force
+              - --dir
+              - /tmp/maslow-contract-harness-install
+          - action: assert
+            expect:
+              exit_code: 0
+      - name: update-after-install
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - harness
+              - install
+              - --force
+              - --dir
+              - /tmp/maslow-contract-harness-update
+          - action: cli
+            command: bin/maslow
+            args:
+              - harness
+              - update
+              - --dry-run
+              - --dir
+              - /tmp/maslow-contract-harness-update
+          - action: assert
+            expect:
+              exit_code: 0
+      - name: detach-creates-sentinel
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - harness
+              - install
+              - --force
+              - --dir
+              - /tmp/maslow-contract-harness-detach
+          - action: cli
+            command: bin/maslow
+            args:
+              - harness
+              - detach
+              - --dir
+              - /tmp/maslow-contract-harness-detach
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "harness updates are now blocked"
+      - name: missing-subcommand
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - harness
+          - action: assert
+            expect:
+              exit_code: 2
+      - name: unknown-subcommand
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - harness
+              - bogus
+          - action: assert
+            expect:
+              exit_code: 2
 
 budgets:
   - name: binary-size

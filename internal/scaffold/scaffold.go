@@ -57,13 +57,13 @@ func Run(opts Options) error {
 	// Generate all files.
 	files := map[string]string{
 		filepath.Join(dir, "maslow.yaml"):                       generateMaslowYAML(opts.ProjectName, description, opts.Toolchain),
-		filepath.Join(dir, "CLAUDE.md"):                         generateClaudeMD(opts.ProjectName),
-		filepath.Join(dir, "docs", "MAP.md"):                    generateMapMD(opts.ProjectName),
-		filepath.Join(dir, "docs", "PLAN.md"):                   generatePlanMD(opts.ProjectName),
-		filepath.Join(dir, "docs", "tasks", "CONVENTION.md"):    generateTaskConvention(),
-		filepath.Join(dir, ".gitignore"):                        generateGitignore(),
+		filepath.Join(dir, "CLAUDE.md"):                         GenerateClaudeMD(opts.ProjectName),
+		filepath.Join(dir, "docs", "MAP.md"):                    GenerateMapMD(opts.ProjectName),
+		filepath.Join(dir, "docs", "PLAN.md"):                   GeneratePlanMD(opts.ProjectName),
+		filepath.Join(dir, "docs", "tasks", "CONVENTION.md"):    GenerateTaskConvention(),
+		filepath.Join(dir, ".gitignore"):                        GenerateGitignore(),
 		filepath.Join(dir, "reports", ".gitkeep"):               "",
-		filepath.Join(dir, ".skills", "maslow", "SKILL.md"):    generateSkillMD(),
+		filepath.Join(dir, ".skills", "maslow", "SKILL.md"):    GenerateSkillMD(),
 	}
 
 	for path, content := range files {
@@ -144,7 +144,8 @@ policy:
 	return b.String()
 }
 
-func generateClaudeMD(name string) string {
+// GenerateClaudeMD generates the CLAUDE.md agent guide content for a project.
+func GenerateClaudeMD(name string) string {
 	return fmt.Sprintf(`# %s — Agent Guide
 
 ## Project Overview
@@ -277,7 +278,8 @@ so that maslow scaffold generates the improved version.
 `, name, name)
 }
 
-func generateMapMD(name string) string {
+// GenerateMapMD generates the docs/MAP.md repository map content.
+func GenerateMapMD(name string) string {
 	return fmt.Sprintf(`# %s — Repository Map
 
 ## What This Project Is
@@ -337,7 +339,8 @@ TODO: Add key components and their relationships
 `, name)
 }
 
-func generatePlanMD(name string) string {
+// GeneratePlanMD generates the docs/PLAN.md execution plan content.
+func GeneratePlanMD(name string) string {
 	return fmt.Sprintf(`# %s — Execution Plan
 
 ## Guiding Principle
@@ -405,7 +408,8 @@ Mitigation:
 `, name)
 }
 
-func generateSkillMD() string {
+// GenerateSkillMD generates the .skills/maslow/SKILL.md agent skill content.
+func GenerateSkillMD() string {
 	return `---
 name: maslow
 description: >-
@@ -439,6 +443,15 @@ maslow scaffold --name my-project
 
 # Initialize maslow.yaml in an existing project
 maslow init
+
+# Install the agentic harness into an existing project
+maslow harness install
+
+# Update harness files to the latest version
+maslow harness update
+
+# Detach the harness to prevent future updates
+maslow harness detach
 
 # Print version info
 maslow version
@@ -556,7 +569,8 @@ The file is deterministic and machine-readable.
 `
 }
 
-func generateGitignore() string {
+// GenerateGitignore generates the .gitignore content.
+func GenerateGitignore() string {
 	return `# Maslow reports
 reports/verify.json
 
@@ -579,7 +593,8 @@ Thumbs.db
 `
 }
 
-func generateTaskConvention() string {
+// GenerateTaskConvention generates the docs/tasks/CONVENTION.md content.
+func GenerateTaskConvention() string {
 	return `# Task Convention
 
 This document defines the format, lifecycle, and multi-agent protocol for tasks stored in ` + "`docs/tasks/`" + `.
