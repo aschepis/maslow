@@ -67,7 +67,7 @@ Any additional context, links, or design considerations.
 Files are named `<id>_<SLUG>.md` where:
 - `<id>` is a sequential integer (zero-padded not required but allowed)
 - `<SLUG>` is an uppercase snake_case summary
-- Example: `3_ADD_CACHING_LAYER.md`
+- Example: `00003_ADD_CACHING_LAYER.md`
 
 The special file `CONVENTION.md` (this file) is not a task.
 
