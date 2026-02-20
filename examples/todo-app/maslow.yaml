@@ -1,0 +1,128 @@
+mas: "1.0"
+project:
+  name: todo-app
+  description: "A simple web-based TODO application with Go backend, React frontend, and SQLite persistence"
+  version: "0.1.0"
+
+toolchain:
+  manager: mise
+  tools:
+    - name: go
+      version: "1.25"
+      required: true
+    - name: node
+      version: "22"
+      required: true
+
+refs:
+  - kind: file
+    path: go.mod
+    description: Go module definition
+  - kind: file
+    path: package.json
+    description: Node.js package definition for frontend
+  - kind: binary
+    path: bin/todo-server
+    description: Built backend binary
+    required: false
+
+policy:
+  deny:
+    - "**/.env"
+    - "**/credentials*"
+    - "vendor/**"
+    - "node_modules/**"
+  protected:
+    - maslow.yaml
+
+checks:
+  runner:
+    - name: backend-build
+      kind: command
+      run: "go build -o bin/todo-server ./cmd/server/"
+      timeout: 120s
+      tags:
+        - build
+        - backend
+    - name: frontend-build
+      kind: command
+      run: "cd frontend && npm install && npm run build"
+      timeout: 120s
+      tags:
+        - build
+        - frontend
+    - name: backend-test
+      kind: command
+      run: "go test ./..."
+      timeout: 300s
+      tags:
+        - test
+        - backend
+    - name: backend-vet
+      kind: command
+      run: "go vet ./..."
+      timeout: 60s
+      tags:
+        - lint
+        - backend
+    - name: self-validate
+      kind: command
+      run: "maslow validate maslow.yaml"
+      timeout: 30s
+      tags:
+        - self-host
+
+profiles:
+  quick:
+    description: Fast checks for development
+    checks:
+      - backend-build
+      - backend-vet
+      - self-validate
+  full:
+    description: All checks including tests and frontend build
+    checks:
+      - backend-build
+      - frontend-build
+      - backend-test
+      - backend-vet
+      - self-validate
+
+contracts:
+  - name: todo-crud-api
+    description: The TODO API supports full CRUD operations
+    scenarios:
+      - name: create-todo
+        steps:
+          - action: cli
+            command: curl
+            args:
+              - "-s"
+              - "-X"
+              - "POST"
+              - "-H"
+              - "Content-Type: application/json"
+              - "-d"
+              - '{"title":"Test TODO","completed":false}'
+              - "http://localhost:8080/api/todos"
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "Test TODO"
+
+      - name: list-todos
+        steps:
+          - action: cli
+            command: curl
+            args:
+              - "-s"
+              - "http://localhost:8080/api/todos"
+          - action: assert
+            expect:
+              exit_code: 0
+
+budgets:
+  - name: backend-binary-size
+    kind: artifact_size
+    target: bin/todo-server
+    max: 30MB

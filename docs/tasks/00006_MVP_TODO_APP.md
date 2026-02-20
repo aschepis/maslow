@@ -1,7 +1,9 @@
 ---
 id: 6
 title: Prove Maslow Works: Build MVP TODO app
-status: draft
+status: done
+assigned_to: claude
+assigned_at: 2026-02-19
 created: 2026-02-19
 tags: [maslow, apps]
 ---
@@ -22,9 +24,9 @@ web-based TODO app. This will be a simple app in its own repo, described by a ma
 
 ## Acceptance Criteria
 
-- [ ] All gaps in the maslow spec and harness that would a web app from being defined and built are identified and addressed.
-- [ ] An examples area in the repo exists with maslow yaml files for a TODO web app.
-- [ ] An agent has used maslow to create a new project (outside of the repo), copied the contents of the example into the new project, and launched a subagent with its own context to build the app using the harness and maslow agent skill (see `00003_AGENT_SKILL.md`)
-- [ ] maslow is used to verify the app by building it, running checks, verifying, and auditing.
+- [x] All gaps in the maslow spec and harness that would a web app from being defined and built are identified and addressed.
+- [x] An examples area in the repo exists with maslow yaml files for a TODO web app.
+- [x] An agent has used maslow to create a new project (outside of the repo), copied the contents of the example into the new project, and launched a subagent with its own context to build the app using the harness and maslow agent skill (see `00003_AGENT_SKILL.md`)
+- [x] maslow is used to verify the app by building it, running checks, verifying, and auditing.
 
 ## Notes

@@ -1,6 +1,8 @@
 package runner
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/aschepis/maslow-agentic/internal/spec"
@@ -84,15 +86,27 @@ func TestRunContracts_BodyContains(t *testing.T) {
 	}
 }
 
-func TestRunContracts_HTTPSkipped(t *testing.T) {
+func TestRunContracts_HTTPPass(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		w.Write([]byte(`{"status":"ok"}`))
+	}))
+	defer srv.Close()
+
+	status200 := 200
 	contracts := []spec.Contract{
 		{
 			Name: "http-contract",
 			Scenarios: []spec.Scenario{
 				{
-					Name: "http-step",
+					Name: "http-get",
 					Steps: []spec.Step{
-						{Action: "http", Method: "GET", URL: "http://localhost:8080"},
+						{Action: "http", Method: "GET", URL: srv.URL},
+						{Action: "assert", Expect: &spec.Expectation{
+							Status:       &status200,
+							BodyContains: "ok",
+						}},
 					},
 				},
 			},
@@ -100,7 +114,74 @@ func TestRunContracts_HTTPSkipped(t *testing.T) {
 	}
 
 	results := RunContracts(contracts)
-	if results[0].Status != "skip" {
-		t.Errorf("expected skip for http, got %s", results[0].Status)
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if results[0].Status != "pass" {
+		t.Errorf("expected pass, got %s: %s", results[0].Status, results[0].Error)
+	}
+}
+
+func TestRunContracts_HTTPFail(t *testing.T) {
+	// Connect to a port that's not listening.
+	contracts := []spec.Contract{
+		{
+			Name: "http-contract",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "http-fail",
+					Steps: []spec.Step{
+						{Action: "http", Method: "GET", URL: "http://127.0.0.1:1"},
+					},
+				},
+			},
+		},
+	}
+
+	results := RunContracts(contracts)
+	if results[0].Status != "fail" {
+		t.Errorf("expected fail for unreachable http, got %s", results[0].Status)
+	}
+}
+
+func TestRunContracts_HTTPPost(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			w.WriteHeader(405)
+			return
+		}
+		w.WriteHeader(201)
+		w.Write([]byte(`{"id":1,"title":"test"}`))
+	}))
+	defer srv.Close()
+
+	status201 := 201
+	contracts := []spec.Contract{
+		{
+			Name: "post-contract",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "post-create",
+					Steps: []spec.Step{
+						{
+							Action:  "http",
+							Method:  "POST",
+							URL:     srv.URL,
+							Headers: map[string]string{"Content-Type": "application/json"},
+							Body:    `{"title":"test"}`,
+						},
+						{Action: "assert", Expect: &spec.Expectation{
+							Status:       &status201,
+							BodyContains: "test",
+						}},
+					},
+				},
+			},
+		},
+	}
+
+	results := RunContracts(contracts)
+	if results[0].Status != "pass" {
+		t.Errorf("expected pass, got %s: %s", results[0].Status, results[0].Error)
 	}
 }
