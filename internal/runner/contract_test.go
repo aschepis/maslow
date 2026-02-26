@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/aschepis/maslow-agentic/internal/spec"
@@ -533,6 +534,217 @@ func TestRunContracts_MixedEnvAndCapturedVars(t *testing.T) {
 								Status:   &status200,
 								JSONPath: "$.result",
 								Value:    "success",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	results := RunContracts(contracts)
+	if results[0].Status != "pass" {
+		t.Errorf("expected pass, got %s: %s", results[0].Status, results[0].Error)
+	}
+}
+
+// --- Multiple Assertions Tests ---
+
+func TestRunContracts_MultipleAssertionsPass(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		w.Write([]byte(`{"access_token":"tok_123","token_type":"bearer","expires_in":3600}`))
+	}))
+	defer srv.Close()
+
+	status200 := 200
+	contracts := []spec.Contract{
+		{
+			Name: "multi-assert",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "login-response",
+					Steps: []spec.Step{
+						{
+							Action: "http",
+							Method: "POST",
+							URL:    srv.URL,
+							Expect: &spec.Expectation{
+								Status: &status200,
+								Assertions: []spec.Assertion{
+									{JSONPath: "$.access_token", Value: "tok_123"},
+									{JSONPath: "$.token_type", Value: "bearer"},
+									{JSONPath: "$.expires_in", Value: 3600},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	results := RunContracts(contracts)
+	if results[0].Status != "pass" {
+		t.Errorf("expected pass, got %s: %s", results[0].Status, results[0].Error)
+	}
+}
+
+func TestRunContracts_MultipleAssertionsOneFails(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"name":"Alice","role":"user"}`))
+	}))
+	defer srv.Close()
+
+	status200 := 200
+	contracts := []spec.Contract{
+		{
+			Name: "multi-assert-fail",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "wrong-role",
+					Steps: []spec.Step{
+						{
+							Action: "http",
+							Method: "GET",
+							URL:    srv.URL,
+							Expect: &spec.Expectation{
+								Status: &status200,
+								Assertions: []spec.Assertion{
+									{JSONPath: "$.name", Value: "Alice"},
+									{JSONPath: "$.role", Value: "admin"}, // wrong
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	results := RunContracts(contracts)
+	if results[0].Status != "fail" {
+		t.Errorf("expected fail, got %s", results[0].Status)
+	}
+	if results[0].Error == "" {
+		t.Error("expected error message")
+	}
+	// Error should reference the assertion index and path.
+	if !strings.Contains(results[0].Error, "assertions[1]") {
+		t.Errorf("error should reference assertions[1], got: %s", results[0].Error)
+	}
+	if !strings.Contains(results[0].Error, "$.role") {
+		t.Errorf("error should reference $.role, got: %s", results[0].Error)
+	}
+}
+
+func TestRunContracts_AssertionsExistenceOnly(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"id":1,"name":"Test","created_at":"2026-01-01"}`))
+	}))
+	defer srv.Close()
+
+	status200 := 200
+	contracts := []spec.Contract{
+		{
+			Name: "existence-check",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "fields-exist",
+					Steps: []spec.Step{
+						{
+							Action: "http",
+							Method: "GET",
+							URL:    srv.URL,
+							Expect: &spec.Expectation{
+								Status: &status200,
+								Assertions: []spec.Assertion{
+									{JSONPath: "$.id"},
+									{JSONPath: "$.name"},
+									{JSONPath: "$.created_at"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	results := RunContracts(contracts)
+	if results[0].Status != "pass" {
+		t.Errorf("expected pass, got %s: %s", results[0].Status, results[0].Error)
+	}
+}
+
+func TestRunContracts_AssertionsMixedWithOtherExpect(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		w.Write([]byte(`{"status":"ok","count":5}`))
+	}))
+	defer srv.Close()
+
+	status200 := 200
+	contracts := []spec.Contract{
+		{
+			Name: "mixed",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "all-checks",
+					Steps: []spec.Step{
+						{
+							Action: "http",
+							Method: "GET",
+							URL:    srv.URL,
+							Expect: &spec.Expectation{
+								Status:       &status200,
+								BodyContains: "ok",
+								Headers:      map[string]string{"Content-Type": "application/json"},
+								Assertions: []spec.Assertion{
+									{JSONPath: "$.status", Value: "ok"},
+									{JSONPath: "$.count", Value: 5},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	results := RunContracts(contracts)
+	if results[0].Status != "pass" {
+		t.Errorf("expected pass, got %s: %s", results[0].Status, results[0].Error)
+	}
+}
+
+func TestRunContracts_BackwardCompatSingleJSONPath(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"name":"Alice"}`))
+	}))
+	defer srv.Close()
+
+	status200 := 200
+	contracts := []spec.Contract{
+		{
+			Name: "compat",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "single-json-path",
+					Steps: []spec.Step{
+						{
+							Action: "http",
+							Method: "GET",
+							URL:    srv.URL,
+							Expect: &spec.Expectation{
+								Status:   &status200,
+								JSONPath: "$.name",
+								Value:    "Alice",
 							},
 						},
 					},

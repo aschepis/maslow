@@ -116,6 +116,12 @@ type Expectation struct {
 	BodyContains string            `yaml:"body_contains,omitempty"`
 	BodyMatches  string            `yaml:"body_matches,omitempty"`
 	ExitCode     *int              `yaml:"exit_code,omitempty"`
+	Assertions   []Assertion       `yaml:"assertions,omitempty"`
+}
+
+type Assertion struct {
+	JSONPath string `yaml:"json_path"`
+	Value    any    `yaml:"value,omitempty"`
 }
 
 type Budget struct {

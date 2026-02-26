@@ -159,8 +159,11 @@ contracts:
             body: '{"email":"alice@example.com","password":"Passw0rd!"}'
             expect:
               status: 200
-              json_path: "$.access_token"
-              body_contains: "bearer"
+              assertions:
+                - json_path: "$.access_token"
+                - json_path: "$.token_type"
+                  value: "bearer"
+                - json_path: "$.expires_in"
 
 # GAP: Original contract used fixtures, given/when/then, capture vars, poll until ready,
 # idempotency tests, rate-limit tests, abuse filter, auth tests, ETag tests.

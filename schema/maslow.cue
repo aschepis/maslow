@@ -161,6 +161,13 @@ package maslow
 	body_contains?: string
 	body_matches?:  string
 	exit_code?: int
+	// Multiple JSON path assertions (all must pass).
+	assertions?: [...#Assertion]
+}
+
+#Assertion: {
+	json_path: string
+	value?:    _
 }
 
 #Budget: {

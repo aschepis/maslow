@@ -458,6 +458,18 @@ func checkExpectation(expect *spec.Expectation, state *stepState) error {
 		}
 	}
 
+	for i, assertion := range expect.Assertions {
+		result, err := evaluateJSONPath(state.output, assertion.JSONPath)
+		if err != nil {
+			return fmt.Errorf("assertions[%d] json_path %q: %w", i, assertion.JSONPath, err)
+		}
+		if assertion.Value != nil {
+			if !jsonValuesEqual(result, assertion.Value) {
+				return fmt.Errorf("assertions[%d] json_path %q: expected %v, got %v", i, assertion.JSONPath, assertion.Value, result)
+			}
+		}
+	}
+
 	return nil
 }
 
