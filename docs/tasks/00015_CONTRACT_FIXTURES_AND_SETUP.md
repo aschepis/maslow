@@ -1,7 +1,7 @@
 ---
 id: 15
 title: Add fixture setup and teardown for contract scenarios
-status: draft
+status: todo
 priority: high
 created: 2026-02-20
 updated: 2026-02-20
