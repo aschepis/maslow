@@ -1,12 +1,12 @@
 ---
 id: 13
 title: Implement capture action and variable substitution in contract runner
-status: todo
+status: done
 priority: critical
 created: 2026-02-20
-updated: 2026-02-20
-assigned_to: ""
-assigned_at: ""
+updated: 2026-02-26
+assigned_to: claude-opus
+assigned_at: "2026-02-26T00:00:00Z"
 depends_on: []
 tags: [maslow, verification, contract, runner]
 ---

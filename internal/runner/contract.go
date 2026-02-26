@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -39,8 +40,12 @@ func RunContracts(contracts []spec.Contract) []evidence.ContractResult {
 func runScenario(contractName string, scenario spec.Scenario) evidence.ContractResult {
 	name := fmt.Sprintf("%s/%s", contractName, scenario.Name)
 	state := &stepState{}
+	vars := make(map[string]string)
 
 	for _, step := range scenario.Steps {
+		// Apply variable substitution to all step fields before execution.
+		step = substituteStep(step, vars)
+
 		switch step.Action {
 		case "cli":
 			exitCode, output, err := runCLIStep(step)
@@ -103,8 +108,22 @@ func runScenario(contractName string, scenario spec.Scenario) evidence.ContractR
 			}
 
 		case "capture":
-			// Capture is a no-op in the basic implementation.
-			// Future: store lastOutput[step.From] as variable step.As.
+			val, err := captureValue(step, state)
+			if err != nil {
+				return evidence.ContractResult{
+					Name:   name,
+					Status: "fail",
+					Error:  fmt.Sprintf("capture %q as %q: %v", step.From, step.As, err),
+				}
+			}
+			if step.As == "" {
+				return evidence.ContractResult{
+					Name:   name,
+					Status: "fail",
+					Error:  "capture step missing 'as' field",
+				}
+			}
+			vars[step.As] = val
 
 		case "poll":
 			statusCode, headers, body, err := runPollStep(step)
@@ -133,6 +152,138 @@ func runScenario(contractName string, scenario spec.Scenario) evidence.ContractR
 		Name:   name,
 		Status: "pass",
 	}
+}
+
+// captureValue extracts a value from the current step state based on the capture's "from" field.
+// Supported from values:
+//   - A JSON path (e.g., "$.access_token") — extracts from the response/output body
+//   - "output" — the raw output string
+//   - "status" — the HTTP status code as a string
+//   - "header:<name>" — a specific HTTP response header value
+func captureValue(step spec.Step, state *stepState) (string, error) {
+	from := step.From
+	if from == "" {
+		return "", fmt.Errorf("capture step missing 'from' field")
+	}
+
+	switch {
+	case from == "output":
+		return state.output, nil
+
+	case from == "status":
+		return strconv.Itoa(state.httpStatus), nil
+
+	case strings.HasPrefix(from, "header:"):
+		headerName := strings.TrimPrefix(from, "header:")
+		if state.httpHeaders == nil {
+			return "", fmt.Errorf("no HTTP headers available to capture header %q", headerName)
+		}
+		val := state.httpHeaders.Get(headerName)
+		if val == "" {
+			return "", fmt.Errorf("header %q not found in response", headerName)
+		}
+		return val, nil
+
+	case strings.HasPrefix(from, "$"):
+		// JSON path extraction from output body.
+		result, err := evaluateJSONPath(state.output, from)
+		if err != nil {
+			return "", fmt.Errorf("json path %q: %w", from, err)
+		}
+		// Convert to string for variable storage.
+		switch v := result.(type) {
+		case string:
+			return v, nil
+		case float64:
+			if v == float64(int(v)) {
+				return strconv.Itoa(int(v)), nil
+			}
+			return strconv.FormatFloat(v, 'f', -1, 64), nil
+		case bool:
+			return strconv.FormatBool(v), nil
+		case nil:
+			return "", fmt.Errorf("json path %q resolved to null", from)
+		default:
+			// For objects/arrays, marshal back to JSON.
+			b, err := json.Marshal(v)
+			if err != nil {
+				return "", fmt.Errorf("json path %q: failed to serialize result: %w", from, err)
+			}
+			return string(b), nil
+		}
+
+	default:
+		return "", fmt.Errorf("unknown capture source %q (expected JSON path like $.field, \"output\", \"status\", or \"header:<name>\")", from)
+	}
+}
+
+// substituteStep applies variable substitution to all string fields in a step.
+// Environment variables use ${VAR} syntax, captured variables use ${{var}} syntax.
+func substituteStep(step spec.Step, vars map[string]string) spec.Step {
+	step.URL = substituteAllVars(step.URL, vars)
+	step.Body = substituteAllVars(step.Body, vars)
+	step.Command = substituteAllVars(step.Command, vars)
+	step.Stdin = substituteAllVars(step.Stdin, vars)
+
+	if len(step.Headers) > 0 {
+		headers := make(map[string]string, len(step.Headers))
+		for k, v := range step.Headers {
+			headers[k] = substituteAllVars(v, vars)
+		}
+		step.Headers = headers
+	}
+
+	if len(step.Args) > 0 {
+		args := make([]string, len(step.Args))
+		for i, a := range step.Args {
+			args[i] = substituteAllVars(a, vars)
+		}
+		step.Args = args
+	}
+
+	return step
+}
+
+// substituteAllVars applies both environment variable and captured variable substitution.
+// Environment variables (${VAR}) are resolved first, then captured variables (${{var}}).
+func substituteAllVars(s string, vars map[string]string) string {
+	if s == "" {
+		return s
+	}
+	s = substituteEnvVars(s)
+	s = substituteCapturedVars(s, vars)
+	return s
+}
+
+// substituteEnvVars replaces ${VAR_NAME} patterns with environment variable values.
+// Unresolved env vars are left as-is (they may be resolved later or are literal).
+var envVarPattern = regexp.MustCompile(`\$\{([^{}]+)\}`)
+
+func substituteEnvVars(s string) string {
+	return envVarPattern.ReplaceAllStringFunc(s, func(match string) string {
+		varName := match[2 : len(match)-1] // Strip ${ and }
+		if val, ok := os.LookupEnv(varName); ok {
+			return val
+		}
+		return match // Leave unresolved
+	})
+}
+
+// substituteCapturedVars replaces ${{var_name}} patterns with captured variable values.
+// Unresolved captured vars are left as-is.
+var capturedVarPattern = regexp.MustCompile(`\$\{\{([^{}]+)\}\}`)
+
+func substituteCapturedVars(s string, vars map[string]string) string {
+	if len(vars) == 0 {
+		return s
+	}
+	return capturedVarPattern.ReplaceAllStringFunc(s, func(match string) string {
+		varName := match[3 : len(match)-2] // Strip ${{ and }}
+		if val, ok := vars[varName]; ok {
+			return val
+		}
+		return match // Leave unresolved
+	})
 }
 
 func runCLIStep(step spec.Step) (exitCode int, output string, err error) {
