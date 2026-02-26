@@ -1,0 +1,283 @@
+# Dust & Divinity - adapted to maslow.cue schema
+# Comments mark schema gaps; commented blocks show original intent.
+mas: "1.0"
+
+project:
+  name: DustAndDivinity
+  description: JRPG in Wild West setting with HD-2D visuals (monorepo)
+  version: "0.1.0"
+  # GAP: schema has no genre, setting, visuals, repo_layout, owners
+  # genre: "JRPG"
+  # setting: "Wild West"
+  # visuals: "HD-2D"
+  # repo_layout: "monorepo"
+  # owners: ["creative-director", "gameplay", "engine", "narrative"]
+
+packages:
+  - name: game
+    path: apps/game
+  - name: tools
+    path: tools
+  - name: content
+    path: content
+  - name: engine
+    path: packages/engine
+  - name: narrative
+    path: docs/narrative
+# GAP: schema Package has no 'kind' (game_client, content_pipeline, game_content, engine_lib, docs)
+
+toolchain:
+  manager: mise
+  lockfiles:
+    - .mise.toml
+    - pnpm-lock.yaml
+    - Gemfile.lock
+  # GAP: schema lockfiles is [...string]; original had kind+uri+required per entry
+  tools:
+    - name: node
+      version: "20"
+      required: true
+    - name: pnpm
+      version: "8"
+      required: true
+    - name: ruby
+      version: "3.2"
+      required: false
+
+refs:
+  - kind: file
+    path: docs/narrative/lore-bible.md
+    description: Lore bible doc
+    required: true
+  - kind: file
+    path: docs/narrative/characters/
+    description: Character bibles
+    required: true
+  - kind: file
+    path: docs/narrative/plot-outline.md
+    description: Plot outline
+    required: true
+  - kind: file
+    path: docs/narrative/canon.schema.json
+    description: Canon registry schema
+    required: true
+  - kind: file
+    path: content/manifest.schema.json
+    description: Content manifest schema
+    required: true
+  - kind: file
+    path: .prettierrc
+    description: Prettier config for docs
+    required: false
+# GAP: schema Ref kind is file|url|package|binary|container|endpoint only (no doc, jsonschema, prettier)
+# GAP: schema has no id, apply (scope, paths), validate (mode, command)
+
+policy:
+  deny:
+    - maslow.yaml
+    - "docs/narrative/canon.schema.json"
+    - content/manifest.schema.json
+    - .mise.toml
+
+profiles:
+  quick:
+    checks:
+      - refs
+      - content_validate
+      - build_smoke
+      - unit
+  full:
+    checks:
+      - refs
+      - content_validate
+      - build
+      - golden_saves
+      - perf
+      - localization
+      - continuity
+
+# GAP: schema has no 'system' (entrypoints, test_mode)
+# system:
+#   entrypoints:
+#     - kind: cli
+#       name: game
+#       command: "${GAME_BIN}"
+#     - kind: cli
+#       name: tools
+#       command: "${TOOLS_BIN}"
+#   test_mode:
+#     enabled_when_env: "AUDIT_MODE=true"
+#     cli_flags: ["--headless", "--fixed-seed=12345", "--no-audio"]
+#     outputs:
+#       events_log: "reports/game-events.ndjson"
+#       screenshot_dir: "reports/screens/"
+#       metrics_json: "reports/metrics.json"
+
+# GAP: schema has no 'canon' (registry, rules with json_query, json_predicate, json_foreign_key)
+# canon:
+#   registry: "docs/narrative/canon.json"
+#   rules:
+#     - id: "unique_character_ids"
+#       validate: { kind: "json_query", file: "...", expect: { unique: "$.characters[*].id" } }
+#     - id: "timeline_monotonic"
+#       validate: { kind: "json_predicate", predicate: { op: "nondecreasing", path: "..." } }
+#     - id: "no_orphan_locations"
+#       validate: { kind: "json_foreign_key", from: "...", to: "..." }
+
+# GAP: schema has no 'content' (manifest, rules with json_required_one_of, json_foreign_key)
+# content:
+#   manifest: "content/manifest.json"
+#   rules:
+#     - id: "all_dialogue_lines_have_voice_or_explicitly_none"
+#     - id: "battle_skills_reference_existing_vfx"
+
+contracts:
+  - name: game-contracts
+    description: Boot and basic gameplay contracts
+    scenarios:
+      - name: boot-to-title-screen
+        steps:
+          - action: cli
+            command: "${GAME_BIN}"
+            args:
+              - "--headless"
+              - "--audit-script=boot_to_title"
+          - action: assert
+            expect:
+              exit_code: 0
+      - name: prologue-emits-plot-beats
+        steps:
+          - action: cli
+            command: "${GAME_BIN}"
+            args:
+              - "--headless"
+              - "--audit-script=play_prologue"
+              - "--fixed-seed=12345"
+          - action: assert
+            expect:
+              exit_code: 0
+      - name: save-load-determinism
+        steps:
+          - action: cli
+            command: "${GAME_BIN}"
+            args:
+              - "--headless"
+              - "--audit-script=reach_first_town_and_save"
+              - "--fixed-seed=12345"
+          - action: assert
+            expect:
+              exit_code: 0
+# GAP: schema has no expect_file_exists, expect_json (file-based), expect_events,
+# capture_hash, expect_hash_equal, expect_image_similar
+# GAP: schema has no given (scenario dependencies), and/then chains
+# GAP: schema assert expect has status, json_path, value, headers, body_contains, body_matches, exit_code
+#   — no file paths, no lt predicate, no event lists, no golden image comparison
+
+budgets:
+  - name: boot-max
+    kind: performance
+    target: boot
+    max: 5000ms
+  - name: scene-load-first-town
+    kind: performance
+    target: "scene_load:first_town"
+    p95: 1200ms
+  - name: frame-time-60fps
+    kind: performance
+    target: frame_time_1080p
+    p95: 16.7ms
+  - name: shipping-build-size
+    kind: artifact_size
+    target: dist/
+    max: 8000MB
+# GAP: schema has no verify (kind: metrics_json, artifact_size with path)
+# Original: verify: { kind: "metrics_json", file: "reports/metrics.json", path: "$.render.frame_time_ms.p95" }
+
+# GAP: schema has no 'localization' (locales, rules with key_coverage)
+# localization:
+#   locales: ["en", "ja"]
+#   rules:
+#     - id: "all_dialogue_lines_translated"
+#       validate: { kind: "key_coverage", base: "...", targets: [...], require_all_keys: true }
+
+# GAP: schema has no 'continuity' (rules with join_keys)
+# continuity:
+#   rules:
+#     - id: "every_plot_beat_has_dialogue_or_cutscene"
+#       validate: { kind: "join_keys", left_file: "...", right_file: "...", require_all_left: true }
+
+checks:
+  runner:
+    - name: refs
+      kind: command
+      run: "echo refs-check-placeholder"
+      timeout: 30s
+      tags: [refs]
+    - name: content_validate
+      kind: command
+      run: "${TOOLS_BIN} validate content/ docs/narrative/"
+      timeout: 120s
+      tags: [content]
+    - name: build_smoke
+      kind: command
+      run: "${TOOLS_BIN} build --target dev --smoke"
+      timeout: 300s
+      tags: [build]
+    - name: unit
+      kind: command
+      run: "echo unit-placeholder"
+      timeout: 120s
+      tags: [test]
+    - name: build
+      kind: command
+      run: "${TOOLS_BIN} build --target shipping"
+      timeout: 600s
+      tags: [build]
+    - name: golden_saves
+      kind: command
+      run: "${TOOLS_BIN} test golden-saves"
+      timeout: 300s
+      tags: [test]
+    - name: perf
+      kind: command
+      run: "${TOOLS_BIN} test perf"
+      timeout: 600s
+      tags: [perf]
+    - name: localization
+      kind: command
+      run: "${TOOLS_BIN} validate i18n"
+      timeout: 120s
+      tags: [i18n]
+    - name: continuity
+      kind: command
+      run: "${TOOLS_BIN} validate continuity"
+      timeout: 120s
+      tags: [continuity]
+# GAP: schema CheckRunner has single 'run'; original had quick/full command variants per check
+
+# GAP: schema has no 'artifacts' (required/optional paths)
+# artifacts:
+#   required:
+#     - "docs/context-index.md"
+#     - "docs/narrative/canon.json"
+#     - "reports/verify.json"
+#     - "docs/runbook.md"
+#   optional:
+#     - "reports/game-events.ndjson"
+#     - "reports/metrics.json"
+#     - "reports/screens/**"
+
+audit:
+  targets:
+    - kind: binary
+      path: "${GAME_BIN}"
+      env:
+        AUDIT_MODE: "true"
+      timeout: 600s
+      retries: 0
+      checks:
+        - quick
+# GAP: schema AuditTarget.path is string; for binary we pass path. Env vars may need expansion.
+# GAP: schema has no mode (blackbox), allow_source_checkout
+# GAP: schema has no one_of target (binary|container), no command (quick/full)
+# GAP: schema has no run_env, path_env for binary; no container image_env, run

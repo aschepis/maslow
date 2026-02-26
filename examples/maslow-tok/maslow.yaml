@@ -1,0 +1,271 @@
+# MaslowTok - adapted to maslow.cue schema
+# Comments mark schema gaps; commented blocks show original intent.
+
+mas: "1.0"
+
+project:
+  name: MaslowTok
+  description: TikTok-style short video platform (monorepo) with black-box auditable constraints
+  version: "0.1.0"
+  # GAP: schema has no repo_layout, owners
+  # repo_layout: "monorepo"
+  # owners: ["team-product", "team-platform"]
+
+packages:
+  - name: api
+    path: services/api
+  - name: worker
+    path: services/worker
+  - name: web
+    path: apps/web
+  - name: mobile
+    path: apps/mobile
+  - name: shared
+    path: packages/shared
+# GAP: schema Package has no 'kind' (http_service, async_worker, web_app, etc.)
+# Original had: kind: "http_service" | "async_worker" | "web_app" | "mobile_app" | "library"
+
+toolchain:
+  manager: asdf
+  # GAP: schema lockfiles is [...string]; original had kind+uri per entry
+  lockfiles:
+    - .tool-versions
+    - pnpm-lock.yaml
+    - services/api/go.sum
+  tools:
+    - name: node
+      version: "20"
+      required: true
+    - name: go
+      version: "1.21"
+      required: true
+    - name: pnpm
+      version: "8"
+      required: true
+
+refs:
+  - kind: file
+    path: .editorconfig
+    description: EditorConfig
+    required: true
+  - kind: file
+    path: .prettierrc
+    description: Prettier config
+    required: true
+  - kind: file
+    path: eslint.config.js
+    description: ESLint config
+    required: true
+  - kind: file
+    path: .golangci.yml
+    description: golangci-lint config
+    required: true
+  - kind: file
+    path: docs/openapi.yaml
+    description: OpenAPI spec
+    required: true
+# GAP: schema Ref has kind: file|url|package|binary|container|endpoint only
+# GAP: schema has no apply (scope, paths), validate (mode, command)
+# Original: apply: { scope: path, paths: ["apps/**", "packages/**"] }
+# Original: validate: { mode: tool, command: "pnpm -w prettier -c ." }
+
+policy:
+  allow:
+    - "apps/**"
+    - "packages/**"
+    - "services/**"
+    - "docs/**"
+    - "audit/**"
+    - "reports/**"
+  deny:
+    - "maslow.yaml"
+    - ".tool-versions"
+    - "pnpm-lock.yaml"
+    - "services/api/go.mod"
+    - "services/api/go.sum"
+    - ".golangci.yml"
+    - "eslint.config.js"
+    - ".prettierrc"
+
+profiles:
+  quick:
+    description: Fast checks
+    checks:
+      - refs
+      - contract
+      - lint
+      - unit
+  full:
+    description: All checks
+    checks:
+      - refs
+      - contract
+      - lint
+      - unit
+      - perf
+      - security_smoke
+
+# GAP: schema has no 'system' (entrypoints, auth, test_controls)
+# system:
+#   entrypoints:
+#     - kind: http
+#       name: api
+#       base_url: "${API_BASE_URL}"
+#   auth:
+#     bearer_token_var: "ACCESS_TOKEN"
+#   test_controls:
+#     enabled_when_env: "AUDIT_MODE=true"
+#     endpoints:
+#       reset: { method: POST, path: "/__test/reset" }
+#       seed:  { method: POST, path: "/__test/seed" }
+#       explain: { method: POST, path: "/__test/explain" }
+#       tick: { method: POST, path: "/__test/tick" }
+
+# GAP: schema has no 'runtime' (healthcheck, version_probe)
+# runtime:
+#   healthcheck:
+#     kind: http
+#     path: "/healthz"
+#     expect_status: 200
+#   version_probe:
+#     kind: http
+#     path: "/version"
+#     expect_json:
+#       "$.service": "api"
+#       "$.commit": "${GIT_SHA}"
+#       "$.audit_mode": true
+
+contracts:
+  # Simplified: schema uses flat steps (action + fields), not given/when/then
+  # Schema has no fixtures, no variable capture (var/from), no one_of/at_least_one
+  # Schema poll: url, interval, timeout, expect (no "until" with json matcher)
+  - name: api-contract
+    description: Basic API health and auth contract
+    scenarios:
+      - name: health-check
+        steps:
+          - action: http
+            method: GET
+            url: "${API_BASE_URL}/healthz"
+            expect:
+              status: 200
+      - name: login-returns-token
+        steps:
+          - action: http
+            method: POST
+            url: "${API_BASE_URL}/v1/auth/login"
+            headers:
+              Content-Type: application/json
+            body: '{"email":"alice@example.com","password":"Passw0rd!"}'
+            expect:
+              status: 200
+              json_path: "$.access_token"
+              body_contains: "bearer"
+
+# GAP: Original contract used fixtures, given/when/then, capture vars, poll until ready,
+# idempotency tests, rate-limit tests, abuse filter, auth tests, ETag tests.
+# Schema cannot express: fixture seeding, scenario dependencies, capture/var substitution,
+# poll with "until" json matcher, one_of, at_least_one, headers_present, predicate.
+# See commented block below for original structure.
+
+budgets:
+  - name: feed-p90
+    kind: performance
+    target: "http:GET /v1/feed"
+    p90: 150ms
+    p99: 350ms
+    error_rate: 0.01
+    concurrency: 50
+    duration: 60s
+    warmup: 10s
+  - name: video-get-p90
+    kind: performance
+    target: "http:GET /v1/videos/{id}"
+    p90: 80ms
+    p99: 200ms
+    error_rate: 0.005
+    concurrency: 100
+    duration: 60s
+    warmup: 10s
+  - name: video-ready-latency
+    kind: performance
+    target: "eventual_consistency:video_ready"
+    max: 15000ms
+  - name: comment-rate-limit
+    kind: rate_limit
+    target: "http:POST /v1/videos/{id}/comments"
+    max_rps: 1
+    burst: 20
+    # GAP: original was limit_per_minute: 20, retry_after_present; schema has max_rps/burst only
+# GAP: schema complexity has target, max_lines, max_functions, max_depth only
+# Original had: verify.kind: explain_endpoint, path, request, expect_json
+# complexity:
+#   - scope: "query:feed"
+#     requirement: "feed assembly must use index"
+#     verify:
+#       kind: "explain_endpoint"
+#       path: "/__test/explain"
+#       ...
+
+checks:
+  runner:
+    - name: refs
+      kind: command
+      run: "echo refs-check-placeholder"
+      timeout: 30s
+      tags: [refs]
+    - name: contract
+      kind: command
+      run: "echo contract-check-placeholder"
+      timeout: 120s
+      tags: [contract]
+    - name: unit
+      kind: command
+      run: "pnpm -w test && (cd services/api && go test ./...)"
+      timeout: 300s
+      tags: [unit]
+    - name: lint
+      kind: command
+      run: "pnpm -w lint && (cd services/api && golangci-lint run ./...)"
+      timeout: 120s
+      tags: [lint]
+    - name: perf
+      kind: command
+      run: "echo perf-placeholder"
+      timeout: 600s
+      tags: [perf]
+    - name: security_smoke
+      kind: command
+      run: "pnpm -w audit:deps"
+      timeout: 60s
+      tags: [security]
+# GAP: schema CheckRunner has single 'run'; original had quick/full command variants
+# GAP: schema has no tool: k6, suites; original referenced audit/k6/*.js scripts
+# GAP: schema has no govulncheck in full profile
+
+# GAP: schema has no 'artifacts' (required/optional paths)
+# artifacts:
+#   required:
+#     - "docs/openapi.yaml"
+#     - "docs/runbook.md"
+#     - "reports/verify.json"
+#   optional:
+#     - "reports/junit.xml"
+#     - "reports/k6-summary.json"
+
+audit:
+  targets:
+    - kind: endpoint
+      path: "${API_BASE_URL}"
+      timeout: 1800s
+      retries: 1
+      checks:
+        - quick
+# GAP: schema AuditTarget.path is a string; endpoint uses base URL
+# GAP: schema has no mode (blackbox), allow_source_checkout
+# GAP: schema has no one_of target (endpoint|container|binary) - only single kind per target
+# GAP: schema has no command (quick/full), evidence (required, determinism)
+# Original endpoint: base_url_env: "API_BASE_URL"
+# Original container: image_env, run, stop
+# Original binary: path_env, run, stop
+# evidence.required, evidence.determinism not in schema
