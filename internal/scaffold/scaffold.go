@@ -169,6 +169,46 @@ The project is defined by a declarative maslow.yaml spec that is validated, veri
 5. **Small increments.** Work in PR-sized changes. Keep changes narrow. Keep main green.
 6. **Parallelize wherever possible.** Use subagents. Partition workstreams by folder/concern. Avoid collisions with explicit scopes.
 
+## Decision Making
+
+Agents are trusted to make decisions autonomously. Technology choices, architecture, design, library selection — decide, record, and keep building. The human can always revert via git if they disagree.
+
+**What to do for each type of decision:**
+
+| Decision | Action |
+|----------|--------|
+| Technology stack, database, framework, architectural pattern | Decide and write an ADR in docs/adr/ |
+| Library choice within a stack, naming conventions, file structure | Decide and write an ADR if non-obvious |
+| Code organization, variable names, implementation details | Just code it |
+
+**ADR format** — keep them short (docs/adr/NNN-title.md):
+
+1. **Context**: What situation prompted this decision? (2-3 sentences)
+2. **Decision**: What did you decide? (1 sentence)
+3. **Consequences**: What are the trade-offs? (2-3 bullet points)
+
+**Constraints from refs**: Before making decisions, read all refs that point to documentation (docs/ files, URLs). If a ref contains explicit constraints ("use PostgreSQL", "use Tailwind"), follow them. If no ref constrains the choice, you decide.
+
+## Draft Task Protocol
+
+Draft tasks are how agents signal platform gaps — NOT how agents ask for permission or decompose work.
+
+**When to create a draft task:**
+- You discover a gap in maslow's verification capabilities that prevents you from confidently verifying what you've built (e.g., "can't test auth flows because variable capture isn't implemented in contracts")
+- You need a tool or MCP capability that isn't available (e.g., "need browser MCP for visual regression testing")
+- You discover a harness limitation that blocks the workflow (e.g., "task convention doesn't support cross-package dependencies")
+
+**When NOT to create a draft task:**
+- To decompose your current work — just do the work
+- To ask permission for a technology choice — make the choice, write an ADR
+- To propose refactoring or improvements — write an ADR or just do it
+
+**Format**: Create the task in docs/tasks/ with status: draft and tag it:
+- ` + "`kind:gap`" + ` — for verification or harness capability gaps
+- ` + "`kind:capability`" + ` — for missing tools, MCPs, or access
+
+The human reviews draft tasks at their own pace and promotes important ones to todo.
+
 ## Non-Negotiable Behaviors
 
 - All requirements must be captured in docs and enforced via maslow.yaml.
@@ -254,6 +294,21 @@ maslow verify --profile full
 # Validate the spec itself
 maslow validate maslow.yaml
 `+"`"+`
+
+## Progressive Verification
+
+As you build, add corresponding verifications to maslow.yaml. Don't wait until the end — verify as you go.
+
+| When you... | Add to maslow.yaml |
+|-------------|-------------------|
+| Create a new API endpoint | Add an HTTP contract scenario for it |
+| Build a CLI command | Add a CLI contract scenario for it |
+| Produce a build artifact | Add an artifact_size budget for it |
+| Implement a performance-sensitive path | Add a performance budget for it |
+| Add a new dependency or config file | Add it to refs |
+| Create a file that should never be modified by agents | Add it to policy.deny or policy.protected |
+
+Use what the schema can express today. When you hit something you can't express (e.g., need variable capture for auth flows, need database assertions), create a draft task tagged kind:gap describing the verification gap. Keep building — verify what you can, document what you can't.
 
 ## Adding a New Feature
 
@@ -474,6 +529,20 @@ maslow version
 5. Check ` + "`docs/tasks/`" + ` for available work (scan frontmatter only).
 6. Run ` + "`maslow verify --profile quick`" + ` to confirm the project is green before making changes.
 7. Make changes in small increments, running verification after each.
+
+## Workflow: Greenfield Build
+
+When starting from a vague goal (e.g., "Build a TikTok clone with web and mobile apps"):
+
+1. Read ` + "`maslow.yaml`" + ` for project structure, packages, and any existing refs.
+2. **Read all refs** that point to documentation — PRDs, requirements, branding guides, tech decision docs. These are your north star.
+3. Start building. Make technology and design decisions as you go. Record each material decision as an ADR in ` + "`docs/adr/`" + `.
+4. As features take shape, add corresponding verifications to ` + "`maslow.yaml`" + `: contracts for API endpoints, budgets for artifacts and performance, refs for new config files.
+5. When you hit a verification or harness gap you can't work around, create a draft task in ` + "`docs/tasks/`" + ` tagged ` + "`kind:gap`" + ` describing what you need.
+6. Run ` + "`maslow verify --profile quick`" + ` frequently. Keep it green.
+7. Update ` + "`docs/MAP.md`" + ` as the architecture emerges.
+
+**Key principle**: Don't block on decisions. Decide, record (ADR), build, verify. The human reviews ADRs and draft tasks at their own pace. They can always revert via git.
 
 ## maslow.yaml Structure
 
@@ -729,5 +798,20 @@ Humans create tasks by:
 3. Setting status: draft while iterating on the description
 4. Changing to status: todo when ready for agent pickup
 5. Committing and pushing
+
+## Agent-Created Draft Tasks
+
+Agents may create draft tasks to signal gaps they've discovered during work. These are NOT for decomposing work or asking permission — they are for flagging platform limitations.
+
+**When agents should create a draft task:**
+- A verification capability is missing (e.g., "contract runner doesn't support variable capture, can't test auth flows")
+- A tool or MCP is needed but unavailable (e.g., "need browser MCP for visual testing")
+- A harness limitation blocks the workflow
+
+**Tag conventions for agent-created drafts:**
+- ` + "`kind:gap`" + ` — verification or harness capability gap
+- ` + "`kind:capability`" + ` — missing tool, MCP, or external access
+
+**Format**: Same as human-created tasks, but always set status: draft. The human reviews and promotes to todo if the gap is worth addressing. Agents must never promote their own draft tasks.
 `
 }

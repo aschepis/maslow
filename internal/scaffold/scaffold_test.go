@@ -208,6 +208,17 @@ func TestRun_CLAUDEMDContent(t *testing.T) {
 		"Scan frontmatter only",
 		"status: todo",
 		"assigned_to",
+		// Decision Making section
+		"Decision Making",
+		"write an ADR",
+		// Draft Task Protocol section
+		"Draft Task Protocol",
+		"kind:gap",
+		"kind:capability",
+		// Progressive Verification section
+		"Progressive Verification",
+		"Add an HTTP contract scenario",
+		"Add an artifact_size budget",
 	}
 	for _, section := range expectedSections {
 		if !strings.Contains(content, section) {
@@ -437,6 +448,11 @@ func TestRun_TaskConventionContent(t *testing.T) {
 		"assigned_to",
 		"depends_on",
 		"git pull",
+		// Agent draft task section
+		"Agent-Created Draft Tasks",
+		"kind:gap",
+		"kind:capability",
+		"status: draft",
 	}
 	for _, check := range expectedContent {
 		if !strings.Contains(content, check) {
@@ -474,6 +490,7 @@ func TestRun_SkillMDContent(t *testing.T) {
 		"maslow init",
 		"Workflow: Starting a New Project",
 		"Workflow: Working on an Existing Project",
+		"Workflow: Greenfield Build",
 		"maslow.yaml Structure",
 		"Minimal Example",
 		"Task System",
@@ -484,6 +501,10 @@ func TestRun_SkillMDContent(t *testing.T) {
 		"Verification Evidence",
 		"Key Conventions",
 		"reports/verify.json",
+		// Greenfield workflow content
+		"Read all refs",
+		"ADR",
+		"kind:gap",
 	}
 	for _, check := range expectedContent {
 		if !strings.Contains(content, check) {

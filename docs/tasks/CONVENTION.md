@@ -149,3 +149,18 @@ Humans create tasks by:
 5. Committing and pushing
 
 Agents may also create tasks (e.g., when discovering follow-up work), but should set them to `draft` and note that human review is needed before promotion to `todo`.
+
+## Agent-Created Draft Tasks
+
+Agents may create draft tasks to signal gaps they've discovered during work. These are NOT for decomposing work or asking permission — they are for flagging platform limitations.
+
+**When agents should create a draft task:**
+- A verification capability is missing (e.g., "contract runner doesn't support variable capture, can't test auth flows")
+- A tool or MCP is needed but unavailable (e.g., "need browser MCP for visual testing")
+- A harness limitation blocks the workflow
+
+**Tag conventions for agent-created drafts:**
+- `kind:gap` — verification or harness capability gap
+- `kind:capability` — missing tool, MCP, or external access
+
+**Format**: Same as human-created tasks, but always set `status: draft`. The human reviews and promotes to `todo` if the gap is worth addressing. Agents must never promote their own draft tasks.

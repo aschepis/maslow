@@ -54,6 +54,20 @@ maslow version
 6. Run `maslow verify --profile quick` to confirm the project is green before making changes.
 7. Make changes in small increments, running verification after each.
 
+## Workflow: Greenfield Build
+
+When starting from a vague goal (e.g., "Build a TikTok clone with web and mobile apps"):
+
+1. Read `maslow.yaml` for project structure, packages, and any existing refs.
+2. **Read all refs** that point to documentation — PRDs, requirements, branding guides, tech decision docs. These are your north star.
+3. Start building. Make technology and design decisions as you go. Record each material decision as an ADR in `docs/adr/`.
+4. As features take shape, add corresponding verifications to `maslow.yaml`: contracts for API endpoints, budgets for artifacts and performance, refs for new config files.
+5. When you hit a verification or harness gap you can't work around, create a draft task in `docs/tasks/` tagged `kind:gap` describing what you need.
+6. Run `maslow verify --profile quick` frequently. Keep it green.
+7. Update `docs/MAP.md` as the architecture emerges.
+
+**Key principle**: Don't block on decisions. Decide, record (ADR), build, verify. The human reviews ADRs and draft tasks at their own pace. They can always revert via git.
+
 ## maslow.yaml Structure
 
 A valid `maslow.yaml` defines:

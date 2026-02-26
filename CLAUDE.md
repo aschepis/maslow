@@ -23,6 +23,46 @@ Stack: Go CLI, CUE schema, YAML specs.
 5. **Small increments.** Work in PR-sized changes. Keep changes narrow. Keep main green.
 6. **Parallelize wherever possible.** Use subagents. Partition workstreams by folder/concern. Avoid collisions with explicit scopes.
 
+## Decision Making
+
+Agents are trusted to make decisions autonomously. Technology choices, architecture, design, library selection — decide, record, and keep building. The human can always revert via git if they disagree.
+
+**What to do for each type of decision:**
+
+| Decision | Action |
+|----------|--------|
+| Technology stack, database, framework, architectural pattern | Decide and write an ADR in `docs/adr/` |
+| Library choice within a stack, naming conventions, file structure | Decide and write an ADR if non-obvious |
+| Code organization, variable names, implementation details | Just code it |
+
+**ADR format** — keep them short (`docs/adr/NNN-title.md`):
+
+1. **Context**: What situation prompted this decision? (2-3 sentences)
+2. **Decision**: What did you decide? (1 sentence)
+3. **Consequences**: What are the trade-offs? (2-3 bullet points)
+
+**Constraints from refs**: Before making decisions, read all refs that point to documentation (`docs/` files, URLs). If a ref contains explicit constraints ("use PostgreSQL", "use Tailwind"), follow them. If no ref constrains the choice, you decide.
+
+## Draft Task Protocol
+
+Draft tasks are how agents signal platform gaps — NOT how agents ask for permission or decompose work.
+
+**When to create a draft task:**
+- You discover a gap in maslow's verification capabilities that prevents you from confidently verifying what you've built (e.g., "can't test auth flows because variable capture isn't implemented in contracts")
+- You need a tool or MCP capability that isn't available (e.g., "need browser MCP for visual regression testing")
+- You discover a harness limitation that blocks the workflow
+
+**When NOT to create a draft task:**
+- To decompose your current work — just do the work
+- To ask permission for a technology choice — make the choice, write an ADR
+- To propose refactoring or improvements — write an ADR or just do it
+
+**Format**: Create the task in `docs/tasks/` with `status: draft` and tag it:
+- `kind:gap` — for verification or harness capability gaps
+- `kind:capability` — for missing tools, MCPs, or external access
+
+The human reviews draft tasks at their own pace and promotes important ones to `todo`.
+
 ## Non-Negotiable Behaviors
 
 - All requirements in `docs/REQUIREMENTS.md` must be met, including the self-hosting bootstrap constraint.
@@ -104,6 +144,21 @@ When asked to `implement any task tagged X`: scan frontmatter for matching tags.
 - Deterministic output required: the same input must always produce the same result
 - All error messages must reference file paths and spec section names
 - Exit codes: `0` = success, `1` = validation or verification failure, `2` = usage error
+
+## Progressive Verification
+
+As you build, add corresponding verifications to `maslow.yaml`. Don't wait until the end — verify as you go.
+
+| When you... | Add to maslow.yaml |
+|-------------|-------------------|
+| Create a new API endpoint | Add an HTTP contract scenario for it |
+| Build a CLI command | Add a CLI contract scenario for it |
+| Produce a build artifact | Add an `artifact_size` budget for it |
+| Implement a performance-sensitive path | Add a performance budget for it |
+| Add a new dependency or config file | Add it to refs |
+| Create a file that should never be modified by agents | Add it to `policy.deny` or `policy.protected` |
+
+Use what the schema can express today. When you hit something you can't express (e.g., need variable capture for auth flows, need database assertions), create a draft task tagged `kind:gap` describing the verification gap. Keep building — verify what you can, document what you can't.
 
 ## Adding a New Feature
 
