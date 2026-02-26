@@ -1,12 +1,12 @@
 ---
 id: 15
 title: Add fixture setup and teardown for contract scenarios
-status: todo
+status: done
 priority: high
 created: 2026-02-20
-updated: 2026-02-20
-assigned_to: ""
-assigned_at: ""
+updated: 2026-02-26
+assigned_to: claude-opus
+assigned_at: "2026-02-26T00:00:00Z"
 depends_on: []
 tags: [maslow, verification, contract, schema]
 ---

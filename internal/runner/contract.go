@@ -29,9 +29,34 @@ type stepState struct {
 func RunContracts(contracts []spec.Contract) []evidence.ContractResult {
 	var results []evidence.ContractResult
 	for _, contract := range contracts {
+		// Run contract-level setup once before all scenarios.
+		if len(contract.Setup) > 0 {
+			state := &stepState{}
+			vars := make(map[string]string)
+			if err := runSteps(contract.Setup, state, vars); err != nil {
+				// Contract setup failed — mark all scenarios as failed, run teardown.
+				for _, scenario := range contract.Scenarios {
+					results = append(results, evidence.ContractResult{
+						Name:   fmt.Sprintf("%s/%s", contract.Name, scenario.Name),
+						Status: "fail",
+						Error:  fmt.Sprintf("contract setup failed: %v", err),
+					})
+				}
+				runStepsIgnoreError(contract.Teardown, state, vars)
+				continue
+			}
+		}
+
 		for _, scenario := range contract.Scenarios {
 			result := runScenario(contract.Name, scenario)
 			results = append(results, result)
+		}
+
+		// Run contract-level teardown once after all scenarios.
+		if len(contract.Teardown) > 0 {
+			state := &stepState{}
+			vars := make(map[string]string)
+			runStepsIgnoreError(contract.Teardown, state, vars)
 		}
 	}
 	return results
@@ -42,19 +67,50 @@ func runScenario(contractName string, scenario spec.Scenario) evidence.ContractR
 	state := &stepState{}
 	vars := make(map[string]string)
 
-	for _, step := range scenario.Steps {
-		// Apply variable substitution to all step fields before execution.
+	// Run scenario-level setup.
+	if len(scenario.Setup) > 0 {
+		if err := runSteps(scenario.Setup, state, vars); err != nil {
+			runStepsIgnoreError(scenario.Teardown, state, vars)
+			return evidence.ContractResult{
+				Name:   name,
+				Status: "fail",
+				Error:  fmt.Sprintf("setup failed: %v", err),
+			}
+		}
+	}
+
+	// Run scenario steps.
+	stepErr := runSteps(scenario.Steps, state, vars)
+
+	// Run scenario-level teardown (always, even on failure).
+	if len(scenario.Teardown) > 0 {
+		runStepsIgnoreError(scenario.Teardown, state, vars)
+	}
+
+	if stepErr != nil {
+		return evidence.ContractResult{
+			Name:   name,
+			Status: "fail",
+			Error:  stepErr.Error(),
+		}
+	}
+
+	return evidence.ContractResult{
+		Name:   name,
+		Status: "pass",
+	}
+}
+
+// runSteps executes a sequence of steps, returning the first error encountered.
+func runSteps(steps []spec.Step, state *stepState, vars map[string]string) error {
+	for _, step := range steps {
 		step = substituteStep(step, vars)
 
 		switch step.Action {
 		case "cli":
 			exitCode, output, err := runCLIStep(step)
 			if err != nil {
-				return evidence.ContractResult{
-					Name:   name,
-					Status: "fail",
-					Error:  fmt.Sprintf("step cli %q: %v", step.Command, err),
-				}
+				return fmt.Errorf("step cli %q: %v", step.Command, err)
 			}
 			state.exitCode = exitCode
 			state.output = output
@@ -62,42 +118,25 @@ func runScenario(contractName string, scenario spec.Scenario) evidence.ContractR
 		case "http":
 			statusCode, headers, body, err := runHTTPStep(step)
 			if err != nil {
-				return evidence.ContractResult{
-					Name:   name,
-					Status: "fail",
-					Error:  fmt.Sprintf("step http %s %s: %v", step.Method, step.URL, err),
-				}
+				return fmt.Errorf("step http %s %s: %v", step.Method, step.URL, err)
 			}
 			state.httpStatus = statusCode
 			state.httpHeaders = headers
 			state.exitCode = 0
 			state.output = body
 
-			// Inline expect on HTTP step.
 			if step.Expect != nil {
 				if err := checkExpectation(step.Expect, state); err != nil {
-					return evidence.ContractResult{
-						Name:   name,
-						Status: "fail",
-						Error:  fmt.Sprintf("step http %s %s: %v", step.Method, step.URL, err),
-					}
+					return fmt.Errorf("step http %s %s: %v", step.Method, step.URL, err)
 				}
 			}
 
 		case "assert":
 			if step.Expect == nil {
-				return evidence.ContractResult{
-					Name:   name,
-					Status: "fail",
-					Error:  "assert step missing expect",
-				}
+				return fmt.Errorf("assert step missing expect")
 			}
 			if err := checkExpectation(step.Expect, state); err != nil {
-				return evidence.ContractResult{
-					Name:   name,
-					Status: "fail",
-					Error:  err.Error(),
-				}
+				return err
 			}
 
 		case "wait":
@@ -110,29 +149,17 @@ func runScenario(contractName string, scenario spec.Scenario) evidence.ContractR
 		case "capture":
 			val, err := captureValue(step, state)
 			if err != nil {
-				return evidence.ContractResult{
-					Name:   name,
-					Status: "fail",
-					Error:  fmt.Sprintf("capture %q as %q: %v", step.From, step.As, err),
-				}
+				return fmt.Errorf("capture %q as %q: %v", step.From, step.As, err)
 			}
 			if step.As == "" {
-				return evidence.ContractResult{
-					Name:   name,
-					Status: "fail",
-					Error:  "capture step missing 'as' field",
-				}
+				return fmt.Errorf("capture step missing 'as' field")
 			}
 			vars[step.As] = val
 
 		case "poll":
 			statusCode, headers, body, err := runPollStep(step)
 			if err != nil {
-				return evidence.ContractResult{
-					Name:   name,
-					Status: "fail",
-					Error:  fmt.Sprintf("step poll %s: %v", step.URL, err),
-				}
+				return fmt.Errorf("step poll %s: %v", step.URL, err)
 			}
 			state.httpStatus = statusCode
 			state.httpHeaders = headers
@@ -140,18 +167,18 @@ func runScenario(contractName string, scenario spec.Scenario) evidence.ContractR
 			state.output = body
 
 		default:
-			return evidence.ContractResult{
-				Name:   name,
-				Status: "fail",
-				Error:  fmt.Sprintf("unknown step action: %s", step.Action),
-			}
+			return fmt.Errorf("unknown step action: %s", step.Action)
 		}
 	}
+	return nil
+}
 
-	return evidence.ContractResult{
-		Name:   name,
-		Status: "pass",
+// runStepsIgnoreError runs steps but does not propagate errors (for teardown).
+func runStepsIgnoreError(steps []spec.Step, state *stepState, vars map[string]string) {
+	if len(steps) == 0 {
+		return
 	}
+	_ = runSteps(steps, state, vars)
 }
 
 // captureValue extracts a value from the current step state based on the capture's "from" field.

@@ -83,12 +83,16 @@ type Profile struct {
 type Contract struct {
 	Name        string     `yaml:"name"`
 	Description string     `yaml:"description,omitempty"`
+	Setup       []Step     `yaml:"setup,omitempty"`
+	Teardown    []Step     `yaml:"teardown,omitempty"`
 	Scenarios   []Scenario `yaml:"scenarios"`
 }
 
 type Scenario struct {
-	Name  string `yaml:"name"`
-	Steps []Step `yaml:"steps"`
+	Name     string `yaml:"name"`
+	Setup    []Step `yaml:"setup,omitempty"`
+	Teardown []Step `yaml:"teardown,omitempty"`
+	Steps    []Step `yaml:"steps"`
 }
 
 type Step struct {

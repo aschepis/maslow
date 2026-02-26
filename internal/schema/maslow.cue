@@ -101,11 +101,15 @@ package maslow
 #Contract: {
 	name:        string
 	description?: string
+	setup?: [...#Step]
+	teardown?: [...#Step]
 	scenarios: [...#Scenario]
 }
 
 #Scenario: {
 	name: string
+	setup?: [...#Step]
+	teardown?: [...#Step]
 	steps: [...#Step]
 }
 

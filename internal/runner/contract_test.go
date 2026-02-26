@@ -548,6 +548,250 @@ func TestRunContracts_MixedEnvAndCapturedVars(t *testing.T) {
 	}
 }
 
+// --- Setup & Teardown Tests ---
+
+func TestRunContracts_ScenarioSetupAndTeardown(t *testing.T) {
+	var callLog []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callLog = append(callLog, r.URL.Path)
+		w.WriteHeader(200)
+		w.Write([]byte(`{"ok":true}`))
+	}))
+	defer srv.Close()
+
+	status200 := 200
+	contracts := []spec.Contract{
+		{
+			Name: "fixture-test",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "with-setup-teardown",
+					Setup: []spec.Step{
+						{Action: "http", Method: "POST", URL: srv.URL + "/seed"},
+					},
+					Teardown: []spec.Step{
+						{Action: "http", Method: "POST", URL: srv.URL + "/reset"},
+					},
+					Steps: []spec.Step{
+						{
+							Action: "http", Method: "GET", URL: srv.URL + "/data",
+							Expect: &spec.Expectation{Status: &status200},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	results := RunContracts(contracts)
+	if results[0].Status != "pass" {
+		t.Errorf("expected pass, got %s: %s", results[0].Status, results[0].Error)
+	}
+
+	// Verify call order: seed -> data -> reset
+	if len(callLog) != 3 {
+		t.Fatalf("expected 3 calls, got %d: %v", len(callLog), callLog)
+	}
+	if callLog[0] != "/seed" || callLog[1] != "/data" || callLog[2] != "/reset" {
+		t.Errorf("unexpected call order: %v", callLog)
+	}
+}
+
+func TestRunContracts_TeardownRunsOnStepFailure(t *testing.T) {
+	teardownCalled := false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/teardown" {
+			teardownCalled = true
+		}
+		w.WriteHeader(500) // All requests fail
+		w.Write([]byte(`{}`))
+	}))
+	defer srv.Close()
+
+	status200 := 200
+	contracts := []spec.Contract{
+		{
+			Name: "teardown-on-fail",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "step-fails",
+					Teardown: []spec.Step{
+						{Action: "http", Method: "POST", URL: srv.URL + "/teardown"},
+					},
+					Steps: []spec.Step{
+						{
+							Action: "http", Method: "GET", URL: srv.URL + "/data",
+							Expect: &spec.Expectation{Status: &status200}, // Will fail (500 != 200)
+						},
+					},
+				},
+			},
+		},
+	}
+
+	results := RunContracts(contracts)
+	if results[0].Status != "fail" {
+		t.Errorf("expected fail, got %s", results[0].Status)
+	}
+	if !teardownCalled {
+		t.Error("teardown should run even when steps fail")
+	}
+}
+
+func TestRunContracts_SetupFailureSkipsSteps(t *testing.T) {
+	stepsCalled := false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/data" {
+			stepsCalled = true
+		}
+		if r.URL.Path == "/seed" {
+			w.WriteHeader(500) // Setup fails
+			w.Write([]byte(`{}`))
+			return
+		}
+		w.WriteHeader(200)
+		w.Write([]byte(`{}`))
+	}))
+	defer srv.Close()
+
+	status200 := 200
+	contracts := []spec.Contract{
+		{
+			Name: "setup-fail",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "bad-setup",
+					Setup: []spec.Step{
+						{
+							Action: "http", Method: "POST", URL: srv.URL + "/seed",
+							Expect: &spec.Expectation{Status: &status200}, // Will fail
+						},
+					},
+					Steps: []spec.Step{
+						{Action: "http", Method: "GET", URL: srv.URL + "/data"},
+					},
+				},
+			},
+		},
+	}
+
+	results := RunContracts(contracts)
+	if results[0].Status != "fail" {
+		t.Errorf("expected fail, got %s", results[0].Status)
+	}
+	if !strings.Contains(results[0].Error, "setup failed") {
+		t.Errorf("error should mention setup, got: %s", results[0].Error)
+	}
+	if stepsCalled {
+		t.Error("scenario steps should not run when setup fails")
+	}
+}
+
+func TestRunContracts_ContractLevelSetupAndTeardown(t *testing.T) {
+	var callLog []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callLog = append(callLog, r.URL.Path)
+		w.WriteHeader(200)
+		w.Write([]byte(`{"ok":true}`))
+	}))
+	defer srv.Close()
+
+	status200 := 200
+	contracts := []spec.Contract{
+		{
+			Name: "contract-fixtures",
+			Setup: []spec.Step{
+				{Action: "http", Method: "POST", URL: srv.URL + "/global-seed"},
+			},
+			Teardown: []spec.Step{
+				{Action: "http", Method: "POST", URL: srv.URL + "/global-reset"},
+			},
+			Scenarios: []spec.Scenario{
+				{
+					Name: "scenario-a",
+					Steps: []spec.Step{
+						{Action: "http", Method: "GET", URL: srv.URL + "/a",
+							Expect: &spec.Expectation{Status: &status200}},
+					},
+				},
+				{
+					Name: "scenario-b",
+					Steps: []spec.Step{
+						{Action: "http", Method: "GET", URL: srv.URL + "/b",
+							Expect: &spec.Expectation{Status: &status200}},
+					},
+				},
+			},
+		},
+	}
+
+	results := RunContracts(contracts)
+	for _, r := range results {
+		if r.Status != "pass" {
+			t.Errorf("%s: expected pass, got %s: %s", r.Name, r.Status, r.Error)
+		}
+	}
+
+	// Verify: global-seed -> a -> b -> global-reset
+	if len(callLog) != 4 {
+		t.Fatalf("expected 4 calls, got %d: %v", len(callLog), callLog)
+	}
+	if callLog[0] != "/global-seed" {
+		t.Errorf("first call should be /global-seed, got %s", callLog[0])
+	}
+	if callLog[3] != "/global-reset" {
+		t.Errorf("last call should be /global-reset, got %s", callLog[3])
+	}
+}
+
+func TestRunContracts_SetupCaptureAvailableInSteps(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/seed":
+			w.WriteHeader(200)
+			w.Write([]byte(`{"user_id":"usr_42"}`))
+		case "/users/usr_42":
+			w.WriteHeader(200)
+			w.Write([]byte(`{"id":"usr_42","name":"Test User"}`))
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer srv.Close()
+
+	status200 := 200
+	contracts := []spec.Contract{
+		{
+			Name: "setup-capture",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "use-seeded-id",
+					Setup: []spec.Step{
+						{Action: "http", Method: "POST", URL: srv.URL + "/seed"},
+						{Action: "capture", From: "$.user_id", As: "uid"},
+					},
+					Steps: []spec.Step{
+						{
+							Action: "http", Method: "GET",
+							URL: srv.URL + "/users/${{uid}}",
+							Expect: &spec.Expectation{
+								Status:   &status200,
+								JSONPath: "$.name",
+								Value:    "Test User",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	results := RunContracts(contracts)
+	if results[0].Status != "pass" {
+		t.Errorf("expected pass, got %s: %s", results[0].Status, results[0].Error)
+	}
+}
+
 // --- Multiple Assertions Tests ---
 
 func TestRunContracts_MultipleAssertionsPass(t *testing.T) {
