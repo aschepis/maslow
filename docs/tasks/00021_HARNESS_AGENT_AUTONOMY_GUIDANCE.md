@@ -1,7 +1,7 @@
 ---
 id: 21
 title: Update harness with agent autonomy and gap-discovery conventions
-status: draft
+status: todo
 priority: high
 created: 2026-02-22
 updated: 2026-02-22

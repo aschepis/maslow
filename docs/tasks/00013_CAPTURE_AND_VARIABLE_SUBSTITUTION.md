@@ -1,7 +1,7 @@
 ---
 id: 13
 title: Implement capture action and variable substitution in contract runner
-status: draft
+status: todo
 priority: critical
 created: 2026-02-20
 updated: 2026-02-20

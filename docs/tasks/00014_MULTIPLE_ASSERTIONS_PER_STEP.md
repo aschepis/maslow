@@ -1,7 +1,7 @@
 ---
 id: 14
 title: Support multiple assertions per contract step
-status: draft
+status: todo
 priority: high
 created: 2026-02-20
 updated: 2026-02-20
