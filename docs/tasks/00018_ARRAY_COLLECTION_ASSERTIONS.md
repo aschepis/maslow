@@ -1,7 +1,7 @@
 ---
 id: 18
 title: Add array and collection assertions for contract expectations
-status: draft
+status: todo
 priority: medium
 created: 2026-02-20
 updated: 2026-02-20

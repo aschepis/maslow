@@ -1,7 +1,7 @@
 ---
 id: 22
 title: Establish refs as generative input convention in harness
-status: draft
+status: todo
 priority: high
 created: 2026-02-22
 updated: 2026-02-22
@@ -31,6 +31,8 @@ The harness needs to teach agents to read refs as context, not just check their 
 - [ ] Convention is clear about which refs are input vs verification targets
 - [ ] Update maslow-tok example to include sample input refs (e.g., a brief PRD, branding notes)
 - [ ] Scaffold tests pass
+- [ ] Ensure no drift is created between the harness and scaffold
+- [ ] An ADR is written to document the change
 
 ## Notes
 
