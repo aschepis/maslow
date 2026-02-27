@@ -775,12 +775,14 @@ To prevent duplicate work across agents on different clones:
 4. **Commit and push**: commit with message ` + "`task(<id>): claim task <id> - <title>`" + `
 5. **If push fails** (conflict): pull, check if someone else claimed it, pick another task
 
+The assigned_to field should be a descriptive identifier, e.g., claude-<machine-hostname> or agent-<session-id>.
+
 ### Working on a Task
 
 1. Read the full task body for requirements and acceptance criteria
-2. Do the work in one or more commits (reference the task in commit messages)
+2. Do the work in one or more commits (reference the task: task(<id>): <description>)
 3. When done, update frontmatter: status: done, updated: <today>
-4. Commit the status change
+4. Commit the status change: task(<id>): complete task <id> - <title>
 
 ### Handling Blocks
 
@@ -788,6 +790,14 @@ If the agent cannot proceed:
 1. Set status: blocked with a note in the task body explaining why
 2. Commit and push so other agents (or humans) can see the block
 3. Move on to the next available task
+
+## Prompt Patterns
+
+Humans can invoke agents with these patterns:
+
+- "read CLAUDE.md and implement the next task" — agent picks the lowest-ID todo task
+- "read CLAUDE.md and implement task 5" — agent works on task 5 specifically
+- "read CLAUDE.md and implement any task tagged infra" — agent filters by tag
 
 ## Creating New Tasks
 

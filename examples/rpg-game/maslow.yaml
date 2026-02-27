@@ -138,7 +138,7 @@ contracts:
       - name: boot-to-title-screen
         steps:
           - action: cli
-            command: "${GAME_BIN}"
+            command: "{{.env.GAME_BIN}}"
             args:
               - "--headless"
               - "--audit-script=boot_to_title"
@@ -148,7 +148,7 @@ contracts:
       - name: prologue-emits-plot-beats
         steps:
           - action: cli
-            command: "${GAME_BIN}"
+            command: "{{.env.GAME_BIN}}"
             args:
               - "--headless"
               - "--audit-script=play_prologue"
@@ -159,7 +159,7 @@ contracts:
       - name: save-load-determinism
         steps:
           - action: cli
-            command: "${GAME_BIN}"
+            command: "{{.env.GAME_BIN}}"
             args:
               - "--headless"
               - "--audit-script=reach_first_town_and_save"

@@ -110,7 +110,7 @@ profiles:
 #   entrypoints:
 #     - kind: http
 #       name: api
-#       base_url: "${API_BASE_URL}"
+#       base_url: "{{.env.API_BASE_URL}}"
 #   auth:
 #     bearer_token_var: "ACCESS_TOKEN"
 #   test_controls:
@@ -146,14 +146,14 @@ contracts:
         steps:
           - action: http
             method: GET
-            url: "${API_BASE_URL}/healthz"
+            url: "{{.env.API_BASE_URL}}/healthz"
             expect:
               status: 200
       - name: login-returns-token
         steps:
           - action: http
             method: POST
-            url: "${API_BASE_URL}/v1/auth/login"
+            url: "{{.env.API_BASE_URL}}/v1/auth/login"
             headers:
               Content-Type: application/json
             body: '{"email":"alice@example.com","password":"Passw0rd!"}'
@@ -259,7 +259,7 @@ checks:
 audit:
   targets:
     - kind: endpoint
-      path: "${API_BASE_URL}"
+      path: "{{.env.API_BASE_URL}}"
       timeout: 1800s
       retries: 1
       checks:

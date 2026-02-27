@@ -235,7 +235,7 @@ func TestRunContracts_CaptureFromHTTPBody(t *testing.T) {
 							Action:  "http",
 							Method:  "GET",
 							URL:     srv.URL + "/me",
-							Headers: map[string]string{"Authorization": "Bearer ${{token}}"},
+							Headers: map[string]string{"Authorization": "Bearer {{.cap.token}}"},
 							Expect: &spec.Expectation{
 								Status:   &status200,
 								JSONPath: "$.name",
@@ -298,7 +298,7 @@ func TestRunContracts_CaptureFromCLIOutput(t *testing.T) {
 						{Action: "cli", Command: "echo", Args: []string{"hello-world"}},
 						{Action: "capture", From: "output", As: "greeting"},
 						// Use captured var in a CLI arg (echo it back and check).
-						{Action: "cli", Command: "echo", Args: []string{"got: ${{greeting}}"}},
+						{Action: "cli", Command: "echo", Args: []string{"got: {{.cap.greeting}}"}},
 						{Action: "assert", Expect: &spec.Expectation{BodyContains: "got: hello-world"}},
 					},
 				},
@@ -328,7 +328,7 @@ func TestRunContracts_CaptureFromHTTPStatus(t *testing.T) {
 					Steps: []spec.Step{
 						{Action: "http", Method: "GET", URL: srv.URL},
 						{Action: "capture", From: "status", As: "code"},
-						{Action: "cli", Command: "echo", Args: []string{"status=${{code}}"}},
+						{Action: "cli", Command: "echo", Args: []string{"status={{.cap.code}}"}},
 						{Action: "assert", Expect: &spec.Expectation{BodyContains: "status=201"}},
 					},
 				},
@@ -437,7 +437,7 @@ func TestRunContracts_CaptureNumericJSON(t *testing.T) {
 						{Action: "http", Method: "GET", URL: srv.URL},
 						{Action: "capture", From: "$.id", As: "item_id"},
 						{Action: "capture", From: "$.price", As: "item_price"},
-						{Action: "cli", Command: "echo", Args: []string{"${{item_id}}/${{item_price}}"}},
+						{Action: "cli", Command: "echo", Args: []string{"{{.cap.item_id}}/{{.cap.item_price}}"}},
 						{Action: "assert", Expect: &spec.Expectation{BodyContains: "42/9.99"}},
 					},
 				},
@@ -472,7 +472,7 @@ func TestRunContracts_EnvVarSubstitution(t *testing.T) {
 						{
 							Action: "http",
 							Method: "GET",
-							URL:    "${MASLOW_TEST_BASE_URL}",
+							URL:    "{{.env.MASLOW_TEST_BASE_URL}}",
 							Expect: &spec.Expectation{Status: &status200},
 						},
 					},
@@ -521,15 +521,15 @@ func TestRunContracts_MixedEnvAndCapturedVars(t *testing.T) {
 						{
 							Action: "http",
 							Method: "GET",
-							URL:    "${MASLOW_TEST_API}/token",
+							URL:    "{{.env.MASLOW_TEST_API}}/token",
 							Expect: &spec.Expectation{Status: &status200},
 						},
 						{Action: "capture", From: "$.token", As: "auth_token"},
 						{
 							Action:  "http",
 							Method:  "GET",
-							URL:     "${MASLOW_TEST_API}/data",
-							Headers: map[string]string{"Authorization": "Bearer ${{auth_token}}"},
+							URL:     "{{.env.MASLOW_TEST_API}}/data",
+							Headers: map[string]string{"Authorization": "Bearer {{.cap.auth_token}}"},
 							Expect: &spec.Expectation{
 								Status:   &status200,
 								JSONPath: "$.result",
@@ -773,7 +773,7 @@ func TestRunContracts_SetupCaptureAvailableInSteps(t *testing.T) {
 					Steps: []spec.Step{
 						{
 							Action: "http", Method: "GET",
-							URL: srv.URL + "/users/${{uid}}",
+							URL: srv.URL + "/users/{{.cap.uid}}",
 							Expect: &spec.Expectation{
 								Status:   &status200,
 								JSONPath: "$.name",
@@ -1003,48 +1003,77 @@ func TestRunContracts_BackwardCompatSingleJSONPath(t *testing.T) {
 	}
 }
 
-// --- Unit tests for substitution functions ---
+// --- Unit tests for template substitution ---
 
-func TestSubstituteEnvVars(t *testing.T) {
+func TestApplyTemplate_EnvVar(t *testing.T) {
 	os.Setenv("MASLOW_TEST_HOST", "localhost")
 	defer os.Unsetenv("MASLOW_TEST_HOST")
 
-	got := substituteEnvVars("http://${MASLOW_TEST_HOST}:8080/api")
+	got, err := applyTemplate("http://{{.env.MASLOW_TEST_HOST}}:8080/api", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if got != "http://localhost:8080/api" {
 		t.Errorf("expected http://localhost:8080/api, got %s", got)
 	}
 }
 
-func TestSubstituteEnvVars_Unresolved(t *testing.T) {
-	got := substituteEnvVars("http://${MASLOW_NONEXISTENT_VAR_12345}/api")
-	if got != "http://${MASLOW_NONEXISTENT_VAR_12345}/api" {
-		t.Errorf("unresolved env var should be left as-is, got %s", got)
+func TestApplyTemplate_EnvVarMissing(t *testing.T) {
+	_, err := applyTemplate("http://{{.env.MASLOW_NONEXISTENT_VAR_12345}}/api", nil)
+	if err == nil {
+		t.Error("expected error for missing env var, got nil")
 	}
 }
 
-func TestSubstituteCapturedVars(t *testing.T) {
+func TestApplyTemplate_CapturedVars(t *testing.T) {
 	vars := map[string]string{"token": "abc", "id": "42"}
-	got := substituteCapturedVars("Bearer ${{token}} for user ${{id}}", vars)
+	got, err := applyTemplate("Bearer {{.cap.token}} for user {{.cap.id}}", vars)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if got != "Bearer abc for user 42" {
 		t.Errorf("expected 'Bearer abc for user 42', got %s", got)
 	}
 }
 
-func TestSubstituteCapturedVars_Unresolved(t *testing.T) {
+func TestApplyTemplate_CapturedVarMissing(t *testing.T) {
 	vars := map[string]string{"token": "abc"}
-	got := substituteCapturedVars("${{token}} and ${{missing}}", vars)
-	if got != "abc and ${{missing}}" {
-		t.Errorf("unresolved captured var should be left as-is, got %s", got)
+	_, err := applyTemplate("{{.cap.token}} and {{.cap.missing}}", vars)
+	if err == nil {
+		t.Error("expected error for missing captured var, got nil")
 	}
 }
 
-func TestSubstituteAllVars_NoConflict(t *testing.T) {
+func TestApplyTemplate_MixedEnvAndCaptured(t *testing.T) {
 	os.Setenv("MASLOW_TEST_ENV", "prod")
 	defer os.Unsetenv("MASLOW_TEST_ENV")
 
 	vars := map[string]string{"user": "alice"}
-	got := substituteAllVars("${MASLOW_TEST_ENV}/${{user}}", vars)
+	got, err := applyTemplate("{{.env.MASLOW_TEST_ENV}}/{{.cap.user}}", vars)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if got != "prod/alice" {
 		t.Errorf("expected 'prod/alice', got %s", got)
+	}
+}
+
+func TestApplyTemplate_NoTemplateMarkers(t *testing.T) {
+	got, err := applyTemplate("http://localhost:8080/api", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "http://localhost:8080/api" {
+		t.Errorf("expected unchanged string, got %s", got)
+	}
+}
+
+func TestApplyTemplate_EmptyString(t *testing.T) {
+	got, err := applyTemplate("", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "" {
+		t.Errorf("expected empty string, got %s", got)
 	}
 }

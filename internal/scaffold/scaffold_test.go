@@ -453,6 +453,10 @@ func TestRun_TaskConventionContent(t *testing.T) {
 		"kind:gap",
 		"kind:capability",
 		"status: draft",
+		// Prompt Patterns section
+		"Prompt Patterns",
+		"implement the next task",
+		"implement task 5",
 	}
 	for _, check := range expectedContent {
 		if !strings.Contains(content, check) {
@@ -488,6 +492,9 @@ func TestRun_SkillMDContent(t *testing.T) {
 		"maslow verify",
 		"maslow scaffold",
 		"maslow init",
+		"maslow harness install",
+		"maslow harness update",
+		"maslow harness detach",
 		"Workflow: Starting a New Project",
 		"Workflow: Working on an Existing Project",
 		"Workflow: Greenfield Build",

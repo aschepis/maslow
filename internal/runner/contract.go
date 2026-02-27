@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/aschepis/maslow-agentic/internal/evidence"
@@ -104,7 +105,11 @@ func runScenario(contractName string, scenario spec.Scenario) evidence.ContractR
 // runSteps executes a sequence of steps, returning the first error encountered.
 func runSteps(steps []spec.Step, state *stepState, vars map[string]string) error {
 	for _, step := range steps {
-		step = substituteStep(step, vars)
+		var err error
+		step, err = substituteStep(step, vars)
+		if err != nil {
+			return fmt.Errorf("variable substitution: %w", err)
+		}
 
 		switch step.Action {
 		case "cli":
@@ -244,18 +249,35 @@ func captureValue(step spec.Step, state *stepState) (string, error) {
 	}
 }
 
-// substituteStep applies variable substitution to all string fields in a step.
-// Environment variables use ${VAR} syntax, captured variables use ${{var}} syntax.
-func substituteStep(step spec.Step, vars map[string]string) spec.Step {
-	step.URL = substituteAllVars(step.URL, vars)
-	step.Body = substituteAllVars(step.Body, vars)
-	step.Command = substituteAllVars(step.Command, vars)
-	step.Stdin = substituteAllVars(step.Stdin, vars)
+// substituteStep applies Go text/template substitution to all string fields in a step.
+// Use {{.env.NAME}} for environment variables and {{.cap.NAME}} for captured variables.
+func substituteStep(step spec.Step, vars map[string]string) (spec.Step, error) {
+	var err error
+
+	step.URL, err = applyTemplate(step.URL, vars)
+	if err != nil {
+		return step, fmt.Errorf("url: %w", err)
+	}
+	step.Body, err = applyTemplate(step.Body, vars)
+	if err != nil {
+		return step, fmt.Errorf("body: %w", err)
+	}
+	step.Command, err = applyTemplate(step.Command, vars)
+	if err != nil {
+		return step, fmt.Errorf("command: %w", err)
+	}
+	step.Stdin, err = applyTemplate(step.Stdin, vars)
+	if err != nil {
+		return step, fmt.Errorf("stdin: %w", err)
+	}
 
 	if len(step.Headers) > 0 {
 		headers := make(map[string]string, len(step.Headers))
 		for k, v := range step.Headers {
-			headers[k] = substituteAllVars(v, vars)
+			headers[k], err = applyTemplate(v, vars)
+			if err != nil {
+				return step, fmt.Errorf("header %s: %w", k, err)
+			}
 		}
 		step.Headers = headers
 	}
@@ -263,54 +285,51 @@ func substituteStep(step spec.Step, vars map[string]string) spec.Step {
 	if len(step.Args) > 0 {
 		args := make([]string, len(step.Args))
 		for i, a := range step.Args {
-			args[i] = substituteAllVars(a, vars)
+			args[i], err = applyTemplate(a, vars)
+			if err != nil {
+				return step, fmt.Errorf("arg[%d]: %w", i, err)
+			}
 		}
 		step.Args = args
 	}
 
-	return step
+	return step, nil
 }
 
-// substituteAllVars applies both environment variable and captured variable substitution.
-// Environment variables (${VAR}) are resolved first, then captured variables (${{var}}).
-func substituteAllVars(s string, vars map[string]string) string {
-	if s == "" {
-		return s
+// applyTemplate applies Go text/template substitution to a string.
+// Returns the original string unchanged if it contains no template markers.
+func applyTemplate(s string, vars map[string]string) (string, error) {
+	if s == "" || !strings.Contains(s, "{{") {
+		return s, nil
 	}
-	s = substituteEnvVars(s)
-	s = substituteCapturedVars(s, vars)
-	return s
-}
 
-// substituteEnvVars replaces ${VAR_NAME} patterns with environment variable values.
-// Unresolved env vars are left as-is (they may be resolved later or are literal).
-var envVarPattern = regexp.MustCompile(`\$\{([^{}]+)\}`)
-
-func substituteEnvVars(s string) string {
-	return envVarPattern.ReplaceAllStringFunc(s, func(match string) string {
-		varName := match[2 : len(match)-1] // Strip ${ and }
-		if val, ok := os.LookupEnv(varName); ok {
-			return val
-		}
-		return match // Leave unresolved
-	})
-}
-
-// substituteCapturedVars replaces ${{var_name}} patterns with captured variable values.
-// Unresolved captured vars are left as-is.
-var capturedVarPattern = regexp.MustCompile(`\$\{\{([^{}]+)\}\}`)
-
-func substituteCapturedVars(s string, vars map[string]string) string {
-	if len(vars) == 0 {
-		return s
+	data := map[string]any{
+		"env": buildEnvMap(),
+		"cap": vars,
 	}
-	return capturedVarPattern.ReplaceAllStringFunc(s, func(match string) string {
-		varName := match[3 : len(match)-2] // Strip ${{ and }}
-		if val, ok := vars[varName]; ok {
-			return val
+
+	tmpl, err := template.New("").Option("missingkey=error").Parse(s)
+	if err != nil {
+		return "", err
+	}
+
+	var buf strings.Builder
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
+}
+
+// buildEnvMap creates a map of all environment variables for template access.
+func buildEnvMap() map[string]string {
+	env := make(map[string]string)
+	for _, e := range os.Environ() {
+		if i := strings.IndexByte(e, '='); i >= 0 {
+			env[e[:i]] = e[i+1:]
 		}
-		return match // Leave unresolved
-	})
+	}
+	return env
 }
 
 func runCLIStep(step spec.Step) (exitCode int, output string, err error) {

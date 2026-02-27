@@ -32,6 +32,15 @@ maslow scaffold --name my-project
 # Initialize maslow.yaml in an existing project
 maslow init
 
+# Install the agentic harness into an existing project
+maslow harness install
+
+# Update harness files to the latest version
+maslow harness update
+
+# Detach the harness to prevent future updates
+maslow harness detach
+
 # Print version info
 maslow version
 ```
