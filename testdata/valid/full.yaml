@@ -25,6 +25,21 @@ refs:
   - kind: binary
     path: bin/maslow
     description: Built binary
+  - kind: mcp
+    path: "@anthropic/mcp-server-github"
+    name: github
+    description: GitHub API for PRs, issues, and code search
+    source: https://github.com/anthropics/mcp-server-github
+    transport: stdio
+    command: npx
+    args: ["-y", "@anthropic/mcp-server-github"]
+    env:
+      GITHUB_TOKEN: ""
+    required: false
+  - kind: mcp
+    path: "@anthropic/mcp-server-browser"
+    name: browser
+    description: Browser automation for visual testing
 
 policy:
   deny:

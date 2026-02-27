@@ -64,7 +64,24 @@ refs:
     path: docs/openapi.yaml
     description: OpenAPI spec
     required: true
-# GAP: schema Ref has kind: file|url|package|binary|container|endpoint only
+  - kind: mcp
+    path: "@anthropic/mcp-server-github"
+    name: github
+    description: GitHub API for PRs, issues, and code search
+    transport: stdio
+    command: npx
+    args: ["-y", "@anthropic/mcp-server-github"]
+    env:
+      GITHUB_TOKEN: ""
+    required: false
+  - kind: mcp
+    path: "@anthropic/mcp-browser"
+    name: browser
+    description: Browser automation for visual regression testing
+    transport: stdio
+    command: npx
+    args: ["-y", "@anthropic/mcp-browser"]
+    required: false
 # GAP: schema has no apply (scope, paths), validate (mode, command)
 # Original: apply: { scope: path, paths: ["apps/**", "packages/**"] }
 # Original: validate: { mode: tool, command: "pnpm -w prettier -c ." }

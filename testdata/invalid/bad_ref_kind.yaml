@@ -1,0 +1,6 @@
+mas: "1.0"
+project:
+  name: bad-ref-kind
+refs:
+  - kind: invalid_kind
+    path: something

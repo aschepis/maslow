@@ -80,6 +80,65 @@ func TestValidateFile_NotFound(t *testing.T) {
 	}
 }
 
+func TestValidate_ValidMCPRef(t *testing.T) {
+	data := []byte(`mas: "1.0"
+project:
+  name: test
+refs:
+  - kind: mcp
+    path: "@anthropic/mcp-server-github"
+    name: github
+    description: GitHub API
+    transport: stdio
+    command: npx
+    args: ["-y", "@anthropic/mcp-server-github"]
+    env:
+      GITHUB_TOKEN: ""
+    required: false
+`)
+	result, err := Validate(data)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !result.Valid {
+		t.Fatalf("expected valid, got errors: %v", result.Errors)
+	}
+}
+
+func TestValidate_MCPRefMissingName(t *testing.T) {
+	data := []byte(`mas: "1.0"
+project:
+  name: test
+refs:
+  - kind: mcp
+    path: "@anthropic/mcp-server-github"
+`)
+	result, err := Validate(data)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Valid {
+		t.Fatal("expected invalid (mcp ref missing required name), got valid")
+	}
+}
+
+func TestValidate_InvalidRefKind(t *testing.T) {
+	data := []byte(`mas: "1.0"
+project:
+  name: test
+refs:
+  - kind: invalid_kind
+    path: something
+`)
+	result, err := Validate(data)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Valid {
+		t.Fatal("expected invalid (bad ref kind), got valid")
+	}
+}
+
 func TestValidate_InvalidCheckKind(t *testing.T) {
 	data := []byte(`mas: "1.0"
 project:

@@ -45,10 +45,17 @@ type Tool struct {
 }
 
 type Ref struct {
-	Kind        string `yaml:"kind"`
-	Path        string `yaml:"path"`
-	Description string `yaml:"description,omitempty"`
-	Required    bool   `yaml:"required"`
+	Kind        string            `yaml:"kind"`
+	Path        string            `yaml:"path"`
+	Description string            `yaml:"description,omitempty"`
+	Required    bool              `yaml:"required"`
+	Name        string            `yaml:"name,omitempty"`
+	Source      string            `yaml:"source,omitempty"`
+	Transport   string            `yaml:"transport,omitempty"`
+	Command     string            `yaml:"command,omitempty"`
+	Args        []string          `yaml:"args,omitempty"`
+	URL         string            `yaml:"url,omitempty"`
+	Env         map[string]string `yaml:"env,omitempty"`
 }
 
 type Policy struct {

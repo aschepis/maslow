@@ -1,7 +1,7 @@
 ---
 id: 23
 title: Add MCP and capability discovery convention to harness
-status: draft
+status: todo
 priority: medium
 created: 2026-02-22
 updated: 2026-02-22
@@ -20,12 +20,16 @@ When an agent discovers it needs a capability it doesn't have (e.g., "I need to 
 ## Requirements
 
 - Update the CLAUDE.md template to include guidance: "At the start of a session, note what MCPs and tools are available to you. If you need a capability you don't have (image generation, browser testing, deployment, database access), create a draft task tagged `kind:capability` describing what you need and why."
-- Document a convention for how refs can signal expected capabilities:
+- ~~Document a convention for how refs can signal expected capabilities using `kind: url` with `mcp://` pseudo-scheme~~ **Superseded by ADR-0010**: The schema now supports `kind: mcp` with first-class fields (`name`, `transport`, `command`, `args`, `env`, etc.). Use this instead of the `mcp://` pseudo-scheme:
   ```yaml
   refs:
-    - kind: url
-      path: "mcp://browser"
+    - kind: mcp
+      path: "@anthropic/mcp-browser"
+      name: browser
       description: Browser for visual testing
+      transport: stdio
+      command: npx
+      args: ["-y", "@anthropic/mcp-browser"]
       required: false
   ```
   These refs don't verify anything — they signal to the agent "you should have this capability for this project." If the ref is `required: true` and the capability is missing, the agent should flag it immediately.
@@ -38,6 +42,7 @@ When an agent discovers it needs a capability it doesn't have (e.g., "I need to 
 - [ ] Convention documented for using refs to signal expected MCPs/tools
 - [ ] Agent knows to create `kind:capability` draft tasks when a needed capability is missing
 - [ ] Scaffold tests pass
+- [ ] Ensure no drift is created between the harness and scaffold
 
 ## Notes
 

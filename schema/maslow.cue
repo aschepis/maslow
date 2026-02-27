@@ -63,10 +63,21 @@ package maslow
 }
 
 #Ref: {
-	kind: "file" | "url" | "package" | "binary" | "container" | "endpoint"
+	kind: "file" | "url" | "package" | "binary" | "container" | "endpoint" | "mcp"
 	path: string
 	description?: string
 	required:     bool | *true
+
+	// MCP server fields.
+	if kind == "mcp" {
+		name:       string
+		source?:    string
+		transport?: "stdio" | "sse" | "streamable-http"
+		command?:   string
+		args?: [...string]
+		url?:       string
+		env?: [string]: string
+	}
 }
 
 #Policy: {
