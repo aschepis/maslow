@@ -516,6 +516,78 @@ func checkExpectation(expect *spec.Expectation, state *stepState) error {
 		}
 	}
 
+	// Collection assertions: evaluate against the array at json_path.
+	if expect.MinLength != nil || expect.MaxLength != nil || expect.Length != nil || expect.Every != nil || expect.Some != nil {
+		if expect.JSONPath == "" {
+			return fmt.Errorf("collection assertions require json_path to identify the target array")
+		}
+		arrVal, err := evaluateJSONPath(state.output, expect.JSONPath)
+		if err != nil {
+			return fmt.Errorf("collection assertion json_path %q: %w", expect.JSONPath, err)
+		}
+		arr, ok := arrVal.([]any)
+		if !ok {
+			return fmt.Errorf("expected array at %s, got %T", expect.JSONPath, arrVal)
+		}
+
+		if expect.Length != nil && len(arr) != *expect.Length {
+			return fmt.Errorf("expected array at %s to have exactly %d items, got %d", expect.JSONPath, *expect.Length, len(arr))
+		}
+		if expect.MinLength != nil && len(arr) < *expect.MinLength {
+			return fmt.Errorf("expected array at %s to have at least %d items, got %d", expect.JSONPath, *expect.MinLength, len(arr))
+		}
+		if expect.MaxLength != nil && len(arr) > *expect.MaxLength {
+			return fmt.Errorf("expected array at %s to have at most %d items, got %d", expect.JSONPath, *expect.MaxLength, len(arr))
+		}
+
+		if expect.Every != nil {
+			for i, item := range arr {
+				itemJSON, err := json.Marshal(item)
+				if err != nil {
+					return fmt.Errorf("every[%d]: failed to serialize array item: %w", i, err)
+				}
+				result, err := evaluateJSONPath(string(itemJSON), expect.Every.JSONPath)
+				if err != nil {
+					return fmt.Errorf("every[%d] json_path %q: %w", i, expect.Every.JSONPath, err)
+				}
+				if expect.Every.Value != nil {
+					if !jsonValuesEqual(result, expect.Every.Value) {
+						return fmt.Errorf("every[%d] json_path %q: expected %v, got %v", i, expect.Every.JSONPath, expect.Every.Value, result)
+					}
+				}
+			}
+		}
+
+		if expect.Some != nil {
+			matched := false
+			for _, item := range arr {
+				itemJSON, err := json.Marshal(item)
+				if err != nil {
+					continue
+				}
+				result, err := evaluateJSONPath(string(itemJSON), expect.Some.JSONPath)
+				if err != nil {
+					continue
+				}
+				if expect.Some.Value == nil {
+					// Existence check — the path resolved successfully.
+					matched = true
+					break
+				}
+				if jsonValuesEqual(result, expect.Some.Value) {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				if expect.Some.Value != nil {
+					return fmt.Errorf("no item in array at %s matched json_path %q with value %v", expect.JSONPath, expect.Some.JSONPath, expect.Some.Value)
+				}
+				return fmt.Errorf("no item in array at %s had json_path %q", expect.JSONPath, expect.Some.JSONPath)
+			}
+		}
+	}
+
 	return nil
 }
 

@@ -219,6 +219,11 @@ func TestRun_CLAUDEMDContent(t *testing.T) {
 		"Progressive Verification",
 		"Add an HTTP contract scenario",
 		"Add an artifact_size budget",
+		// Refs as generative input
+		"Refs as Generative Input",
+		"Doc refs",
+		"north star",
+		"reading list",
 	}
 	for _, section := range expectedSections {
 		if !strings.Contains(content, section) {
@@ -512,6 +517,8 @@ func TestRun_SkillMDContent(t *testing.T) {
 		"Read all refs",
 		"ADR",
 		"kind:gap",
+		// Ref-reading in workflows
+		"generative input",
 	}
 	for _, check := range expectedContent {
 		if !strings.Contains(content, check) {

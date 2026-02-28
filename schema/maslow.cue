@@ -178,6 +178,12 @@ package maslow
 	exit_code?: int
 	// Multiple JSON path assertions (all must pass).
 	assertions?: [...#Assertion]
+	// Collection assertions (apply to the array at json_path).
+	min_length?: int & >=0
+	max_length?: int & >=0
+	length?:     int & >=0
+	every?:      #Assertion
+	some?:       #Assertion
 }
 
 #Assertion: {

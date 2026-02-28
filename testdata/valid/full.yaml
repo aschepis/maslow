@@ -115,6 +115,18 @@ contracts:
           - action: assert
             expect:
               exit_code: 1
+      - name: collection-assertions-example
+        steps:
+          - action: cli
+            command: echo
+            args:
+              - '{"items":[{"id":1,"name":"a"},{"id":2,"name":"b"}]}'
+          - action: assert
+            expect:
+              json_path: "$.items"
+              min_length: 1
+              every:
+                json_path: "$.id"
 
 budgets:
   - name: binary-size

@@ -156,9 +156,29 @@ The project is defined by a declarative maslow.yaml spec that is validated, veri
 ## What to Read First
 
 1. This file (CLAUDE.md) — conventions, principles, and process
-2. maslow.yaml — the spec (source of truth for what Maslow enforces)
+2. maslow.yaml — the spec (source of truth); read all refs that point to docs/ files
 3. docs/MAP.md — architecture overview and key entrypoints
 4. docs/PLAN.md — milestones, workstreams, and Definition of Done
+
+## Refs as Generative Input
+
+Refs in maslow.yaml are not just verification targets — they are your primary input. Before starting any
+generative work, read all refs to understand your context:
+
+- **Doc refs** (kind: file pointing to docs/) are requirements, constraints, and context. These are your north star.
+  Read them before making any decisions.
+- **Config refs** (kind: file pointing to config files like .prettierrc, .eslint) are verification targets.
+  Ensure they exist and are respected, but don't treat them as requirements.
+- **URL refs** (kind: url) may point to external context — competitor apps, design inspiration, API standards.
+  Fetch and use them as context when relevant.
+- **MCP refs** (kind: mcp) declare tool dependencies. Check if you have these capabilities available.
+
+**Convention**: If a ref points to a file in docs/, treat it as input. If it points to a config file
+or binary, treat it as a verification target. When in doubt, read it — more context is always better.
+
+Humans should add their requirements, aspirations, branding guidelines, and tech preferences as refs
+pointing to docs/ files. The refs section is a reading list for anyone (human or agent) who wants to
+understand the project's intent.
 
 ## Operating Principles
 
@@ -515,14 +535,15 @@ maslow version
 ## Workflow: Starting a New Project
 
 1. Run ` + "`maslow scaffold --name <project-name>`" + ` to generate the full project structure.
-2. Edit ` + "`maslow.yaml`" + ` to define your checks, contracts, budgets, and policies.
-3. Implement the project code.
-4. Run ` + "`maslow verify --profile quick`" + ` frequently during development.
-5. Run ` + "`maslow verify --profile full`" + ` before merging.
+2. Read all refs in maslow.yaml that point to docs/ files — these are your requirements and context.
+3. Edit ` + "`maslow.yaml`" + ` to define your checks, contracts, budgets, and policies.
+4. Implement the project code.
+5. Run ` + "`maslow verify --profile quick`" + ` frequently during development.
+6. Run ` + "`maslow verify --profile full`" + ` before merging.
 
 ## Workflow: Working on an Existing Project
 
-1. Read ` + "`maslow.yaml`" + ` to understand the project spec.
+1. Read ` + "`maslow.yaml`" + ` to understand the project spec. Read all refs that point to docs/ files for context.
 2. Read ` + "`CLAUDE.md`" + ` for agent conventions and operating principles.
 3. Read ` + "`docs/MAP.md`" + ` for architecture overview.
 4. Read ` + "`docs/PLAN.md`" + ` for milestones and execution plan.
@@ -551,7 +572,7 @@ A valid ` + "`maslow.yaml`" + ` defines:
 - **mas** - Schema version (e.g., "1.0")
 - **project** - Project name, description, version
 - **toolchain** - Required tools and version managers (asdf, mise, nix)
-- **refs** - External references (files, repos, APIs)
+- **refs** - External references and generative input (docs, configs, APIs, MCP servers)
 - **policy** - Path deny/protected lists for agent safety
 - **checks** - Named verification checks with runner configuration
 - **profiles** - Named subsets of checks (quick, full, custom)

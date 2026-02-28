@@ -157,3 +157,60 @@ checks:
 		t.Fatal("expected invalid, got valid")
 	}
 }
+
+func TestValidate_CollectionAssertions(t *testing.T) {
+	data := []byte(`mas: "1.0"
+project:
+  name: test
+contracts:
+  - name: collection-test
+    scenarios:
+      - name: test-arrays
+        steps:
+          - action: http
+            method: GET
+            url: "http://example.com/items"
+            expect:
+              status: 200
+              json_path: "$.items"
+              min_length: 1
+              max_length: 100
+              every:
+                json_path: "$.id"
+              some:
+                json_path: "$.featured"
+                value: true
+`)
+	result, err := Validate(data)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !result.Valid {
+		t.Fatalf("expected valid, got errors: %v", result.Errors)
+	}
+}
+
+func TestValidate_CollectionExactLength(t *testing.T) {
+	data := []byte(`mas: "1.0"
+project:
+  name: test
+contracts:
+  - name: exact-len
+    scenarios:
+      - name: test-exact
+        steps:
+          - action: http
+            method: GET
+            url: "http://example.com/items"
+            expect:
+              json_path: "$.items"
+              length: 5
+`)
+	result, err := Validate(data)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !result.Valid {
+		t.Fatalf("expected valid, got errors: %v", result.Errors)
+	}
+}

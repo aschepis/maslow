@@ -45,6 +45,18 @@ toolchain:
 
 refs:
   - kind: file
+    path: docs/PRD.md
+    description: Product requirements document — north star for all features
+    required: true
+  - kind: file
+    path: docs/BRANDING.md
+    description: Brand guidelines, colors, typography, and visual identity
+    required: false
+  - kind: url
+    path: https://www.tiktok.com
+    description: Reference app for UX patterns and feature inspiration
+    required: false
+  - kind: file
     path: .editorconfig
     description: EditorConfig
     required: true
@@ -181,6 +193,20 @@ contracts:
                 - json_path: "$.token_type"
                   value: "bearer"
                 - json_path: "$.expires_in"
+      - name: feed-returns-items
+        steps:
+          - action: http
+            method: GET
+            url: "{{.env.API_BASE_URL}}/v1/feed"
+            expect:
+              status: 200
+              json_path: "$.items"
+              min_length: 1
+              every:
+                json_path: "$.id"
+              some:
+                json_path: "$.featured"
+                value: true
 
 # GAP: Original contract used fixtures, given/when/then, capture vars, poll until ready,
 # idempotency tests, rate-limit tests, abuse filter, auth tests, ETag tests.

@@ -128,6 +128,11 @@ type Expectation struct {
 	BodyMatches  string            `yaml:"body_matches,omitempty"`
 	ExitCode     *int              `yaml:"exit_code,omitempty"`
 	Assertions   []Assertion       `yaml:"assertions,omitempty"`
+	MinLength    *int              `yaml:"min_length,omitempty"`
+	MaxLength    *int              `yaml:"max_length,omitempty"`
+	Length       *int              `yaml:"length,omitempty"`
+	Every        *Assertion        `yaml:"every,omitempty"`
+	Some         *Assertion        `yaml:"some,omitempty"`
 }
 
 type Assertion struct {

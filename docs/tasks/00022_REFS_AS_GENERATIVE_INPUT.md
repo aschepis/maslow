@@ -1,12 +1,12 @@
 ---
 id: 22
 title: Establish refs as generative input convention in harness
-status: todo
+status: done
 priority: high
 created: 2026-02-22
-updated: 2026-02-22
-assigned_to: ""
-assigned_at: ""
+updated: 2026-02-26
+assigned_to: claude
+assigned_at: "2026-02-26"
 depends_on: [21]
 tags: [maslow, harness, scaffold, refs]
 ---

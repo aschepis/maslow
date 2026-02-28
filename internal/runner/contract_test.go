@@ -1077,3 +1077,595 @@ func TestApplyTemplate_EmptyString(t *testing.T) {
 		t.Errorf("expected empty string, got %s", got)
 	}
 }
+
+// --- Collection Assertion Tests ---
+
+func TestRunContracts_MinLength(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"items":[{"id":1},{"id":2},{"id":3}]}`))
+	}))
+	defer srv.Close()
+
+	minLen := 2
+	status200 := 200
+	contracts := []spec.Contract{
+		{
+			Name: "collection",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "min-length-pass",
+					Steps: []spec.Step{
+						{
+							Action: "http", Method: "GET", URL: srv.URL,
+							Expect: &spec.Expectation{
+								Status:    &status200,
+								JSONPath:  "$.items",
+								MinLength: &minLen,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	results := RunContracts(contracts)
+	if results[0].Status != "pass" {
+		t.Errorf("expected pass, got %s: %s", results[0].Status, results[0].Error)
+	}
+}
+
+func TestRunContracts_MinLengthFail(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"items":[{"id":1}]}`))
+	}))
+	defer srv.Close()
+
+	minLen := 5
+	status200 := 200
+	contracts := []spec.Contract{
+		{
+			Name: "collection",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "min-length-fail",
+					Steps: []spec.Step{
+						{
+							Action: "http", Method: "GET", URL: srv.URL,
+							Expect: &spec.Expectation{
+								Status:    &status200,
+								JSONPath:  "$.items",
+								MinLength: &minLen,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	results := RunContracts(contracts)
+	if results[0].Status != "fail" {
+		t.Errorf("expected fail, got %s", results[0].Status)
+	}
+	if !strings.Contains(results[0].Error, "at least 5 items") {
+		t.Errorf("expected descriptive error, got: %s", results[0].Error)
+	}
+}
+
+func TestRunContracts_MaxLength(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"items":[{"id":1},{"id":2}]}`))
+	}))
+	defer srv.Close()
+
+	maxLen := 5
+	status200 := 200
+	contracts := []spec.Contract{
+		{
+			Name: "collection",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "max-length-pass",
+					Steps: []spec.Step{
+						{
+							Action: "http", Method: "GET", URL: srv.URL,
+							Expect: &spec.Expectation{
+								Status:    &status200,
+								JSONPath:  "$.items",
+								MaxLength: &maxLen,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	results := RunContracts(contracts)
+	if results[0].Status != "pass" {
+		t.Errorf("expected pass, got %s: %s", results[0].Status, results[0].Error)
+	}
+}
+
+func TestRunContracts_MaxLengthFail(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"items":[{"id":1},{"id":2},{"id":3}]}`))
+	}))
+	defer srv.Close()
+
+	maxLen := 2
+	status200 := 200
+	contracts := []spec.Contract{
+		{
+			Name: "collection",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "max-length-fail",
+					Steps: []spec.Step{
+						{
+							Action: "http", Method: "GET", URL: srv.URL,
+							Expect: &spec.Expectation{
+								Status:    &status200,
+								JSONPath:  "$.items",
+								MaxLength: &maxLen,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	results := RunContracts(contracts)
+	if results[0].Status != "fail" {
+		t.Errorf("expected fail, got %s", results[0].Status)
+	}
+	if !strings.Contains(results[0].Error, "at most 2 items") {
+		t.Errorf("expected descriptive error, got: %s", results[0].Error)
+	}
+}
+
+func TestRunContracts_ExactLength(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"items":[{"id":1},{"id":2},{"id":3}]}`))
+	}))
+	defer srv.Close()
+
+	exactLen := 3
+	status200 := 200
+	contracts := []spec.Contract{
+		{
+			Name: "collection",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "exact-length-pass",
+					Steps: []spec.Step{
+						{
+							Action: "http", Method: "GET", URL: srv.URL,
+							Expect: &spec.Expectation{
+								Status:   &status200,
+								JSONPath: "$.items",
+								Length:   &exactLen,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	results := RunContracts(contracts)
+	if results[0].Status != "pass" {
+		t.Errorf("expected pass, got %s: %s", results[0].Status, results[0].Error)
+	}
+}
+
+func TestRunContracts_ExactLengthFail(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"items":[{"id":1},{"id":2}]}`))
+	}))
+	defer srv.Close()
+
+	exactLen := 5
+	status200 := 200
+	contracts := []spec.Contract{
+		{
+			Name: "collection",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "exact-length-fail",
+					Steps: []spec.Step{
+						{
+							Action: "http", Method: "GET", URL: srv.URL,
+							Expect: &spec.Expectation{
+								Status:   &status200,
+								JSONPath: "$.items",
+								Length:   &exactLen,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	results := RunContracts(contracts)
+	if results[0].Status != "fail" {
+		t.Errorf("expected fail, got %s", results[0].Status)
+	}
+	if !strings.Contains(results[0].Error, "exactly 5 items") {
+		t.Errorf("expected descriptive error, got: %s", results[0].Error)
+	}
+}
+
+func TestRunContracts_EveryPass(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"users":[{"id":1,"active":true},{"id":2,"active":true}]}`))
+	}))
+	defer srv.Close()
+
+	status200 := 200
+	contracts := []spec.Contract{
+		{
+			Name: "collection",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "every-active",
+					Steps: []spec.Step{
+						{
+							Action: "http", Method: "GET", URL: srv.URL,
+							Expect: &spec.Expectation{
+								Status:   &status200,
+								JSONPath: "$.users",
+								Every:    &spec.Assertion{JSONPath: "$.active", Value: true},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	results := RunContracts(contracts)
+	if results[0].Status != "pass" {
+		t.Errorf("expected pass, got %s: %s", results[0].Status, results[0].Error)
+	}
+}
+
+func TestRunContracts_EveryFail(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"users":[{"id":1,"active":true},{"id":2,"active":false}]}`))
+	}))
+	defer srv.Close()
+
+	status200 := 200
+	contracts := []spec.Contract{
+		{
+			Name: "collection",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "every-active-fail",
+					Steps: []spec.Step{
+						{
+							Action: "http", Method: "GET", URL: srv.URL,
+							Expect: &spec.Expectation{
+								Status:   &status200,
+								JSONPath: "$.users",
+								Every:    &spec.Assertion{JSONPath: "$.active", Value: true},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	results := RunContracts(contracts)
+	if results[0].Status != "fail" {
+		t.Errorf("expected fail, got %s", results[0].Status)
+	}
+	if !strings.Contains(results[0].Error, "every[1]") {
+		t.Errorf("expected error referencing item index, got: %s", results[0].Error)
+	}
+}
+
+func TestRunContracts_EveryExistenceOnly(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"items":[{"id":1,"name":"a"},{"id":2,"name":"b"}]}`))
+	}))
+	defer srv.Close()
+
+	status200 := 200
+	contracts := []spec.Contract{
+		{
+			Name: "collection",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "every-has-id",
+					Steps: []spec.Step{
+						{
+							Action: "http", Method: "GET", URL: srv.URL,
+							Expect: &spec.Expectation{
+								Status:   &status200,
+								JSONPath: "$.items",
+								Every:    &spec.Assertion{JSONPath: "$.id"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	results := RunContracts(contracts)
+	if results[0].Status != "pass" {
+		t.Errorf("expected pass, got %s: %s", results[0].Status, results[0].Error)
+	}
+}
+
+func TestRunContracts_SomePass(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"items":[{"id":1,"featured":false},{"id":2,"featured":true}]}`))
+	}))
+	defer srv.Close()
+
+	status200 := 200
+	contracts := []spec.Contract{
+		{
+			Name: "collection",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "some-featured",
+					Steps: []spec.Step{
+						{
+							Action: "http", Method: "GET", URL: srv.URL,
+							Expect: &spec.Expectation{
+								Status:   &status200,
+								JSONPath: "$.items",
+								Some:     &spec.Assertion{JSONPath: "$.featured", Value: true},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	results := RunContracts(contracts)
+	if results[0].Status != "pass" {
+		t.Errorf("expected pass, got %s: %s", results[0].Status, results[0].Error)
+	}
+}
+
+func TestRunContracts_SomeFail(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"items":[{"id":1,"featured":false},{"id":2,"featured":false}]}`))
+	}))
+	defer srv.Close()
+
+	status200 := 200
+	contracts := []spec.Contract{
+		{
+			Name: "collection",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "some-featured-fail",
+					Steps: []spec.Step{
+						{
+							Action: "http", Method: "GET", URL: srv.URL,
+							Expect: &spec.Expectation{
+								Status:   &status200,
+								JSONPath: "$.items",
+								Some:     &spec.Assertion{JSONPath: "$.featured", Value: true},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	results := RunContracts(contracts)
+	if results[0].Status != "fail" {
+		t.Errorf("expected fail, got %s", results[0].Status)
+	}
+	if !strings.Contains(results[0].Error, "no item") {
+		t.Errorf("expected descriptive error, got: %s", results[0].Error)
+	}
+}
+
+func TestRunContracts_SomeExistenceOnly(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"items":[{"id":1},{"id":2,"special":true}]}`))
+	}))
+	defer srv.Close()
+
+	status200 := 200
+	contracts := []spec.Contract{
+		{
+			Name: "collection",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "some-has-special",
+					Steps: []spec.Step{
+						{
+							Action: "http", Method: "GET", URL: srv.URL,
+							Expect: &spec.Expectation{
+								Status:   &status200,
+								JSONPath: "$.items",
+								Some:     &spec.Assertion{JSONPath: "$.special"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	results := RunContracts(contracts)
+	if results[0].Status != "pass" {
+		t.Errorf("expected pass, got %s: %s", results[0].Status, results[0].Error)
+	}
+}
+
+func TestRunContracts_CollectionNonArray(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"items":"not-an-array"}`))
+	}))
+	defer srv.Close()
+
+	minLen := 1
+	status200 := 200
+	contracts := []spec.Contract{
+		{
+			Name: "collection",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "non-array",
+					Steps: []spec.Step{
+						{
+							Action: "http", Method: "GET", URL: srv.URL,
+							Expect: &spec.Expectation{
+								Status:    &status200,
+								JSONPath:  "$.items",
+								MinLength: &minLen,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	results := RunContracts(contracts)
+	if results[0].Status != "fail" {
+		t.Errorf("expected fail, got %s", results[0].Status)
+	}
+	if !strings.Contains(results[0].Error, "expected array") {
+		t.Errorf("expected type error, got: %s", results[0].Error)
+	}
+}
+
+func TestRunContracts_EmptyArrayEvery(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"items":[]}`))
+	}))
+	defer srv.Close()
+
+	status200 := 200
+	contracts := []spec.Contract{
+		{
+			Name: "collection",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "empty-every",
+					Steps: []spec.Step{
+						{
+							Action: "http", Method: "GET", URL: srv.URL,
+							Expect: &spec.Expectation{
+								Status:   &status200,
+								JSONPath: "$.items",
+								Every:    &spec.Assertion{JSONPath: "$.id"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// every on empty array is vacuously true
+	results := RunContracts(contracts)
+	if results[0].Status != "pass" {
+		t.Errorf("expected pass (vacuous truth), got %s: %s", results[0].Status, results[0].Error)
+	}
+}
+
+func TestRunContracts_EmptyArraySome(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"items":[]}`))
+	}))
+	defer srv.Close()
+
+	status200 := 200
+	contracts := []spec.Contract{
+		{
+			Name: "collection",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "empty-some",
+					Steps: []spec.Step{
+						{
+							Action: "http", Method: "GET", URL: srv.URL,
+							Expect: &spec.Expectation{
+								Status:   &status200,
+								JSONPath: "$.items",
+								Some:     &spec.Assertion{JSONPath: "$.id"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// some on empty array should fail
+	results := RunContracts(contracts)
+	if results[0].Status != "fail" {
+		t.Errorf("expected fail, got %s", results[0].Status)
+	}
+}
+
+func TestRunContracts_CollectionMissingJSONPath(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"items":[1,2,3]}`))
+	}))
+	defer srv.Close()
+
+	minLen := 1
+	status200 := 200
+	contracts := []spec.Contract{
+		{
+			Name: "collection",
+			Scenarios: []spec.Scenario{
+				{
+					Name: "no-json-path",
+					Steps: []spec.Step{
+						{
+							Action: "http", Method: "GET", URL: srv.URL,
+							Expect: &spec.Expectation{
+								Status:    &status200,
+								MinLength: &minLen,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	results := RunContracts(contracts)
+	if results[0].Status != "fail" {
+		t.Errorf("expected fail, got %s", results[0].Status)
+	}
+	if !strings.Contains(results[0].Error, "require json_path") {
+		t.Errorf("expected json_path requirement error, got: %s", results[0].Error)
+	}
+}

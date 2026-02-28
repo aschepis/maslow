@@ -1,12 +1,12 @@
 ---
 id: 18
 title: Add array and collection assertions for contract expectations
-status: todo
+status: done
 priority: medium
 created: 2026-02-20
-updated: 2026-02-20
-assigned_to: ""
-assigned_at: ""
+updated: 2026-02-26
+assigned_to: claude
+assigned_at: "2026-02-26"
 depends_on: []
 tags: [maslow, verification, contract, schema]
 ---
