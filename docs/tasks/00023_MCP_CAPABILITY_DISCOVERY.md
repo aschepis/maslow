@@ -1,12 +1,12 @@
 ---
 id: 23
 title: Add MCP and capability discovery convention to harness
-status: todo
+status: done
 priority: medium
 created: 2026-02-22
-updated: 2026-02-22
-assigned_to: ""
-assigned_at: ""
+updated: 2026-03-01
+assigned_to: claude
+assigned_at: "2026-03-01T00:00:00Z"
 depends_on: [21]
 tags: [maslow, harness, scaffold, mcp, capabilities]
 ---

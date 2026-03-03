@@ -19,7 +19,9 @@ type Report struct {
 	Verdict      string         `json:"verdict"` // pass, fail, inconclusive
 	CheckResults []CheckResult  `json:"check_results"`
 	Contracts    []ContractResult `json:"contracts,omitempty"`
-	Budgets      []BudgetResult `json:"budgets,omitempty"`
+	Budgets      []BudgetResult   `json:"budgets,omitempty"`
+	Refs         []RefResult      `json:"refs,omitempty"`
+	Policy       []PolicyResult   `json:"policy,omitempty"`
 }
 
 // CheckResult records the outcome of a single check.
@@ -46,6 +48,23 @@ type BudgetResult struct {
 	Status string `json:"status"`
 	Actual string `json:"actual,omitempty"`
 	Limit  string `json:"limit,omitempty"`
+	Error  string `json:"error,omitempty"`
+}
+
+// RefResult records the outcome of a ref verification.
+type RefResult struct {
+	Path   string `json:"path"`
+	Kind   string `json:"kind"`
+	Status string `json:"status"` // pass, fail, skip
+	Error  string `json:"error,omitempty"`
+}
+
+// PolicyResult records the outcome of a policy rule check.
+type PolicyResult struct {
+	Rule   string `json:"rule"`
+	Kind   string `json:"kind"` // deny, protected, gated
+	Status string `json:"status"`
+	Detail string `json:"detail,omitempty"`
 	Error  string `json:"error,omitempty"`
 }
 
@@ -80,6 +99,18 @@ func (r *Report) ComputeVerdict() {
 	}
 	for _, b := range r.Budgets {
 		if b.Status == "fail" {
+			r.Verdict = "fail"
+			return
+		}
+	}
+	for _, ref := range r.Refs {
+		if ref.Status == "fail" || ref.Status == "error" {
+			r.Verdict = "fail"
+			return
+		}
+	}
+	for _, p := range r.Policy {
+		if p.Status == "fail" || p.Status == "error" {
 			r.Verdict = "fail"
 			return
 		}

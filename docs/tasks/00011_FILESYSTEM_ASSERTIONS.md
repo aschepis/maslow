@@ -1,7 +1,8 @@
 ---
 id: 11
 title: Add filesystem assertion support for contracts
-status: draft
+status: todo
+priority: medium
 created: 2026-02-19
 tags: [maslow, verification, contract, filesystem]
 ---

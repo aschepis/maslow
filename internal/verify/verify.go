@@ -32,6 +32,16 @@ func Run(mas *spec.MAS, profile string) (*evidence.Report, error) {
 		report.Budgets = runner.RunBudgets(mas.Budgets)
 	}
 
+	// Run ref verification.
+	if len(mas.Refs) > 0 {
+		report.Refs = runner.RunRefs(mas.Refs)
+	}
+
+	// Run policy enforcement.
+	if mas.Policy != nil {
+		report.Policy = runner.RunPolicy(mas.Policy)
+	}
+
 	report.ComputeVerdict()
 	return report, nil
 }

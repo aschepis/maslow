@@ -1,7 +1,7 @@
 ---
 id: 17
 title: Add artifacts section to schema for required output verification
-status: draft
+status: todo
 priority: medium
 created: 2026-02-20
 updated: 2026-02-20

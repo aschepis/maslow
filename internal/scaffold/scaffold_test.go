@@ -224,6 +224,10 @@ func TestRun_CLAUDEMDContent(t *testing.T) {
 		"Doc refs",
 		"north star",
 		"reading list",
+		// Capability Discovery section
+		"Capability Discovery",
+		"inventory what MCPs",
+		"kind:capability",
 	}
 	for _, section := range expectedSections {
 		if !strings.Contains(content, section) {
@@ -519,6 +523,8 @@ func TestRun_SkillMDContent(t *testing.T) {
 		"kind:gap",
 		// Ref-reading in workflows
 		"generative input",
+		// Capability check in workflows
+		"Capability Check",
 	}
 	for _, check := range expectedContent {
 		if !strings.Contains(content, check) {

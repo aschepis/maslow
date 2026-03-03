@@ -229,6 +229,24 @@ Draft tasks are how agents signal platform gaps — NOT how agents ask for permi
 
 The human reviews draft tasks at their own pace and promotes important ones to todo.
 
+## Capability Discovery
+
+At the start of a session, inventory what MCPs and tools are available to you. Check refs in
+maslow.yaml with ` + "`kind: mcp`" + ` — these declare capabilities the project expects you to have.
+
+**If you have the capability**: use it. A browser MCP means you can do visual testing.
+A database MCP means you can seed test data. A deployment MCP means you can ship to staging.
+
+**If you lack a required capability**: create a draft task tagged ` + "`kind:capability`" + ` describing
+what you need and why. Example: "Need browser MCP for visual regression testing of the
+dashboard — cannot verify layout matches design spec without screenshot comparison."
+
+**If you lack an optional capability**: note it and work around it. Document the gap in your
+commit messages so the human knows what was skipped.
+
+This inventory directly affects what verifications are possible. More capabilities = more
+confidence in verification results.
+
 ## Non-Negotiable Behaviors
 
 - All requirements must be captured in docs and enforced via maslow.yaml.
@@ -535,21 +553,23 @@ maslow version
 ## Workflow: Starting a New Project
 
 1. Run ` + "`maslow scaffold --name <project-name>`" + ` to generate the full project structure.
-2. Read all refs in maslow.yaml that point to docs/ files — these are your requirements and context.
-3. Edit ` + "`maslow.yaml`" + ` to define your checks, contracts, budgets, and policies.
-4. Implement the project code.
-5. Run ` + "`maslow verify --profile quick`" + ` frequently during development.
-6. Run ` + "`maslow verify --profile full`" + ` before merging.
+2. **Capability Check**: Review refs with ` + "`kind: mcp`" + ` in maslow.yaml. Verify you have the declared tool capabilities. If any required capabilities are missing, create a draft task tagged ` + "`kind:capability`" + `.
+3. Read all refs in maslow.yaml that point to docs/ files — these are your requirements and context.
+4. Edit ` + "`maslow.yaml`" + ` to define your checks, contracts, budgets, and policies.
+5. Implement the project code.
+6. Run ` + "`maslow verify --profile quick`" + ` frequently during development.
+7. Run ` + "`maslow verify --profile full`" + ` before merging.
 
 ## Workflow: Working on an Existing Project
 
 1. Read ` + "`maslow.yaml`" + ` to understand the project spec. Read all refs that point to docs/ files for context.
-2. Read ` + "`CLAUDE.md`" + ` for agent conventions and operating principles.
-3. Read ` + "`docs/MAP.md`" + ` for architecture overview.
-4. Read ` + "`docs/PLAN.md`" + ` for milestones and execution plan.
-5. Check ` + "`docs/tasks/`" + ` for available work (scan frontmatter only).
-6. Run ` + "`maslow verify --profile quick`" + ` to confirm the project is green before making changes.
-7. Make changes in small increments, running verification after each.
+2. **Capability Check**: Review refs with ` + "`kind: mcp`" + `. Verify you have the declared tool capabilities. Flag missing required capabilities immediately.
+3. Read ` + "`CLAUDE.md`" + ` for agent conventions and operating principles.
+4. Read ` + "`docs/MAP.md`" + ` for architecture overview.
+5. Read ` + "`docs/PLAN.md`" + ` for milestones and execution plan.
+6. Check ` + "`docs/tasks/`" + ` for available work (scan frontmatter only).
+7. Run ` + "`maslow verify --profile quick`" + ` to confirm the project is green before making changes.
+8. Make changes in small increments, running verification after each.
 
 ## Workflow: Greenfield Build
 

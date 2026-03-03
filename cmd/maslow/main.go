@@ -534,6 +534,21 @@ func printReport(report *evidence.Report, path string) {
 			fmt.Printf("         error: %s\n", b.Error)
 		}
 	}
+	for _, ref := range report.Refs {
+		fmt.Printf("  [%s] ref: %s (%s)\n", ref.Status, ref.Path, ref.Kind)
+		if ref.Error != "" {
+			fmt.Printf("         error: %s\n", ref.Error)
+		}
+	}
+	for _, p := range report.Policy {
+		fmt.Printf("  [%s] policy/%s: %s\n", p.Status, p.Kind, p.Rule)
+		if p.Detail != "" {
+			fmt.Printf("         detail: %s\n", p.Detail)
+		}
+		if p.Error != "" {
+			fmt.Printf("         error: %s\n", p.Error)
+		}
+	}
 	fmt.Printf("maslow: report written to %s\n", path)
 }
 
