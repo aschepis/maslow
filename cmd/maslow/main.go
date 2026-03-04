@@ -304,9 +304,18 @@ func cmdScaffold(args []string) int {
 	fmt.Println()
 	fmt.Println("Next steps:")
 	fmt.Printf("  cd %s\n", targetDir)
-	fmt.Println("  # Edit maslow.yaml to configure your checks")
-	fmt.Println("  # Edit CLAUDE.md to describe your project")
-	fmt.Println("  maslow validate maslow.yaml")
+	fmt.Println("  git init && git add -A && git commit -m 'initial scaffold'")
+	fmt.Println()
+	fmt.Println("  # 1. Write your intent as a doc and add it as a ref:")
+	fmt.Println("  #    Create docs/REQUIREMENTS.md with your vision and constraints")
+	fmt.Println("  #    Add a ref in maslow.yaml pointing to it")
+	fmt.Println()
+	fmt.Println("  # 2. Edit maslow.yaml: project name, description, policy, refs")
+	fmt.Println()
+	fmt.Println("  # 3. Write your first task:")
+	fmt.Println("  #    Create docs/tasks/00001_YOUR_FIRST_TASK.md with status: todo")
+	fmt.Println()
+	fmt.Println("  # 4. Tell your agent: 'Read CLAUDE.md and implement the next task'")
 	return 0
 }
 
