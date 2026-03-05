@@ -17,6 +17,11 @@ func Install(opts Options) error {
 		return fmt.Errorf("harness install: %w", err)
 	}
 
+	// If force-installing over a detached harness, remove the sentinel.
+	if opts.Force {
+		os.Remove(filepath.Join(dir, SentinelFile))
+	}
+
 	projectName := opts.ProjectName
 	if projectName == "" {
 		projectName = DetectProjectName(dir)

@@ -69,6 +69,8 @@ reports/verify.json         <- output evidence file; written by verify and audit
 | Verify output | `reports/verify.json` | Written by `maslow verify` and `maslow audit` |
 | Test fixtures | `testdata/valid/` | Valid maslow.yaml examples for schema and verify tests |
 | Test fixtures | `testdata/invalid/` | Invalid maslow.yaml examples that must fail validation |
+| README | `README.md` | Install, usage, commands, dev instructions |
+| Makefile | `Makefile` | Standard dev targets: build, test, vet, lint, validate, verify, clean |
 | Documentation | `docs/` | MAP, PLAN, ADRs, templates, runbooks |
 | ADRs | `docs/adr/` | Architecture and agent decision records |
 | Templates | `docs/templates/` | Decision templates; unfilled design questions |
@@ -105,6 +107,8 @@ Every run of `maslow verify` or `maslow audit` writes `reports/verify.json`. It 
 - `check_results` - result per check runner
 - `contract_results` - result per contract scenario
 - `budget_results` - result per budget assertion
+- `ref_results` - result per ref verification (file, binary, url existence)
+- `policy_results` - result per policy enforcement (deny patterns, protected files)
 - `verdict` - `pass`, `fail`, or `inconclusive`
 
 The file is stable, deterministic, diffable, and machine-readable.

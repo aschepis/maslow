@@ -28,6 +28,12 @@ refs:
   - kind: file
     path: maslow.yaml
     description: Self-hosting MAS spec
+  - kind: file
+    path: README.md
+    description: Project README with install, usage, and development instructions
+  - kind: file
+    path: Makefile
+    description: Development workflow targets (build, test, vet, lint, validate, verify, clean)
   - kind: binary
     path: bin/maslow
     description: Built Maslow binary
@@ -42,6 +48,7 @@ policy:
     - maslow.yaml
     - schema/maslow.cue
     - docs/REQUIREMENTS.md
+    - README.md
 
 checks:
   runner:
@@ -202,6 +209,19 @@ contracts:
             expect:
               exit_code: 0
               body_contains: "created project"
+      - name: next-steps-show-workflow
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - scaffold
+              - workflow-test-proj
+              - --dir
+              - /tmp/maslow-contract-scaffold-workflow
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "Write your first task"
       - name: missing-name
         steps:
           - action: cli

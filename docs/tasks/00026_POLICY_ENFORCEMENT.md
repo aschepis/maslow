@@ -1,12 +1,12 @@
 ---
 id: 26
 title: Implement policy enforcement runner
-status: todo
+status: done
 priority: critical
 created: 2026-03-01
-updated: 2026-03-01
-assigned_to: ""
-assigned_at: ""
+updated: 2026-03-04
+assigned_to: claude
+assigned_at: "2026-03-01T00:00:00Z"
 depends_on: []
 tags: [maslow, verification, policy, runner]
 ---
