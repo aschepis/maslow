@@ -50,11 +50,27 @@ outputs:
     value: ${{ steps.verify.outputs.verdict }}
   report:
     description: Path to the evidence file.
-    value: ${{ inputs.report }}
+    value: ${{ steps.paths.outputs.report }}
 
 runs:
   using: composite
   steps:
+    # One absolute report path for every step; a relative one would resolve
+    # inside working-directory for maslow but at the workspace root elsewhere.
+    - name: Resolve paths
+      id: paths
+      shell: bash
+      env:
+        REPORT: ${{ inputs.report }}
+        WORKDIR: ${{ inputs.working-directory }}
+      run: |
+        set -euo pipefail
+        case "$REPORT" in
+          /*) abs="$REPORT" ;;
+          *) abs="$GITHUB_WORKSPACE/$WORKDIR/$REPORT" ;;
+        esac
+        echo "report=$abs" >> "$GITHUB_OUTPUT"
+
     - name: Install maslow
       id: install
       shell: bash
@@ -121,7 +137,7 @@ runs:
         SPEC: ${{ inputs.spec }}
         BASE: ${{ inputs.base }}
         SPEC_FROM: ${{ inputs.spec-from }}
-        REPORT: ${{ inputs.report }}
+        REPORT: ${{ steps.paths.outputs.report }}
         STRICT: ${{ inputs.strict }}
       run: |
         set -uo pipefail
@@ -129,6 +145,8 @@ runs:
         if [ -n "$BASE" ]; then args+=(--base "$BASE"); fi
         if [ "$STRICT" = "true" ]; then args+=(--strict); fi
 
+        # A report left by an earlier run must not be read as this run's verdict.
+        rm -f "$REPORT"
         "$MASLOW" version
         "$MASLOW" "${args[@]}"
         code=$?
@@ -144,7 +162,7 @@ runs:
       if: always()
       shell: bash
       env:
-        REPORT: ${{ inputs.report }}
+        REPORT: ${{ steps.paths.outputs.report }}
         VERDICT: ${{ steps.verify.outputs.verdict }}
       run: |
         set -uo pipefail
@@ -174,7 +192,7 @@ runs:
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.artifact-name }}
-        path: ${{ inputs.report }}
+        path: ${{ steps.paths.outputs.report }}
         if-no-files-found: warn
 
     - name: Fail on verdict
