@@ -184,7 +184,7 @@ package maslow
 }
 
 #Step: {
-	action: "http" | "cli" | "poll" | "assert" | "capture" | "wait"
+	action: "http" | "cli" | "poll" | "assert" | "capture" | "wait" | "browser"
 
 	// HTTP action fields.
 	if action == "http" {
@@ -225,6 +225,40 @@ package maslow
 	if action == "wait" {
 		duration: string
 	}
+
+	// Browser action fields: one headless-browser operation per step, sharing
+	// the scenario's cookies. Elements must exist already; only "wait" waits.
+	if action == "browser" {
+		do: "navigate" | "click" | "fill" | "wait" | "assert"
+		// Limit for this operation; for "wait", how long to wait. Defaults to 30s.
+		timeout?: string
+
+		if do == "navigate" {
+			url: string
+		}
+		if do == "click" {
+			selector: string
+		}
+		if do == "fill" {
+			selector: string
+			text:     string
+		}
+		if do == "wait" {
+			selector: string
+		}
+		if do == "assert" {
+			// Without a selector, text_contains reads the whole page.
+			selector?: string
+			expect:    #BrowserExpectation
+		}
+	}
+}
+
+#BrowserExpectation: {
+	text_contains?: string
+	url_contains?:  string
+	visible?:       bool
+	enabled?:       bool
 }
 
 #Expectation: {

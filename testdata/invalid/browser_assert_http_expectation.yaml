@@ -1,0 +1,12 @@
+mas: "1.0"
+project:
+  name: browser-assert-http-expectation
+contracts:
+  - name: web-ui
+    scenarios:
+      - name: status
+        steps:
+          - action: browser
+            do: assert
+            expect:
+              status: 200

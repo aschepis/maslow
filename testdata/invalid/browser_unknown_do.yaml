@@ -1,0 +1,11 @@
+mas: "1.0"
+project:
+  name: browser-unknown-do
+contracts:
+  - name: web-ui
+    scenarios:
+      - name: hover
+        steps:
+          - action: browser
+            do: hover
+            selector: "#menu"

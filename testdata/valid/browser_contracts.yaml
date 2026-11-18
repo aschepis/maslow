@@ -1,0 +1,38 @@
+mas: "1.0"
+project:
+  name: browser-contracts-test
+  description: Browser contract steps
+
+contracts:
+  - name: web-ui
+    base_url: "http://localhost:8080"
+    scenarios:
+      - name: sign-in
+        steps:
+          - action: browser
+            do: navigate
+            url: /login
+          - action: browser
+            do: fill
+            selector: "#email"
+            text: "user@example.com"
+          - action: browser
+            do: click
+            selector: "button[type=submit]"
+          - action: browser
+            do: wait
+            selector: "#welcome"
+            timeout: 5s
+          - action: browser
+            do: assert
+            selector: "#welcome"
+            expect:
+              text_contains: "Welcome"
+              visible: true
+              enabled: true
+          - action: browser
+            do: assert
+            expect:
+              url_contains: "/home"
+        artifacts:
+          - "reports/browser/**"

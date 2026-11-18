@@ -1,0 +1,10 @@
+mas: "1.0"
+project:
+  name: browser-click-without-selector
+contracts:
+  - name: web-ui
+    scenarios:
+      - name: click
+        steps:
+          - action: browser
+            do: click

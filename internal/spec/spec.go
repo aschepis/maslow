@@ -152,6 +152,10 @@ type Step struct {
 	From     string            `yaml:"from,omitempty"`
 	As       string            `yaml:"as,omitempty"`
 	Duration string            `yaml:"duration,omitempty"`
+	// Do is the browser operation: navigate, click, fill, wait or assert.
+	Do       string `yaml:"do,omitempty"`
+	Selector string `yaml:"selector,omitempty"`
+	Text     string `yaml:"text,omitempty"`
 }
 
 type Expectation struct {
@@ -168,6 +172,11 @@ type Expectation struct {
 	Length       *int              `yaml:"length,omitempty"`
 	Every        *Assertion        `yaml:"every,omitempty"`
 	Some         *Assertion        `yaml:"some,omitempty"`
+	// Browser assertions.
+	TextContains string `yaml:"text_contains,omitempty"`
+	URLContains  string `yaml:"url_contains,omitempty"`
+	Visible      *bool  `yaml:"visible,omitempty"`
+	Enabled      *bool  `yaml:"enabled,omitempty"`
 }
 
 type Assertion struct {
