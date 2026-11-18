@@ -2,6 +2,7 @@ package runner
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/aschepis/maslow/internal/evidence"
@@ -14,15 +15,23 @@ import (
 type PolicyScope struct {
 	Dir     string
 	BaseSHA string
+	// SpecPath and SpecFromBase report a spec edited on this branch when the
+	// run verified against the base commit's spec.
+	SpecPath     string
+	SpecFromBase bool
 }
 
 // RunPolicy evaluates policy rules and returns results.
 func RunPolicy(policy *spec.Policy, scope PolicyScope) []evidence.PolicyResult {
-	if policy == nil {
-		return nil
+	var results []evidence.PolicyResult
+
+	if scope.SpecFromBase && scope.BaseSHA != "" {
+		results = append(results, checkSpecUnchanged(scope))
 	}
 
-	var results []evidence.PolicyResult
+	if policy == nil {
+		return results
+	}
 
 	if len(policy.Deny) > 0 {
 		files, err := gitrepo.CandidateFiles(scope.Dir)
@@ -53,6 +62,36 @@ func RunPolicy(policy *spec.Policy, scope PolicyScope) []evidence.PolicyResult {
 	}
 
 	return results
+}
+
+func checkSpecUnchanged(scope PolicyScope) evidence.PolicyResult {
+	result := evidence.PolicyResult{Rule: scope.SpecPath, Kind: "spec"}
+
+	changed, err := gitrepo.ChangedSince(scope.Dir, scope.BaseSHA)
+	if err != nil {
+		result.Status = "error"
+		result.Error = err.Error()
+		return result
+	}
+
+	prefix, err := gitrepo.Prefix(scope.Dir)
+	if err != nil {
+		result.Status = "error"
+		result.Error = err.Error()
+		return result
+	}
+	specPath := prefix + filepath.ToSlash(filepath.Clean(scope.SpecPath))
+	for _, f := range changed {
+		if f == specPath {
+			result.Status = "fail"
+			result.Detail = fmt.Sprintf("%s changed since base %s; this run verified against the base version", specPath, scope.BaseSHA)
+			result.Files = []string{f}
+			return result
+		}
+	}
+
+	result.Status = "pass"
+	return result
 }
 
 func checkDenyRules(patterns, files []string) []evidence.PolicyResult {

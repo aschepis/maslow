@@ -52,6 +52,7 @@ Commands:
   validate <file>              Validate a maslow.yaml against the CUE schema
   verify   --profile <name>    Run verification checks
            [--base <ref>]      Judge policy on every change since the merge base with <ref>
+           [--spec-from base]  Verify against the spec at the merge base, not the branch's
   audit    --profile <name>    Run black-box audit
   init     [--apply]           Add a starter maslow.yaml to the current directory
   version                      Print version information`)
@@ -88,6 +89,7 @@ func cmdVerify(args []string) int {
 	profile := "quick"
 	specPath := "maslow.yaml"
 	base := ""
+	specFrom := "head"
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
@@ -112,35 +114,49 @@ func cmdVerify(args []string) int {
 			}
 			i++
 			base = args[i]
+		case "--spec-from":
+			if i+1 >= len(args) {
+				fmt.Fprintln(os.Stderr, "maslow verify: --spec-from requires head or base")
+				return 2
+			}
+			i++
+			specFrom = args[i]
 		default:
 			fmt.Fprintf(os.Stderr, "maslow verify: unknown option %q\n", args[i])
 			return 2
 		}
 	}
 
-	// Validate spec first.
-	result, err := schema.ValidateFile(specPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "maslow verify: %v\n", err)
-		return 1
+	if specFrom != "head" && specFrom != "base" {
+		fmt.Fprintf(os.Stderr, "maslow verify: --spec-from must be head or base, got %q\n", specFrom)
+		return 2
 	}
-	if !result.Valid {
-		fmt.Fprintf(os.Stderr, "maslow verify: %s is invalid\n", specPath)
-		for _, e := range result.Errors {
-			fmt.Fprintf(os.Stderr, "  %s\n", e.Message)
+	if specFrom == "base" && base == "" {
+		fmt.Fprintln(os.Stderr, "maslow verify: --spec-from base requires --base <ref>")
+		return 2
+	}
+
+	opts := verify.Options{Profile: profile, SpecPath: specPath, SpecFromBase: specFrom == "base"}
+	if base != "" {
+		sha, err := verify.ResolveBase(base)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "maslow verify: %v\n", err)
+			return 1
 		}
-		return 1
+		opts.BaseSHA = sha
 	}
 
-	// Load spec.
-	mas, err := spec.Load(specPath)
+	specCommit := ""
+	if opts.SpecFromBase {
+		specCommit = opts.BaseSHA
+	}
+	mas, err := verify.LoadSpec(specPath, specCommit)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "maslow verify: %v\n", err)
 		return 1
 	}
 
-	// Run verification.
-	report, err := verify.Run(mas, verify.Options{Profile: profile, Base: base})
+	report, err := verify.Run(mas, opts)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "maslow verify: %v\n", err)
 		return 1
