@@ -1,12 +1,12 @@
 ---
 id: 28
 title: Verify web UIs with a browser contract step
-status: in_progress
+status: done
 priority: medium
 created: 2026-11-18
 updated: 2026-11-18
 assigned_to: "claude-workflow"
-assigned_at: "2026-11-18T12:00:00Z"
+assigned_at: "2026-11-18T20:41:36Z"
 depends_on: []
 tags: [kind:gap, kind:capability, contracts, verification]
 ---
@@ -30,10 +30,10 @@ and the step-by-step failure evidence contracts already record (ADR 0025) suits 
 
 ## Acceptance Criteria
 
-- [ ] Schema accepts the new step and rejects malformed ones (fixtures in `testdata/`).
-- [ ] A contract against a local test page passes, and a broken page fails with a screenshot in the evidence.
-- [ ] `maslow.yaml` or a fixture exercises it; README documents the browser dependency.
-- [ ] ADR records the driver choice.
+- [x] Schema accepts the new step and rejects malformed ones (fixtures in `testdata/`).
+- [x] A contract against a local test page passes, and a broken page fails with a screenshot in the evidence.
+- [x] `maslow.yaml` or a fixture exercises it; README documents the browser dependency.
+- [x] ADR records the driver choice.
 
 ## Notes
 
