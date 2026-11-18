@@ -1,12 +1,12 @@
 ---
 id: 32
 title: Add maslow evidence check to judge an evidence file
-status: draft
+status: in_progress
 priority: high
 created: 2026-11-18
 updated: 2026-11-18
-assigned_to: ""
-assigned_at: ""
+assigned_to: "claude-workflow"
+assigned_at: "2026-11-18T20:32:39Z"
 depends_on: []
 tags: [kind:gap, evidence, cli]
 ---
