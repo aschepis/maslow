@@ -127,6 +127,8 @@ package maslow
 	tags?: [...string]
 	// Environment variables templates may read as {{.env.NAME}}; their values are redacted from evidence.
 	env?: [...=~"^[A-Za-z_][A-Za-z0-9_]*$"]
+	// Base for step URLs starting with "/"; an endpoint audit target replaces it.
+	base_url?: string
 	setup?: [...#Step]
 	teardown?: [...#Step]
 	scenarios: [...#Scenario]
@@ -259,6 +261,8 @@ package maslow
 	targets: [...#AuditTarget]
 }
 
+// An endpoint target's path is a base URL (it may read {{.env.NAME}}), and its
+// checks select contracts by name or tag; omitted runs every contract.
 #AuditTarget: {
 	kind: "binary" | "container" | "endpoint"
 	path: string

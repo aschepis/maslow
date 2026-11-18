@@ -62,7 +62,7 @@ maslow version                   # Print version info
 
 The verdict is `fail`, `needs_review`, `inconclusive` or `pass`, in that order of precedence. `needs_review` means everything passed but the change touched a `gated` path, and names its owner. It exits 0 unless `--strict` is passed.
 
-Results are written to `reports/verify.json` (or `--report <path>`) as structured evidence. `schema/evidence.schema.json` describes the format. `maslow audit` writes `reports/audit.json`.
+Results are written to `reports/verify.json` (or `--report <path>`) as structured evidence. `schema/evidence.schema.json` describes the format. `maslow audit` writes `reports/audit.json`; an `endpoint` audit target runs the contracts it selects against a deployed base URL, resolving step URLs that start with `/`, so the same scenarios work as a post-deploy smoke test.
 
 ## In CI
 

@@ -1010,7 +1010,7 @@ func TestRunContracts_BackwardCompatSingleJSONPath(t *testing.T) {
 func TestApplyTemplate_EnvVar(t *testing.T) {
 	t.Setenv("MASLOW_TEST_HOST", "localhost")
 
-	got, err := applyTemplate("http://{{.env.MASLOW_TEST_HOST}}:8080/api", newScope(allowedEnv([]string{"MASLOW_TEST_HOST"})))
+	got, err := applyTemplate("http://{{.env.MASLOW_TEST_HOST}}:8080/api", newScope(contractConfig{env: allowedEnv([]string{"MASLOW_TEST_HOST"})}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1020,14 +1020,14 @@ func TestApplyTemplate_EnvVar(t *testing.T) {
 }
 
 func TestApplyTemplate_EnvVarMissing(t *testing.T) {
-	_, err := applyTemplate("http://{{.env.MASLOW_NONEXISTENT_VAR_12345}}/api", newScope(allowedEnv([]string{"MASLOW_NONEXISTENT_VAR_12345"})))
+	_, err := applyTemplate("http://{{.env.MASLOW_NONEXISTENT_VAR_12345}}/api", newScope(contractConfig{env: allowedEnv([]string{"MASLOW_NONEXISTENT_VAR_12345"})}))
 	if err == nil {
 		t.Error("expected error for missing env var, got nil")
 	}
 }
 
 func TestApplyTemplate_CapturedVars(t *testing.T) {
-	sc := newScope(nil)
+	sc := newScope(contractConfig{})
 	sc.vars = map[string]string{"token": "abc", "id": "42"}
 	got, err := applyTemplate("Bearer {{.cap.token}} for user {{.cap.id}}", sc)
 	if err != nil {
@@ -1039,7 +1039,7 @@ func TestApplyTemplate_CapturedVars(t *testing.T) {
 }
 
 func TestApplyTemplate_CapturedVarMissing(t *testing.T) {
-	sc := newScope(nil)
+	sc := newScope(contractConfig{})
 	sc.vars = map[string]string{"token": "abc"}
 	_, err := applyTemplate("{{.cap.token}} and {{.cap.missing}}", sc)
 	if err == nil {
@@ -1050,7 +1050,7 @@ func TestApplyTemplate_CapturedVarMissing(t *testing.T) {
 func TestApplyTemplate_MixedEnvAndCaptured(t *testing.T) {
 	t.Setenv("MASLOW_TEST_ENV", "prod")
 
-	sc := newScope(allowedEnv([]string{"MASLOW_TEST_ENV"}))
+	sc := newScope(contractConfig{env: allowedEnv([]string{"MASLOW_TEST_ENV"})})
 	sc.vars = map[string]string{"user": "alice"}
 	got, err := applyTemplate("{{.env.MASLOW_TEST_ENV}}/{{.cap.user}}", sc)
 	if err != nil {

@@ -54,11 +54,11 @@ func Run(mas *spec.MAS, opts Options) (*evidence.Report, error) {
 	if !ok {
 		return nil, fmt.Errorf("profile %q not found in spec", opts.Profile)
 	}
-	contracts, err := runner.SelectContracts(mas.Contracts, opts.Profile, profile.Contracts)
+	contracts, err := runner.SelectContracts(mas.Contracts, "profiles."+opts.Profile, profile.Contracts)
 	if err != nil {
 		return nil, err
 	}
-	budgets, err := runner.SelectBudgets(mas.Budgets, opts.Profile, profile.Budgets)
+	budgets, err := runner.SelectBudgets(mas.Budgets, "profiles."+opts.Profile, profile.Budgets)
 	if err != nil {
 		return nil, err
 	}

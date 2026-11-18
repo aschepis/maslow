@@ -98,7 +98,9 @@ type Contract struct {
 	Description string   `yaml:"description,omitempty"`
 	Tags        []string `yaml:"tags,omitempty"`
 	// Env lists the environment variables templates may read as {{.env.NAME}}.
-	Env       []string   `yaml:"env,omitempty"`
+	Env []string `yaml:"env,omitempty"`
+	// BaseURL resolves step URLs that start with "/"; an endpoint audit replaces it.
+	BaseURL   string     `yaml:"base_url,omitempty"`
 	Setup     []Step     `yaml:"setup,omitempty"`
 	Teardown  []Step     `yaml:"teardown,omitempty"`
 	Scenarios []Scenario `yaml:"scenarios"`

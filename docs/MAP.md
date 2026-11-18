@@ -51,7 +51,7 @@ reports/verify.json         <- verify evidence (reports/audit.json for audit)
 | `internal/schema/` | Loads `schema/maslow.cue`; validates spec using CUE Go library |
 | `internal/verify/` | Executes verification: profile selection, check sequencing, result collection |
 | `internal/runner/` | Runs individual checks (shell, HTTP, CLI); abstracts runner kinds |
-| `internal/audit/` | Black-box audit mode; supports binary, container, and HTTP endpoint targets |
+| `internal/audit/` | Black-box audit mode; binary targets, endpoint targets that run contracts against a base URL (ADR 0028), container stub |
 | `internal/evidence/` | Builds the evidence report, computes the verdict, caps output, writes JSON |
 | `internal/gitrepo/` | Git queries shared by policy and spec loading |
 | `schema/maslow.cue` | CUE schema defining the MAS format |
@@ -93,7 +93,7 @@ A valid `maslow.yaml` defines:
 - `budgets` - performance, availability, artifact size, complexity limits
 - `checks` - named check definitions and runner configuration
 - `profiles` - named subsets of checks, contracts and budgets (`quick`, `full`, custom); refs and policy run unless a profile turns them off
-- `audit` - black-box audit targets and configuration
+- `audit` - black-box audit targets; an `endpoint` target runs selected contracts against its base URL
 - `extensions` - domain overlays (web, game, cli, service)
 
 ---

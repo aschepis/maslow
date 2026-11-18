@@ -1,8 +1,11 @@
 package audit
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/aschepis/maslow/internal/spec"
@@ -84,6 +87,90 @@ func TestRun_ContainerSkipped(t *testing.T) {
 	}
 	if !found {
 		t.Error("expected at least one skip result for container audit")
+	}
+}
+
+func healthServer(t *testing.T) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/healthz" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.Write([]byte("ok"))
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func endpointSpec(path string, checks []string) *spec.MAS {
+	ok := 200
+	health := []spec.Step{{Action: "http", Method: "GET", URL: "/healthz", Expect: &spec.Expectation{Status: &ok}}}
+	missing := []spec.Step{{Action: "http", Method: "GET", URL: "/missing", Expect: &spec.Expectation{Status: &ok}}}
+	return &spec.MAS{
+		Contracts: []spec.Contract{
+			{Name: "smoke", Tags: []string{"deploy"}, BaseURL: "http://127.0.0.1:1", Scenarios: []spec.Scenario{{Name: "health", Steps: health}}},
+			{Name: "broken", Scenarios: []spec.Scenario{{Name: "missing", Steps: missing}}},
+		},
+		Audit: &spec.Audit{Targets: []spec.AuditTarget{{Kind: "endpoint", Path: path, Checks: checks}}},
+	}
+}
+
+func TestRun_EndpointRunsSelectedContractsAgainstBaseURL(t *testing.T) {
+	srv := healthServer(t)
+	report, err := Run(endpointSpec(srv.URL, []string{"deploy"}), Options{Profile: "full"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Verdict != "pass" {
+		t.Fatalf("expected pass, got %s: %+v %+v", report.Verdict, report.CheckResults, report.Contracts)
+	}
+	if len(report.Contracts) != 1 || report.Contracts[0].Name != srv.URL+"/smoke/health" {
+		t.Errorf("expected only the deploy-tagged contract, named by target, got %+v", report.Contracts)
+	}
+}
+
+func TestRun_EndpointFailingContractFailsAudit(t *testing.T) {
+	srv := healthServer(t)
+	report, err := Run(endpointSpec(srv.URL, nil), Options{Profile: "full"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Verdict != "fail" || len(report.Contracts) != 2 {
+		t.Errorf("expected both contracts run and a fail, got %s with %d results", report.Verdict, len(report.Contracts))
+	}
+}
+
+func TestRun_EndpointPathFromEnvIsNotRecorded(t *testing.T) {
+	srv := healthServer(t)
+	t.Setenv("MASLOW_TEST_DEPLOY_URL", srv.URL)
+	report, err := Run(endpointSpec("{{.env.MASLOW_TEST_DEPLOY_URL}}", []string{"smoke"}), Options{Profile: "full"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Verdict != "pass" {
+		t.Fatalf("expected pass, got %s: %+v", report.Verdict, report.CheckResults)
+	}
+	if got := report.Contracts[0].Name; strings.Contains(got, srv.URL) {
+		t.Errorf("expected the result named by the path as written, got %q", got)
+	}
+}
+
+func TestRun_EndpointErrors(t *testing.T) {
+	cases := map[string]*spec.MAS{
+		"not a URL":        endpointSpec("localhost:8080", nil),
+		"unknown selector": endpointSpec("http://localhost:1", []string{"nope"}),
+		"no contracts":     {Audit: &spec.Audit{Targets: []spec.AuditTarget{{Kind: "endpoint", Path: "http://localhost:1"}}}},
+		"unset variable":   endpointSpec("{{.env.MASLOW_TEST_UNSET_12345}}", nil),
+	}
+	for name, mas := range cases {
+		report, err := Run(mas, Options{Profile: "full"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if report.Verdict != "fail" || len(report.CheckResults) != 1 || report.CheckResults[0].Status != "error" {
+			t.Errorf("%s: expected one error result and a fail, got %s %+v", name, report.Verdict, report.CheckResults)
+		}
 	}
 }
 

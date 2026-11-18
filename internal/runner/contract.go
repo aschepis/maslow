@@ -72,60 +72,92 @@ func stepTarget(step spec.Step) string {
 	return ""
 }
 
+// contractConfig is what every scenario of one contract shares.
+type contractConfig struct {
+	// env holds only the environment variables the contract allow-lists.
+	env map[string]string
+	// baseURL is what HTTP and poll URLs starting with "/" are resolved against.
+	baseURL string
+}
+
 // scope is what the steps of one scenario share.
 type scope struct {
-	// env holds only the environment variables the contract allow-lists.
-	env  map[string]string
+	contractConfig
 	vars map[string]string
 	// client keeps cookies between HTTP steps, so a scenario can sign in once.
 	client *http.Client
 }
 
-func newScope(env map[string]string) *scope {
+func newScope(cfg contractConfig) *scope {
 	jar, _ := cookiejar.New(nil) // New never fails without options.
-	return &scope{env: env, vars: map[string]string{}, client: &http.Client{Jar: jar}}
+	return &scope{contractConfig: cfg, vars: map[string]string{}, client: &http.Client{Jar: jar}}
+}
+
+// ContractOptions changes where contracts run.
+type ContractOptions struct {
+	// BaseURL, when set, replaces every contract's base_url, so the same
+	// scenarios can run against a deployed service.
+	BaseURL string
 }
 
 // RunContracts executes all contract scenarios and returns results.
 func RunContracts(contracts []spec.Contract) []evidence.ContractResult {
+	return RunContractsWith(contracts, ContractOptions{})
+}
+
+// RunContractsWith executes all contract scenarios under opts.
+func RunContractsWith(contracts []spec.Contract, opts ContractOptions) []evidence.ContractResult {
 	var results []evidence.ContractResult
 	for _, contract := range contracts {
-		env := allowedEnv(contract.Env)
-		for _, result := range runContract(contract, env) {
-			results = append(results, redact(result, env))
+		cfg := contractConfig{env: allowedEnv(contract.Env), baseURL: opts.BaseURL}
+		for _, result := range runContract(contract, cfg) {
+			results = append(results, redact(result, cfg.env))
 		}
 	}
 	return results
 }
 
-func runContract(contract spec.Contract, env map[string]string) []evidence.ContractResult {
+func runContract(contract spec.Contract, cfg contractConfig) []evidence.ContractResult {
+	if cfg.baseURL == "" {
+		base, err := applyTemplate(contract.BaseURL, newScope(cfg))
+		if err != nil {
+			return failAll(contract, "base_url: ", err)
+		}
+		cfg.baseURL = base
+	}
+
 	// Contract-level setup runs once before all scenarios.
 	if len(contract.Setup) > 0 {
-		state, sc := &stepState{}, newScope(env)
+		state, sc := &stepState{}, newScope(cfg)
 		if err := runSteps(phaseContractSetup, contract.Setup, state, sc); err != nil {
-			var results []evidence.ContractResult
-			for _, scenario := range contract.Scenarios {
-				result := failedResult(fmt.Sprintf("%s/%s", contract.Name, scenario.Name), "contract setup failed: ", err)
-				attachArtifacts(&result, scenario.Artifacts)
-				results = append(results, result)
-			}
 			runStepsIgnoreError(contract.Teardown, state, sc)
-			return results
+			return failAll(contract, "contract setup failed: ", err)
 		}
 	}
 
 	var results []evidence.ContractResult
 	for _, scenario := range contract.Scenarios {
-		results = append(results, runScenario(contract.Name, scenario, env))
+		results = append(results, runScenario(contract.Name, scenario, cfg))
 	}
 
-	runStepsIgnoreError(contract.Teardown, &stepState{}, newScope(env))
+	runStepsIgnoreError(contract.Teardown, &stepState{}, newScope(cfg))
 	return results
 }
 
-func runScenario(contractName string, scenario spec.Scenario, env map[string]string) evidence.ContractResult {
+// failAll fails every scenario of a contract that could not start.
+func failAll(contract spec.Contract, prefix string, err error) []evidence.ContractResult {
+	var results []evidence.ContractResult
+	for _, scenario := range contract.Scenarios {
+		result := failedResult(fmt.Sprintf("%s/%s", contract.Name, scenario.Name), prefix, err)
+		attachArtifacts(&result, scenario.Artifacts)
+		results = append(results, result)
+	}
+	return results
+}
+
+func runScenario(contractName string, scenario spec.Scenario, cfg contractConfig) evidence.ContractResult {
 	name := fmt.Sprintf("%s/%s", contractName, scenario.Name)
-	state, sc := &stepState{}, newScope(env)
+	state, sc := &stepState{}, newScope(cfg)
 
 	var result evidence.ContractResult
 	if err := runSteps(phaseSetup, scenario.Setup, state, sc); err != nil {
@@ -318,6 +350,10 @@ func substituteStep(step spec.Step, sc *scope) (spec.Step, error) {
 	if err != nil {
 		return step, fmt.Errorf("url: %w", err)
 	}
+	step.URL, err = resolveURL(step.URL, sc.baseURL)
+	if err != nil {
+		return step, err
+	}
 	step.Body, err = applyTemplate(step.Body, sc)
 	if err != nil {
 		return step, fmt.Errorf("body: %w", err)
@@ -354,6 +390,17 @@ func substituteStep(step spec.Step, sc *scope) (spec.Step, error) {
 	}
 
 	return step, nil
+}
+
+// resolveURL joins a URL starting with "/" to base; other URLs are absolute already.
+func resolveURL(u, base string) (string, error) {
+	if !strings.HasPrefix(u, "/") {
+		return u, nil
+	}
+	if base == "" {
+		return "", fmt.Errorf("url %q is relative, but the contract has no base_url", u)
+	}
+	return strings.TrimSuffix(base, "/") + u, nil
 }
 
 // applyTemplate applies Go text/template substitution to a string.
