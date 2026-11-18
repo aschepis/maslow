@@ -28,6 +28,8 @@ func main() {
 		os.Exit(cmdVerify(os.Args[2:]))
 	case "audit":
 		os.Exit(cmdAudit(os.Args[2:]))
+	case "evidence":
+		os.Exit(cmdEvidence(os.Args[2:], os.Stdout))
 	case "init":
 		os.Exit(cmdInit(os.Args[2:]))
 	case "version":
@@ -55,6 +57,13 @@ Commands:
            [--output-limit n]  Bytes of each check's output to keep (default 4096)
            [--strict]          Exit 1 on needs_review too (default: only fail and inconclusive)
   audit    --profile <name>    Run black-box audit (default report reports/audit.json)
+  evidence check <file>        Decide pass, needs_review or decline for an evidence file
+           --head <sha>        Commit the evidence must describe
+           --spec <file>       Trusted spec whose hash the evidence must carry
+           [--profile <name>]  Profile the evidence must have run
+           [--overlay <file>]  Trusted overlay the run must have used; repeatable
+           [--overlay-sha256 <hex>]  Same, given as a hash; repeatable
+           [--json]            Print the decision and reasons as JSON
   init     [--apply]           Add a starter maslow.yaml to the current directory
   version                      Print version information`)
 }

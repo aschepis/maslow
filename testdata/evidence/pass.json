@@ -1,0 +1,20 @@
+{
+  "evidence_version": "2",
+  "maslow_version": "0.1.0",
+  "command": "verify",
+  "timestamp": "2026-11-18T00:00:00Z",
+  "spec_path": "testdata/valid/minimal.yaml",
+  "spec_sha256": "3d4a2223f6b10f34ea4333505a0b7e61f327e2820984927936272cfaa931cfcd",
+  "spec_source": "head",
+  "git_sha": "1111111111111111111111111111111111111111",
+  "profile": "quick",
+  "verdict": "pass",
+  "check_results": [
+    {
+      "name": "build",
+      "kind": "command",
+      "status": "pass",
+      "duration_seconds": 0.1
+    }
+  ]
+}
