@@ -196,6 +196,16 @@ contracts:
             expect:
               exit_code: 2
 
+      - name: base-requires-ref
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - verify
+              - --base
+          - action: assert
+            expect:
+              exit_code: 2
       - name: removed-scaffold-command
         steps:
           - action: cli

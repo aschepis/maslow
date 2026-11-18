@@ -15,6 +15,7 @@ import (
 type Report struct {
 	Timestamp    string           `json:"timestamp"`
 	GitSHA       string           `json:"git_sha,omitempty"`
+	BaseSHA      string           `json:"base_sha,omitempty"`
 	Profile      string           `json:"profile"`
 	Verdict      string           `json:"verdict"` // pass, fail, inconclusive
 	CheckResults []CheckResult    `json:"check_results"`

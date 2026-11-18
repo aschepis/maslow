@@ -4,20 +4,22 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/aschepis/maslow/internal/gitrepo"
 	"github.com/aschepis/maslow/internal/spec"
 )
 
 func TestRunPolicy_Nil(t *testing.T) {
-	results := RunPolicy(nil)
+	results := RunPolicy(nil, PolicyScope{})
 	if len(results) != 0 {
 		t.Errorf("expected 0 results for nil policy, got %d", len(results))
 	}
 }
 
 func TestRunPolicy_Empty(t *testing.T) {
-	results := RunPolicy(&spec.Policy{})
+	results := RunPolicy(&spec.Policy{}, PolicyScope{})
 	if len(results) != 0 {
 		t.Errorf("expected 0 results for empty policy, got %d", len(results))
 	}
@@ -75,7 +77,7 @@ func TestCandidateFiles_IgnoresGitignoredFiles(t *testing.T) {
 
 	writeFile(t, dir, "a/b/.env", "SECRET=1")
 
-	files, err := candidateFiles(dir)
+	files, err := gitrepo.CandidateFiles(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +96,7 @@ func TestCandidateFiles_IncludesTrackedAndUnignoredFiles(t *testing.T) {
 	runGit(t, dir, "commit", "-m", "initial")
 	writeFile(t, dir, "b/credentials.json", "{}")
 
-	files, err := candidateFiles(dir)
+	files, err := gitrepo.CandidateFiles(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +115,7 @@ func TestProtected_Unchanged(t *testing.T) {
 	runGit(t, dir, "add", ".")
 	runGit(t, dir, "commit", "-m", "initial")
 
-	changed, err := workingTreeChanges(dir)
+	changed, err := gitrepo.WorkingTreeChanges(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +135,7 @@ func TestProtected_Modified(t *testing.T) {
 	runGit(t, dir, "commit", "-m", "initial")
 	writeFile(t, dir, "protected.txt", "modified")
 
-	changed, err := workingTreeChanges(dir)
+	changed, err := gitrepo.WorkingTreeChanges(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +152,7 @@ func TestProtected_GlobMatchesNestedChange(t *testing.T) {
 	runGit(t, dir, "commit", "-m", "initial")
 	writeFile(t, dir, "docs/a/b/spec.md", "modified")
 
-	changed, err := workingTreeChanges(dir)
+	changed, err := gitrepo.WorkingTreeChanges(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +172,7 @@ func TestProtected_UntrackedNewFileFails(t *testing.T) {
 	runGit(t, dir, "commit", "-m", "initial")
 	writeFile(t, dir, "protected.txt", "new")
 
-	changed, err := workingTreeChanges(dir)
+	changed, err := gitrepo.WorkingTreeChanges(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,6 +180,75 @@ func TestProtected_UntrackedNewFileFails(t *testing.T) {
 	if results[0].Status != "fail" {
 		t.Errorf("expected fail for a new untracked protected file, got %s", results[0].Status)
 	}
+}
+
+func TestRunPolicy_CommittedProtectedChange(t *testing.T) {
+	dir := newGitRepo(t)
+	writeFile(t, dir, "protected.txt", "original")
+	writeFile(t, dir, "main.go", "package main")
+	runGit(t, dir, "add", ".")
+	runGit(t, dir, "commit", "-m", "initial")
+	base := strings.TrimSpace(gitOutput(t, dir, "rev-parse", "HEAD"))
+
+	runGit(t, dir, "checkout", "-q", "-b", "feature")
+	writeFile(t, dir, "protected.txt", "weakened")
+	runGit(t, dir, "commit", "-qam", "edit protected file")
+
+	policy := &spec.Policy{Protected: []string{"protected.txt"}}
+
+	withoutBase := RunPolicy(policy, PolicyScope{Dir: dir})
+	if withoutBase[0].Status != "pass" {
+		t.Errorf("without a base only uncommitted changes count; expected pass, got %s", withoutBase[0].Status)
+	}
+
+	withBase := RunPolicy(policy, PolicyScope{Dir: dir, BaseSHA: base})
+	if withBase[0].Status != "fail" {
+		t.Fatalf("expected a committed change to a protected file to fail against the base, got %s", withBase[0].Status)
+	}
+	if len(withBase[0].Files) != 1 || withBase[0].Files[0] != "protected.txt" {
+		t.Errorf("expected matched file protected.txt, got %v", withBase[0].Files)
+	}
+}
+
+func TestRunPolicy_BaseAlsoCountsUncommittedChanges(t *testing.T) {
+	dir := newGitRepo(t)
+	writeFile(t, dir, "protected.txt", "original")
+	runGit(t, dir, "add", ".")
+	runGit(t, dir, "commit", "-m", "initial")
+	base := strings.TrimSpace(gitOutput(t, dir, "rev-parse", "HEAD"))
+	writeFile(t, dir, "protected.txt", "uncommitted edit")
+
+	results := RunPolicy(&spec.Policy{Protected: []string{"protected.txt"}}, PolicyScope{Dir: dir, BaseSHA: base})
+	if results[0].Status != "fail" {
+		t.Errorf("expected an uncommitted change to fail with a base too, got %s", results[0].Status)
+	}
+}
+
+func TestRunPolicy_DeletedProtectedFileFailsAgainstBase(t *testing.T) {
+	dir := newGitRepo(t)
+	writeFile(t, dir, "protected.txt", "original")
+	writeFile(t, dir, "main.go", "package main")
+	runGit(t, dir, "add", ".")
+	runGit(t, dir, "commit", "-m", "initial")
+	base := strings.TrimSpace(gitOutput(t, dir, "rev-parse", "HEAD"))
+	runGit(t, dir, "rm", "-q", "protected.txt")
+	runGit(t, dir, "commit", "-qm", "delete protected file")
+
+	results := RunPolicy(&spec.Policy{Protected: []string{"protected.txt"}}, PolicyScope{Dir: dir, BaseSHA: base})
+	if results[0].Status != "fail" {
+		t.Errorf("expected deleting a protected file to fail, got %s", results[0].Status)
+	}
+}
+
+func gitOutput(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("git %v failed: %v", args, err)
+	}
+	return string(out)
 }
 
 func newGitRepo(t *testing.T) string {
