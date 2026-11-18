@@ -73,6 +73,8 @@ policy:
       owner: "@aschepis"
     - path: README.md
       owner: "@aschepis"
+  observe:
+    test_integrity: {}
 
 checks:
   runner:
@@ -163,6 +165,28 @@ contracts:
             expect:
               exit_code: 0
               body_contains: "is valid"
+      - name: policy-line-rules-are-valid
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - validate
+              - testdata/valid/policy_test_integrity.yaml
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "is valid"
+      - name: custom-test-language-needs-files
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - validate
+              - testdata/invalid/policy_test_integrity_custom_without_files.yaml
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: "languages.elixir.files: field is required"
       - name: invalid-file-fails
         steps:
           - action: cli

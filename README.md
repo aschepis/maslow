@@ -58,13 +58,27 @@ maslow version                   # Print version info
 2. **Contracts** — scenario-based behavioural tests (CLI and HTTP); a profile's `contracts` list selects by name or tag, and `--overlay <file>` adds a file of extra contracts for one run, such as a change's acceptance scenarios
 3. **Budgets** — artifact size, performance, and complexity limits; selected by a profile's `budgets` list
 4. **Refs** — verify declared files, binaries, and URLs exist
-5. **Policy** — `deny`, `protected`, `allow` and `gated` rules, judged on the change since `--base <ref>` when given. Rules under `policy.observe` are evaluated and reported with `mode: observe` and a `would_fail`, `would_need_review` or `would_error` status, but never change the verdict or exit code, so a new rule can be tried on real changes before it is enforced:
+5. **Policy** — `deny`, `protected`, `allow`, `gated`, `shrink_only` and `test_integrity` rules, judged on the change since `--base <ref>` when given. Rules under `policy.observe` are evaluated and reported with `mode: observe` and a `would_fail`, `would_need_review` or `would_error` status, but never change the verdict or exit code, so a new rule can be tried on real changes before it is enforced:
 
    ```yaml
    policy:
      protected: [maslow.yaml]
      observe:
        protected: [go.sum]   # reported, not enforced
+   ```
+
+   Two rules read the changed lines, not just paths. `shrink_only` files may lose lines but never gain any, and fail otherwise. `test_integrity` asks for review when a change deletes a test file, removes a test, adds a skip marker, or lowers a number in a `thresholds` file such as a coverage floor; it has defaults for Go, Ruby, JavaScript/TypeScript and Python, and `languages` overrides or adds them (ADR 0032). Flagged lines appear in the evidence entry's `lines`:
+
+   ```yaml
+   policy:
+     shrink_only: [config/authz_baseline.txt]
+     test_integrity:
+       thresholds: [coverage.yml]
+       languages:
+         go: {}                     # built-in defaults
+         elixir:
+           files: ["test/**/*_test.exs"]
+           skips: ["@tag :skip"]
    ```
 
 The verdict is `fail`, `needs_review`, `inconclusive` or `pass`, in that order of precedence. `needs_review` means everything passed but the change touched a `gated` path, and names its owner. It exits 0 unless `--strict` is passed.

@@ -6,6 +6,7 @@ Notable changes to Maslow, newest first. Versions follow [semantic versioning](h
 
 ### Added
 
+- **Shrink-only files and test-integrity policy.** `policy.shrink_only` fails a change that adds a line to a matching file. `policy.test_integrity` reports deleted test files, removed tests, added skip markers and lowered numbers in `thresholds` files as `needs_review`, with defaults for Go, Ruby, JavaScript and Python. Policy evidence gains an optional `lines` field; the format stays version 2. (ADR 0032)
 - **Policy observe mode.** Rules under `policy.observe` (any of `deny`, `allow`, `protected`, `gated`) are evaluated and reported with `mode: observe` and a `would_fail`, `would_need_review` or `would_error` status, without changing the verdict or exit code. The evidence format stays version 2; `mode` and the `would_*` statuses are additive. (ADR 0031)
 
 ## [0.7.0] - 2026-11-18
