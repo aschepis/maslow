@@ -1,6 +1,6 @@
 # ADR 0002: Evidence Format - reports/verify.json Structure
 
-- **Status**: Accepted
+- **Status**: Superseded by ADR 0020
 - **Date**: 2026-02-19
 
 ## Context

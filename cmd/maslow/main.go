@@ -2,20 +2,16 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
 	"github.com/aschepis/maslow/internal/audit"
+	"github.com/aschepis/maslow/internal/buildinfo"
 	"github.com/aschepis/maslow/internal/evidence"
 	"github.com/aschepis/maslow/internal/schema"
 	"github.com/aschepis/maslow/internal/spec"
 	"github.com/aschepis/maslow/internal/verify"
-)
-
-var (
-	// Set via ldflags at build time.
-	version = "dev"
-	gitSHA  = "unknown"
 )
 
 func main() {
@@ -50,10 +46,12 @@ func printUsage() {
 
 Commands:
   validate <file>              Validate a maslow.yaml against the CUE schema
-  verify   --profile <name>    Run verification checks
+  verify   --profile <name>    Run verification and write evidence
            [--base <ref>]      Judge policy on every change since the merge base with <ref>
            [--spec-from base]  Verify against the spec at the merge base, not the branch's
-  audit    --profile <name>    Run black-box audit
+           [--report <path>]   Evidence file (default reports/verify.json)
+           [--output-limit n]  Bytes of each check's output to keep (default 4096)
+  audit    --profile <name>    Run black-box audit (default report reports/audit.json)
   init     [--apply]           Add a starter maslow.yaml to the current directory
   version                      Print version information`)
 }
@@ -85,60 +83,41 @@ func cmdValidate(args []string) int {
 	return 0
 }
 
+// newFlagSet returns a flag set that reports usage errors without exiting.
+func newFlagSet(name string) *flag.FlagSet {
+	fs := flag.NewFlagSet("maslow "+name, flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	return fs
+}
+
 func cmdVerify(args []string) int {
-	profile := "quick"
-	specPath := "maslow.yaml"
-	base := ""
-	specFrom := "head"
-
-	for i := 0; i < len(args); i++ {
-		switch args[i] {
-		case "--profile":
-			if i+1 >= len(args) {
-				fmt.Fprintln(os.Stderr, "maslow verify: --profile requires a value")
-				return 2
-			}
-			i++
-			profile = args[i]
-		case "--spec":
-			if i+1 >= len(args) {
-				fmt.Fprintln(os.Stderr, "maslow verify: --spec requires a value")
-				return 2
-			}
-			i++
-			specPath = args[i]
-		case "--base":
-			if i+1 >= len(args) {
-				fmt.Fprintln(os.Stderr, "maslow verify: --base requires a git ref")
-				return 2
-			}
-			i++
-			base = args[i]
-		case "--spec-from":
-			if i+1 >= len(args) {
-				fmt.Fprintln(os.Stderr, "maslow verify: --spec-from requires head or base")
-				return 2
-			}
-			i++
-			specFrom = args[i]
-		default:
-			fmt.Fprintf(os.Stderr, "maslow verify: unknown option %q\n", args[i])
-			return 2
-		}
-	}
-
-	if specFrom != "head" && specFrom != "base" {
-		fmt.Fprintf(os.Stderr, "maslow verify: --spec-from must be head or base, got %q\n", specFrom)
+	fs := newFlagSet("verify")
+	profile := fs.String("profile", "quick", "profile to run")
+	specPath := fs.String("spec", "maslow.yaml", "path to the spec, relative to the repository root")
+	base := fs.String("base", "", "git ref; judge policy on every change since its merge base with HEAD")
+	specFrom := fs.String("spec-from", "head", "read the spec from head (the working tree) or base (the merge base)")
+	reportPath := fs.String("report", verify.DefaultReportPath, "where to write the evidence file")
+	outputLimit := fs.Int("output-limit", evidence.DefaultOutputLimit, "bytes of each check's output to keep (0 keeps everything)")
+	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	if specFrom == "base" && base == "" {
+	if fs.NArg() > 0 {
+		fmt.Fprintf(os.Stderr, "maslow verify: unexpected argument %q\n", fs.Arg(0))
+		return 2
+	}
+
+	if *specFrom != "head" && *specFrom != "base" {
+		fmt.Fprintf(os.Stderr, "maslow verify: --spec-from must be head or base, got %q\n", *specFrom)
+		return 2
+	}
+	if *specFrom == "base" && *base == "" {
 		fmt.Fprintln(os.Stderr, "maslow verify: --spec-from base requires --base <ref>")
 		return 2
 	}
 
-	opts := verify.Options{Profile: profile, SpecPath: specPath, SpecFromBase: specFrom == "base"}
-	if base != "" {
-		sha, err := verify.ResolveBase(base)
+	opts := verify.Options{Profile: *profile, SpecPath: *specPath, SpecFromBase: *specFrom == "base"}
+	if *base != "" {
+		sha, err := verify.ResolveBase(*base)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "maslow verify: %v\n", err)
 			return 1
@@ -150,91 +129,56 @@ func cmdVerify(args []string) int {
 	if opts.SpecFromBase {
 		specCommit = opts.BaseSHA
 	}
-	mas, err := verify.LoadSpec(specPath, specCommit)
+	loaded, err := spec.Read(*specPath, specCommit)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "maslow verify: %v\n", err)
+		return 1
+	}
+	opts.SpecSHA256 = loaded.SHA256
+
+	report, err := verify.Run(loaded.MAS, opts)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "maslow verify: %v\n", err)
 		return 1
 	}
 
-	report, err := verify.Run(mas, opts)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "maslow verify: %v\n", err)
-		return 1
-	}
-
-	// Write report.
-	reportPath := "reports/verify.json"
-	if err := report.Write(reportPath); err != nil {
-		fmt.Fprintf(os.Stderr, "maslow verify: %v\n", err)
-		return 1
-	}
-
-	printReport(report, reportPath)
-
-	if report.Verdict != "pass" {
-		return 1
-	}
-	return 0
+	return finish("verify", report, *reportPath, *outputLimit)
 }
 
 func cmdAudit(args []string) int {
-	profile := "full"
-	specPath := "maslow.yaml"
-
-	for i := 0; i < len(args); i++ {
-		switch args[i] {
-		case "--profile":
-			if i+1 >= len(args) {
-				fmt.Fprintln(os.Stderr, "maslow audit: --profile requires a value")
-				return 2
-			}
-			i++
-			profile = args[i]
-		case "--spec":
-			if i+1 >= len(args) {
-				fmt.Fprintln(os.Stderr, "maslow audit: --spec requires a value")
-				return 2
-			}
-			i++
-			specPath = args[i]
-		default:
-			fmt.Fprintf(os.Stderr, "maslow audit: unknown option %q\n", args[i])
-			return 2
-		}
+	fs := newFlagSet("audit")
+	profile := fs.String("profile", "full", "profile to record in the evidence")
+	specPath := fs.String("spec", "maslow.yaml", "path to the spec")
+	reportPath := fs.String("report", audit.DefaultReportPath, "where to write the evidence file")
+	outputLimit := fs.Int("output-limit", evidence.DefaultOutputLimit, "bytes of each check's output to keep (0 keeps everything)")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if fs.NArg() > 0 {
+		fmt.Fprintf(os.Stderr, "maslow audit: unexpected argument %q\n", fs.Arg(0))
+		return 2
 	}
 
-	// Validate spec first.
-	result, err := schema.ValidateFile(specPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "maslow audit: %v\n", err)
-		return 1
-	}
-	if !result.Valid {
-		fmt.Fprintf(os.Stderr, "maslow audit: %s is invalid\n", specPath)
-		for _, e := range result.Errors {
-			fmt.Fprintf(os.Stderr, "  %s\n", e.Message)
-		}
-		return 1
-	}
-
-	// Load spec.
-	mas, err := spec.Load(specPath)
+	loaded, err := spec.Read(*specPath, "")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "maslow audit: %v\n", err)
 		return 1
 	}
 
-	// Run audit.
-	report, err := audit.Run(mas, profile)
+	report, err := audit.Run(loaded.MAS, audit.Options{Profile: *profile, SpecPath: *specPath, SpecSHA256: loaded.SHA256})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "maslow audit: %v\n", err)
 		return 1
 	}
 
-	// Write report.
-	reportPath := "reports/verify.json"
+	return finish("audit", report, *reportPath, *outputLimit)
+}
+
+// finish caps output, writes the evidence, prints a summary and returns the exit code.
+func finish(command string, report *evidence.Report, reportPath string, outputLimit int) int {
+	report.CapOutput(outputLimit)
 	if err := report.Write(reportPath); err != nil {
-		fmt.Fprintf(os.Stderr, "maslow audit: %v\n", err)
+		fmt.Fprintf(os.Stderr, "maslow %s: %v\n", command, err)
 		return 1
 	}
 
@@ -333,7 +277,7 @@ func detectToolchainManager() string {
 }
 
 func cmdVersion() int {
-	fmt.Printf("maslow %s (git: %s)\n", version, gitSHA)
+	fmt.Printf("maslow %s (git: %s)\n", buildinfo.Version(), buildinfo.GitSHA())
 	return 0
 }
 

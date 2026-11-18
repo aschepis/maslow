@@ -51,7 +51,7 @@ maslow version                   # Print version info
 4. **Refs** — verify declared files, binaries, and URLs exist
 5. **Policy** — enforce deny patterns and protected file rules
 
-Results are written to `reports/verify.json` as structured evidence.
+Results are written to `reports/verify.json` (or `--report <path>`) as structured evidence. `schema/evidence.schema.json` describes the format. `maslow audit` writes `reports/audit.json`.
 
 ## Writing a Spec
 

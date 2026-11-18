@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/aschepis/maslow/schema/evidence.schema.json",
+  "title": "Maslow evidence",
+  "description": "The evidence file written by maslow verify and maslow audit. Format version 2.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "evidence_version",
+    "maslow_version",
+    "command",
+    "timestamp",
+    "spec_path",
+    "spec_sha256",
+    "spec_source",
+    "profile",
+    "verdict",
+    "check_results"
+  ],
+  "properties": {
+    "evidence_version": { "const": "2" },
+    "maslow_version": { "type": "string", "minLength": 1 },
+    "command": { "enum": ["verify", "audit"] },
+    "timestamp": { "type": "string", "minLength": 1 },
+    "spec_path": { "type": "string" },
+    "spec_sha256": { "type": "string" },
+    "spec_source": { "enum": ["head", "base"] },
+    "git_sha": { "type": "string" },
+    "base_sha": { "type": "string" },
+    "profile": { "type": "string" },
+    "verdict": { "enum": ["pass", "fail", "inconclusive"] },
+    "check_results": {
+      "type": ["array", "null"],
+      "items": { "$ref": "#/$defs/check" }
+    },
+    "contracts": { "type": "array", "items": { "$ref": "#/$defs/contract" } },
+    "budgets": { "type": "array", "items": { "$ref": "#/$defs/budget" } },
+    "refs": { "type": "array", "items": { "$ref": "#/$defs/ref" } },
+    "policy": { "type": "array", "items": { "$ref": "#/$defs/policy" } }
+  },
+  "$defs": {
+    "status": { "enum": ["pass", "fail", "skip", "error"] },
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "kind", "status", "duration_seconds"],
+      "properties": {
+        "name": { "type": "string" },
+        "kind": { "type": "string" },
+        "status": { "$ref": "#/$defs/status" },
+        "duration_seconds": { "type": "number", "minimum": 0 },
+        "output": { "type": "string" },
+        "output_bytes": { "type": "integer", "minimum": 0 },
+        "output_truncated": { "type": "boolean" },
+        "error": { "type": "string" }
+      }
+    },
+    "contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "status"],
+      "properties": {
+        "name": { "type": "string" },
+        "status": { "$ref": "#/$defs/status" },
+        "error": { "type": "string" }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "kind", "status"],
+      "properties": {
+        "name": { "type": "string" },
+        "kind": { "type": "string" },
+        "status": { "$ref": "#/$defs/status" },
+        "actual": { "type": "string" },
+        "limit": { "type": "string" },
+        "error": { "type": "string" }
+      }
+    },
+    "ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "kind", "status"],
+      "properties": {
+        "path": { "type": "string" },
+        "kind": { "type": "string" },
+        "status": { "$ref": "#/$defs/status" },
+        "error": { "type": "string" }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rule", "kind", "status"],
+      "properties": {
+        "rule": { "type": "string" },
+        "kind": { "enum": ["deny", "protected", "gated", "spec"] },
+        "status": { "$ref": "#/$defs/status" },
+        "detail": { "type": "string" },
+        "files": { "type": "array", "items": { "type": "string" } },
+        "error": { "type": "string" }
+      }
+    }
+  }
+}

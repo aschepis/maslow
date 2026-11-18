@@ -30,10 +30,11 @@ Exit codes: `0` pass, `1` validation or verification failure, `2` usage error.
 
 ## Reading the Evidence
 
-`maslow verify` writes `reports/verify.json`:
+`maslow verify` writes `reports/verify.json` (override with `--report <path>`); `schema/evidence.schema.json` in the Maslow repository is its exact shape:
 
+- `spec_source`, `spec_sha256`, `base_sha` — which spec was used and what the change was judged against.
 - `verdict` — `pass`, `fail` or `inconclusive`. Act on this first.
-- `check_results` — one entry per check in the profile, with `status`, `output` and `error`.
+- `check_results` — one entry per check in the profile, with `status`, `output` and `error`. `output` holds the tail; `output_truncated` says it was cut.
 - `contracts`, `budgets`, `refs`, `policy` — one entry per item, each with a `status` and, on failure, an `error` or `detail`.
 
 To fix a failure, find entries whose `status` is `fail` or `error` and read their `error`, `detail` and `output`. A `policy` failure means the change touched a path the spec forbids; revert that part of the change rather than editing the policy.

@@ -14,11 +14,24 @@ import (
 	"github.com/aschepis/maslow/internal/spec"
 )
 
-const DefaultReportPath = "reports/verify.json"
+const DefaultReportPath = "reports/audit.json"
+
+// Options controls an audit run.
+type Options struct {
+	Profile    string
+	SpecPath   string
+	SpecSHA256 string
+}
 
 // Run executes audit checks against the configured targets.
-func Run(mas *spec.MAS, profile string) (*evidence.Report, error) {
-	report := evidence.NewReport(profile)
+func Run(mas *spec.MAS, opts Options) (*evidence.Report, error) {
+	report := evidence.NewReport(evidence.Meta{
+		Command:    "audit",
+		Profile:    opts.Profile,
+		SpecPath:   opts.SpecPath,
+		SpecSHA256: opts.SpecSHA256,
+		SpecSource: "head",
+	})
 
 	if mas.Audit == nil || len(mas.Audit.Targets) == 0 {
 		report.Verdict = "inconclusive"

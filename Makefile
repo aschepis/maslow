@@ -19,4 +19,4 @@ verify: build
 	bin/maslow verify --profile full
 
 clean:
-	rm -rf bin/ reports/verify.json
+	rm -rf bin/ reports/

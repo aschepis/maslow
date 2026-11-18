@@ -10,7 +10,7 @@ import (
 
 func TestRun_NoTargets(t *testing.T) {
 	mas := &spec.MAS{}
-	report, err := Run(mas, "full")
+	report, err := Run(mas, Options{Profile: "full"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -35,7 +35,7 @@ func TestRun_BinaryExists(t *testing.T) {
 		},
 	}
 
-	report, err := Run(mas, "full")
+	report, err := Run(mas, Options{Profile: "full"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -53,7 +53,7 @@ func TestRun_BinaryMissing(t *testing.T) {
 		},
 	}
 
-	report, err := Run(mas, "full")
+	report, err := Run(mas, Options{Profile: "full"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -71,7 +71,7 @@ func TestRun_ContainerSkipped(t *testing.T) {
 		},
 	}
 
-	report, err := Run(mas, "full")
+	report, err := Run(mas, Options{Profile: "full"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
