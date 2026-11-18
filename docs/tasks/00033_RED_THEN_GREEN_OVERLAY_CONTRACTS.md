@@ -1,12 +1,12 @@
 ---
 id: 33
 title: Prove overlay contracts fail on the base and pass on the head
-status: draft
+status: in_progress
 priority: high
 created: 2026-11-18
 updated: 2026-11-18
-assigned_to: ""
-assigned_at: ""
+assigned_to: "claude-workflow"
+assigned_at: "2026-11-18T12:00:00Z"
 depends_on: []
 tags: [kind:gap, contracts, overlays, evidence]
 ---
