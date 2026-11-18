@@ -46,8 +46,8 @@ maslow version                   # Print version info
 `maslow verify` runs the following in order:
 
 1. **Checks** — shell commands (build, test, lint) filtered by profile
-2. **Contracts** — scenario-based behavioural tests (CLI and HTTP)
-3. **Budgets** — artifact size, performance, and complexity limits
+2. **Contracts** — scenario-based behavioural tests (CLI and HTTP); a profile's `contracts` list selects by name or tag
+3. **Budgets** — artifact size, performance, and complexity limits; selected by a profile's `budgets` list
 4. **Refs** — verify declared files, binaries, and URLs exist
 5. **Policy** — `deny`, `protected`, `allow` and `gated` rules, judged on the change since `--base <ref>` when given
 

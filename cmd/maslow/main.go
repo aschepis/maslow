@@ -137,6 +137,10 @@ func cmdVerify(args []string) int {
 		return 1
 	}
 	opts.SpecSHA256 = loaded.SHA256
+	if _, ok := loaded.MAS.Profiles[*profile]; !ok {
+		fmt.Fprintf(os.Stderr, "maslow verify: profile %q not found in %s\n", *profile, *specPath)
+		return 2
+	}
 
 	report, err := verify.Run(loaded.MAS, opts)
 	if err != nil {

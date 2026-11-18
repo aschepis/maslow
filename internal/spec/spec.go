@@ -82,14 +82,21 @@ type CheckRunner struct {
 	Tags    []string `yaml:"tags,omitempty"`
 }
 
+// Profile selects what a run covers. A nil Contracts or Budgets list selects
+// all of them; an empty list selects none. Refs and Policy default to true.
 type Profile struct {
 	Description string   `yaml:"description,omitempty"`
 	Checks      []string `yaml:"checks"`
+	Contracts   []string `yaml:"contracts,omitempty"`
+	Budgets     []string `yaml:"budgets,omitempty"`
+	Refs        *bool    `yaml:"refs,omitempty"`
+	Policy      *bool    `yaml:"policy,omitempty"`
 }
 
 type Contract struct {
 	Name        string     `yaml:"name"`
 	Description string     `yaml:"description,omitempty"`
+	Tags        []string   `yaml:"tags,omitempty"`
 	Setup       []Step     `yaml:"setup,omitempty"`
 	Teardown    []Step     `yaml:"teardown,omitempty"`
 	Scenarios   []Scenario `yaml:"scenarios"`
@@ -143,6 +150,7 @@ type Assertion struct {
 type Budget struct {
 	Name         string   `yaml:"name"`
 	Kind         string   `yaml:"kind"`
+	Tags         []string `yaml:"tags,omitempty"`
 	Target       string   `yaml:"target"`
 	P50          string   `yaml:"p50,omitempty"`
 	P90          string   `yaml:"p90,omitempty"`

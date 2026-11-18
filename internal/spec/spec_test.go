@@ -94,3 +94,27 @@ func TestLoad_NotFound(t *testing.T) {
 		t.Fatal("expected error for missing file")
 	}
 }
+
+// Profile selection relies on an omitted list being nil and [] being empty.
+func TestParse_ProfileSelectorsDistinguishOmittedFromEmpty(t *testing.T) {
+	mas, err := Parse([]byte(`
+mas: "1.0"
+project: {name: p}
+profiles:
+  all: {checks: []}
+  none: {checks: [], contracts: [], budgets: [], refs: false}
+`), "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	all, none := mas.Profiles["all"], mas.Profiles["none"]
+	if all.Contracts != nil || all.Budgets != nil || all.Refs != nil {
+		t.Errorf("expected omitted selectors to be nil, got %+v", all)
+	}
+	if none.Contracts == nil || len(none.Contracts) != 0 || none.Budgets == nil {
+		t.Errorf("expected [] to be an empty, non-nil list, got %+v", none)
+	}
+	if none.Refs == nil || *none.Refs {
+		t.Errorf("expected refs: false to be recorded, got %v", none.Refs)
+	}
+}

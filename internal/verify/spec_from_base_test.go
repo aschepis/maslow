@@ -179,6 +179,42 @@ func TestSpecFromBase_DetectsSpecChangeFromASubdirectory(t *testing.T) {
 	}
 }
 
+// Turning policy rules off must not hide that the branch changed the spec.
+func TestSpecFromBase_PolicyOffStillReportsSpecChange(t *testing.T) {
+	policyOff := weakenedSpec + "    policy: false\n"
+	dir := t.TempDir()
+	git(t, dir, "init", "-q", "-b", "main")
+	git(t, dir, "config", "user.email", "test@test.com")
+	git(t, dir, "config", "user.name", "Test")
+	git(t, dir, "config", "commit.gpgsign", "false")
+	write(t, dir, "maslow.yaml", policyOff)
+	git(t, dir, "add", ".")
+	git(t, dir, "commit", "-qm", "base")
+	git(t, dir, "checkout", "-qb", "feature")
+	write(t, dir, "maslow.yaml", policyOff+"# edited\n")
+	git(t, dir, "commit", "-qam", "edit spec")
+	t.Chdir(dir)
+
+	baseSHA, err := ResolveBase("main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := spec.Read("maslow.yaml", baseSHA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := Run(loaded.MAS, Options{Profile: "full", BaseSHA: baseSHA, SpecPath: "maslow.yaml", SpecFromBase: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f := findPolicy(report.Policy, "spec"); f == nil || f.Status == "pass" {
+		t.Errorf("expected the spec change reported despite policy: false, got %+v", report.Policy)
+	}
+	if report.Verdict == "pass" {
+		t.Errorf("expected the verdict not to be pass, got %s", report.Verdict)
+	}
+}
+
 func findPolicy(results []evidence.PolicyResult, kind string) *evidence.PolicyResult {
 	for i := range results {
 		if results[i].Kind == kind {
