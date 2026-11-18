@@ -1,7 +1,7 @@
 ---
 id: 34
 title: Add shrink-only files and test-integrity checks to policy
-status: in_progress
+status: done
 priority: high
 created: 2026-11-18
 updated: 2026-11-18
@@ -28,9 +28,9 @@ today that is enforced by a test the change itself can edit.
 
 ## Acceptance Criteria
 
-- [ ] Schema and valid/invalid fixtures for both rules.
-- [ ] Tests: added line in a shrink-only file fails; removed line passes; a new skip is flagged.
-- [ ] ADR records whether a finding is `fail` or `needs_review` by default.
+- [x] Schema and valid/invalid fixtures for both rules.
+- [x] Tests: added line in a shrink-only file fails; removed line passes; a new skip is flagged.
+- [x] ADR records whether a finding is `fail` or `needs_review` by default.
 
 ## Notes
 
