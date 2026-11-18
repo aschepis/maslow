@@ -170,19 +170,22 @@ contracts:
   # Schema poll: url, interval, timeout, expect (no "until" with json matcher)
   - name: api-contract
     description: Basic API health and auth contract
+    env:
+      - API_BASE_URL
+    base_url: "{{.env.API_BASE_URL}}"
     scenarios:
       - name: health-check
         steps:
           - action: http
             method: GET
-            url: "{{.env.API_BASE_URL}}/healthz"
+            url: /healthz
             expect:
               status: 200
       - name: login-returns-token
         steps:
           - action: http
             method: POST
-            url: "{{.env.API_BASE_URL}}/v1/auth/login"
+            url: /v1/auth/login
             headers:
               Content-Type: application/json
             body: '{"email":"alice@example.com","password":"Passw0rd!"}'
@@ -197,7 +200,7 @@ contracts:
         steps:
           - action: http
             method: GET
-            url: "{{.env.API_BASE_URL}}/v1/feed"
+            url: /v1/feed
             expect:
               status: 200
               json_path: "$.items"
@@ -303,11 +306,8 @@ audit:
   targets:
     - kind: endpoint
       path: "{{.env.API_BASE_URL}}"
-      timeout: 1800s
-      retries: 1
       checks:
-        - quick
-# GAP: schema AuditTarget.path is a string; endpoint uses base URL
+        - api-contract
 # GAP: schema has no mode (blackbox), allow_source_checkout
 # GAP: schema has no one_of target (endpoint|container|binary) - only single kind per target
 # GAP: schema has no command (quick/full), evidence (required, determinism)

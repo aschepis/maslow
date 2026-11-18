@@ -42,6 +42,13 @@ package maslow
 	packages?: [...#Package]
 }
 
+// A spec overlay adds contracts beside the base spec for one run
+// (maslow verify --overlay). It cannot change anything else.
+#Overlay: {
+	description?: string
+	contracts: [...#Contract]
+}
+
 #Project: {
 	name:         string & =~"^[a-zA-Z][a-zA-Z0-9_-]*$"
 	description?: string
@@ -125,6 +132,10 @@ package maslow
 	name:        string
 	description?: string
 	tags?: [...string]
+	// Environment variables templates may read as {{.env.NAME}}; their values are redacted from evidence.
+	env?: [...=~"^[A-Za-z_][A-Za-z0-9_]*$"]
+	// Base for step URLs starting with "/"; an endpoint audit target replaces it.
+	base_url?: string
 	setup?: [...#Step]
 	teardown?: [...#Step]
 	scenarios: [...#Scenario]
@@ -135,6 +146,8 @@ package maslow
 	setup?: [...#Step]
 	teardown?: [...#Step]
 	steps: [...#Step]
+	// Repository-relative patterns for files to list in the evidence, such as screenshots.
+	artifacts?: [...string]
 }
 
 #Step: {
@@ -255,6 +268,8 @@ package maslow
 	targets: [...#AuditTarget]
 }
 
+// An endpoint target's path is a base URL (it may read {{.env.NAME}}), and its
+// checks select contracts by name or tag; omitted runs every contract.
 #AuditTarget: {
 	kind: "binary" | "container" | "endpoint"
 	path: string

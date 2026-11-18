@@ -158,6 +158,29 @@ checks:
 	}
 }
 
+func TestValidate_ContractEnv(t *testing.T) {
+	spec := func(name string) []byte {
+		return []byte(`mas: "1.0"
+project:
+  name: test
+contracts:
+  - name: c
+    env:
+      - "` + name + `"
+    scenarios: []
+`)
+	}
+	for name, wantValid := range map[string]bool{"API_TOKEN": true, "_x1": true, "1BAD": false, "A-B": false, "A=B": false} {
+		result, err := Validate(spec(name))
+		if err != nil {
+			t.Fatalf("%s: unexpected error: %v", name, err)
+		}
+		if result.Valid != wantValid {
+			t.Errorf("env %q: valid=%v, want %v", name, result.Valid, wantValid)
+		}
+	}
+}
+
 func TestValidate_CollectionAssertions(t *testing.T) {
 	data := []byte(`mas: "1.0"
 project:

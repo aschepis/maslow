@@ -55,14 +55,14 @@ maslow version                   # Print version info
 `maslow verify` runs the following in order:
 
 1. **Checks** — shell commands (build, test, lint) filtered by profile
-2. **Contracts** — scenario-based behavioural tests (CLI and HTTP); a profile's `contracts` list selects by name or tag
+2. **Contracts** — scenario-based behavioural tests (CLI and HTTP); a profile's `contracts` list selects by name or tag, and `--overlay <file>` adds a file of extra contracts for one run, such as a change's acceptance scenarios
 3. **Budgets** — artifact size, performance, and complexity limits; selected by a profile's `budgets` list
 4. **Refs** — verify declared files, binaries, and URLs exist
 5. **Policy** — `deny`, `protected`, `allow` and `gated` rules, judged on the change since `--base <ref>` when given
 
 The verdict is `fail`, `needs_review`, `inconclusive` or `pass`, in that order of precedence. `needs_review` means everything passed but the change touched a `gated` path, and names its owner. It exits 0 unless `--strict` is passed.
 
-Results are written to `reports/verify.json` (or `--report <path>`) as structured evidence. `schema/evidence.schema.json` describes the format. `maslow audit` writes `reports/audit.json`.
+Results are written to `reports/verify.json` (or `--report <path>`) as structured evidence. `schema/evidence.schema.json` describes the format. `maslow audit` writes `reports/audit.json`; an `endpoint` audit target runs the contracts it selects against a deployed base URL, resolving step URLs that start with `/`, so the same scenarios work as a post-deploy smoke test.
 
 ## In CI
 
@@ -80,6 +80,24 @@ Grow the spec alongside the code rather than writing it all up front:
 | Implement a performance-sensitive path | A performance budget for it |
 | Add a dependency or config file | A ref for it |
 | Create a file that a change must not touch | A `policy.deny` or `policy.protected` entry |
+
+Contract templates read captured values as `{{.cap.NAME}}` and environment variables as `{{.env.NAME}}`. A contract can read only the variables listed in its `env`, and their values are redacted from the evidence:
+
+```yaml
+contracts:
+  - name: api
+    env: [API_BASE_URL, API_TOKEN]
+    scenarios:
+      - name: health
+        steps:
+          - action: http
+            method: GET
+            url: "{{.env.API_BASE_URL}}/healthz"
+            headers: { Authorization: "Bearer {{.env.API_TOKEN}}" }
+            expect: { status: 200 }
+```
+
+Each scenario keeps its own cookie jar across its setup, steps and teardown, so a scenario that signs in stays signed in without hand-built `Cookie` headers.
 
 ## Development
 

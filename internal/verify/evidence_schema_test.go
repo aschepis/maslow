@@ -41,13 +41,23 @@ func TestEvidenceMatchesSchema(t *testing.T) {
 	mas := loaded.MAS
 	mas.Checks.Runner = append(mas.Checks.Runner, spec.CheckRunner{Name: "noisy", Kind: "command", Run: "seq 1 5000"})
 	mas.Profiles["full"] = spec.Profile{Checks: []string{"gate", "ok", "noisy"}}
-	mas.Contracts = []spec.Contract{{Name: "c", Scenarios: []spec.Scenario{{
-		Name: "s",
-		Steps: []spec.Step{
-			{Action: "cli", Command: "true"},
-			{Action: "assert", Expect: &spec.Expectation{ExitCode: &exitZero}},
+	mas.Contracts = []spec.Contract{{Name: "c", Scenarios: []spec.Scenario{
+		{
+			Name: "s",
+			Steps: []spec.Step{
+				{Action: "cli", Command: "true"},
+				{Action: "assert", Expect: &spec.Expectation{ExitCode: &exitZero}},
+			},
 		},
-	}}}}
+		{
+			Name: "failing",
+			Steps: []spec.Step{
+				{Action: "cli", Command: "seq", Args: []string{"1", "5000"}},
+				{Action: "assert", Expect: &spec.Expectation{BodyContains: "absent"}},
+			},
+			Artifacts: []string{"locked.txt"},
+		},
+	}}}
 	mas.Budgets = []spec.Budget{{Name: "size", Kind: "artifact_size", Target: "maslow.yaml", Max: "1MB"}}
 	mas.Refs = []spec.Ref{{Kind: "file", Path: "maslow.yaml", Required: true}}
 	mas.Policy = &spec.Policy{
@@ -57,7 +67,11 @@ func TestEvidenceMatchesSchema(t *testing.T) {
 	}
 
 	head := strings.TrimSpace(gitOut(t, dir, "rev-parse", "HEAD"))
-	report, err := Run(mas, Options{Profile: "full", BaseSHA: head, SpecPath: "maslow.yaml", SpecSHA256: loaded.SHA256, SpecFromBase: true})
+	overlay := &spec.LoadedOverlay{Path: "acceptance.yaml", SHA256: "0123", Overlay: &spec.Overlay{Contracts: []spec.Contract{{
+		Name:      "acceptance",
+		Scenarios: []spec.Scenario{{Name: "s", Steps: []spec.Step{{Action: "cli", Command: "true"}}}},
+	}}}}
+	report, err := Run(mas, Options{Profile: "full", BaseSHA: head, SpecPath: "maslow.yaml", SpecSHA256: loaded.SHA256, SpecFromBase: true, Overlays: []*spec.LoadedOverlay{overlay}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +92,7 @@ func TestEvidenceMatchesSchema(t *testing.T) {
 	if err := json.Unmarshal(data, &fields); err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"contracts", "budgets", "refs", "policy", "base_sha", "git_sha"} {
+	for _, key := range []string{"contracts", "budgets", "refs", "policy", "base_sha", "git_sha", "overlays"} {
 		if _, ok := fields[key]; !ok {
 			t.Errorf("expected the fixture to exercise %q", key)
 		}

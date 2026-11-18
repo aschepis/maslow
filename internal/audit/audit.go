@@ -8,9 +8,11 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/aschepis/maslow/internal/evidence"
+	"github.com/aschepis/maslow/internal/runner"
 	"github.com/aschepis/maslow/internal/spec"
 )
 
@@ -39,6 +41,12 @@ func Run(mas *spec.MAS, opts Options) (*evidence.Report, error) {
 	}
 
 	for _, target := range mas.Audit.Targets {
+		if target.Kind == "endpoint" {
+			checks, contracts := auditEndpoint(target, mas.Contracts)
+			report.CheckResults = append(report.CheckResults, checks...)
+			report.Contracts = append(report.Contracts, contracts...)
+			continue
+		}
 		results := auditTarget(target)
 		report.CheckResults = append(report.CheckResults, results...)
 	}
@@ -53,8 +61,6 @@ func auditTarget(target spec.AuditTarget) []evidence.CheckResult {
 		return auditBinary(target)
 	case "container":
 		return auditContainer(target)
-	case "endpoint":
-		return auditEndpoint(target)
 	default:
 		return []evidence.CheckResult{{
 			Name:   target.Path,
@@ -146,14 +152,59 @@ func auditContainer(target spec.AuditTarget) []evidence.CheckResult {
 	}}
 }
 
-func auditEndpoint(target spec.AuditTarget) []evidence.CheckResult {
-	// Placeholder for endpoint audit.
-	return []evidence.CheckResult{{
-		Name:   target.Path + "/endpoint",
-		Kind:   "endpoint",
-		Status: "skip",
-		Error:  "endpoint audit not yet implemented",
-	}}
+// auditEndpoint runs the contracts the target selects against its base URL,
+// so the scenarios that gate a change double as a post-deploy smoke test.
+// Results are named by the target path as written, so an expanded URL never
+// reaches the evidence.
+func auditEndpoint(target spec.AuditTarget, contracts []spec.Contract) ([]evidence.CheckResult, []evidence.ContractResult) {
+	fail := func(err error) ([]evidence.CheckResult, []evidence.ContractResult) {
+		return []evidence.CheckResult{{Name: target.Path + "/endpoint", Kind: "endpoint", Status: "error", Error: err.Error()}}, nil
+	}
+
+	baseURL, err := expandEnv(target.Path)
+	if err != nil {
+		return fail(fmt.Errorf("path: %w", err))
+	}
+	if !strings.HasPrefix(baseURL, "http://") && !strings.HasPrefix(baseURL, "https://") {
+		return fail(fmt.Errorf("path must be an http:// or https:// base URL"))
+	}
+
+	selected, err := runner.SelectContracts(contracts, "audit target "+target.Path, target.Checks)
+	if err != nil {
+		return fail(err)
+	}
+	if len(selected) == 0 {
+		return fail(fmt.Errorf("no contracts to run; add contracts to the spec or select them in checks"))
+	}
+
+	results := runner.RunContractsWith(selected, runner.ContractOptions{BaseURL: baseURL})
+	for i := range results {
+		results[i].Name = target.Path + "/" + results[i].Name
+	}
+	return nil, results
+}
+
+// expandEnv substitutes {{.env.NAME}} from the whole environment. The audit
+// target is the operator's configuration, unlike contracts, which are allow-listed.
+func expandEnv(s string) (string, error) {
+	if !strings.Contains(s, "{{") {
+		return s, nil
+	}
+	env := map[string]string{}
+	for _, kv := range os.Environ() {
+		if k, v, ok := strings.Cut(kv, "="); ok {
+			env[k] = v
+		}
+	}
+	tmpl, err := template.New("").Option("missingkey=error").Parse(s)
+	if err != nil {
+		return "", err
+	}
+	var buf strings.Builder
+	if err := tmpl.Execute(&buf, map[string]any{"env": env}); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
 
 func parseDuration(s string) (time.Duration, error) {

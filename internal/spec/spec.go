@@ -94,12 +94,16 @@ type Profile struct {
 }
 
 type Contract struct {
-	Name        string     `yaml:"name"`
-	Description string     `yaml:"description,omitempty"`
-	Tags        []string   `yaml:"tags,omitempty"`
-	Setup       []Step     `yaml:"setup,omitempty"`
-	Teardown    []Step     `yaml:"teardown,omitempty"`
-	Scenarios   []Scenario `yaml:"scenarios"`
+	Name        string   `yaml:"name"`
+	Description string   `yaml:"description,omitempty"`
+	Tags        []string `yaml:"tags,omitempty"`
+	// Env lists the environment variables templates may read as {{.env.NAME}}.
+	Env []string `yaml:"env,omitempty"`
+	// BaseURL resolves step URLs that start with "/"; an endpoint audit replaces it.
+	BaseURL   string     `yaml:"base_url,omitempty"`
+	Setup     []Step     `yaml:"setup,omitempty"`
+	Teardown  []Step     `yaml:"teardown,omitempty"`
+	Scenarios []Scenario `yaml:"scenarios"`
 }
 
 type Scenario struct {
@@ -107,6 +111,8 @@ type Scenario struct {
 	Setup    []Step `yaml:"setup,omitempty"`
 	Teardown []Step `yaml:"teardown,omitempty"`
 	Steps    []Step `yaml:"steps"`
+	// Artifacts are repository-relative patterns for files the scenario leaves behind.
+	Artifacts []string `yaml:"artifacts,omitempty"`
 }
 
 type Step struct {

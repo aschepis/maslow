@@ -158,6 +158,22 @@ func TestCapOutput_KeepsTailAndRecordsTruncation(t *testing.T) {
 	}
 }
 
+func TestCapOutput_AppliesToContracts(t *testing.T) {
+	long := strings.Repeat("x", 500) + "END"
+	r := NewReport(Meta{})
+	r.Contracts = []ContractResult{{Name: "c/s", Status: "fail", Output: long}}
+
+	r.CapOutput(10)
+
+	got := r.Contracts[0]
+	if !strings.HasSuffix(got.Output, "END") || len(got.Output) > 10 {
+		t.Errorf("expected the last 10 bytes, got %q", got.Output)
+	}
+	if !got.OutputTruncated || got.OutputBytes != len(long) {
+		t.Errorf("expected truncation recorded, got truncated=%v bytes=%d", got.OutputTruncated, got.OutputBytes)
+	}
+}
+
 func TestCapOutput_DoesNotSplitRunes(t *testing.T) {
 	r := NewReport(Meta{})
 	r.CheckResults = []CheckResult{{Output: strings.Repeat("é", 100)}}

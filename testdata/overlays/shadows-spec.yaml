@@ -1,0 +1,8 @@
+description: Reuses a contract name from Maslow's own spec, so this one is rejected
+contracts:
+  - name: validate-command
+    scenarios:
+      - name: always-passes
+        steps:
+          - action: cli
+            command: "true"

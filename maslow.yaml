@@ -274,6 +274,40 @@ contracts:
             expect:
               exit_code: 2
 
+  - name: verify-overlay
+    description: Overlays may add contracts but never change or shadow the spec
+    tags:
+      - smoke
+    scenarios:
+      - name: rejects-non-contract-keys
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - verify
+              - --profile
+              - quick
+              - --overlay
+              - testdata/overlays/changes-policy.yaml
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: "only description and contracts"
+      - name: rejects-shadowing-a-spec-contract
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - verify
+              - --profile
+              - quick
+              - --overlay
+              - testdata/overlays/shadows-spec.yaml
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: "already defined by the spec"
+
   - name: audit-command
     description: Audit writes its own evidence file so it never overwrites verify's
     scenarios:

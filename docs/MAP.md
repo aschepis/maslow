@@ -51,7 +51,7 @@ reports/verify.json         <- verify evidence (reports/audit.json for audit)
 | `internal/schema/` | Loads `schema/maslow.cue`; validates spec using CUE Go library |
 | `internal/verify/` | Executes verification: profile selection, check sequencing, result collection |
 | `internal/runner/` | Runs individual checks (shell, HTTP, CLI); abstracts runner kinds |
-| `internal/audit/` | Black-box audit mode; supports binary, container, and HTTP endpoint targets |
+| `internal/audit/` | Black-box audit mode; binary targets, endpoint targets that run contracts against a base URL (ADR 0028), container stub |
 | `internal/evidence/` | Builds the evidence report, computes the verdict, caps output, writes JSON |
 | `internal/gitrepo/` | Git queries shared by policy and spec loading |
 | `schema/maslow.cue` | CUE schema defining the MAS format |
@@ -89,11 +89,11 @@ A valid `maslow.yaml` defines:
 - `toolchain` - required tools and version managers (asdf, mise, nix, custom)
 - `refs` - external references (repos, modules, APIs)
 - `policy` - path allow/deny lists; protected files; gated directories
-- `contracts` - scenario-based behavioral contracts (HTTP and CLI calls)
+- `contracts` - scenario-based behavioral contracts (HTTP and CLI calls); each scenario keeps its own cookie jar (ADR 0027)
 - `budgets` - performance, availability, artifact size, complexity limits
 - `checks` - named check definitions and runner configuration
 - `profiles` - named subsets of checks, contracts and budgets (`quick`, `full`, custom); refs and policy run unless a profile turns them off
-- `audit` - black-box audit targets and configuration
+- `audit` - black-box audit targets; an `endpoint` target runs selected contracts against its base URL
 - `extensions` - domain overlays (web, game, cli, service)
 
 ---
@@ -106,12 +106,16 @@ A valid `maslow.yaml` defines:
 
 - `evidence_version`, `maslow_version`, `command` - what produced the file
 - `spec_path`, `spec_sha256`, `spec_source` - which spec bytes were verified (`head` or `base`)
+- `overlays` - path and SHA-256 of each `--overlay` file; its contract results carry `overlay` (ADR 0029)
 - `git_sha`, `base_sha` - the commit verified and the merge base policy was judged against
 - `profile`, `timestamp`
 - `check_results`, `contracts`, `budgets`, `refs`, `policy` - one entry per item with a `status`
 - `verdict` - `fail`, `needs_review`, `inconclusive` or `pass` (in that precedence)
 
 Check output keeps the last `--output-limit` bytes and records `output_truncated` when cut.
+A failing contract records its `failed_step` and that step's `output` under the same cap, and
+lists files matching the scenario's `artifacts` patterns (ADR 0025). Values of the variables a
+contract allow-lists in `env` are redacted from its result (ADR 0026).
 
 ---
 

@@ -29,6 +29,7 @@ jobs:
 | `spec` | `maslow.yaml` | Spec path |
 | `base` | | Judge the change since the merge base with this ref or SHA |
 | `spec-from` | `head` | `base` verifies against the spec at the merge base, so a change cannot weaken its own checks |
+| `overlays` | | Overlay files of extra contracts, one path per line (`--overlay`) |
 | `report` | `$RUNNER_TEMP/maslow/verify.json` | Evidence file path |
 | `strict` | `false` | Also fail on `needs_review` |
 | `working-directory` | `.` | Directory to run in |
