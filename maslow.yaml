@@ -34,6 +34,9 @@ refs:
   - kind: file
     path: Makefile
     description: Development workflow targets (build, test, vet, lint, validate, verify, clean)
+  - kind: file
+    path: .github/workflows/ci.yml
+    description: GitHub Actions CI running hygiene checks and maslow verify --profile full
   - kind: binary
     path: bin/maslow
     description: Built Maslow binary

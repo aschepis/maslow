@@ -10,18 +10,18 @@ import (
 
 // MAS represents a parsed maslow.yaml file.
 type MAS struct {
-	MASVersion string      `yaml:"mas"`
-	Project    Project     `yaml:"project"`
-	Toolchain  *Toolchain  `yaml:"toolchain,omitempty"`
-	Refs       []Ref       `yaml:"refs,omitempty"`
-	Policy     *Policy     `yaml:"policy,omitempty"`
-	Checks     *Checks     `yaml:"checks,omitempty"`
+	MASVersion string             `yaml:"mas"`
+	Project    Project            `yaml:"project"`
+	Toolchain  *Toolchain         `yaml:"toolchain,omitempty"`
+	Refs       []Ref              `yaml:"refs,omitempty"`
+	Policy     *Policy            `yaml:"policy,omitempty"`
+	Checks     *Checks            `yaml:"checks,omitempty"`
 	Profiles   map[string]Profile `yaml:"profiles,omitempty"`
-	Contracts  []Contract  `yaml:"contracts,omitempty"`
-	Budgets    []Budget    `yaml:"budgets,omitempty"`
-	Audit      *Audit      `yaml:"audit,omitempty"`
-	Extensions map[string]any `yaml:"extensions,omitempty"`
-	Packages   []Package   `yaml:"packages,omitempty"`
+	Contracts  []Contract         `yaml:"contracts,omitempty"`
+	Budgets    []Budget           `yaml:"budgets,omitempty"`
+	Audit      *Audit             `yaml:"audit,omitempty"`
+	Extensions map[string]any     `yaml:"extensions,omitempty"`
+	Packages   []Package          `yaml:"packages,omitempty"`
 }
 
 type Project struct {
@@ -141,24 +141,24 @@ type Assertion struct {
 }
 
 type Budget struct {
-	Name         string  `yaml:"name"`
-	Kind         string  `yaml:"kind"`
-	Target       string  `yaml:"target"`
-	P50          string  `yaml:"p50,omitempty"`
-	P90          string  `yaml:"p90,omitempty"`
-	P95          string  `yaml:"p95,omitempty"`
-	P99          string  `yaml:"p99,omitempty"`
-	Max          string  `yaml:"max,omitempty"`
+	Name         string   `yaml:"name"`
+	Kind         string   `yaml:"kind"`
+	Target       string   `yaml:"target"`
+	P50          string   `yaml:"p50,omitempty"`
+	P90          string   `yaml:"p90,omitempty"`
+	P95          string   `yaml:"p95,omitempty"`
+	P99          string   `yaml:"p99,omitempty"`
+	Max          string   `yaml:"max,omitempty"`
 	ErrorRate    *float64 `yaml:"error_rate,omitempty"`
-	Concurrency  *int    `yaml:"concurrency,omitempty"`
-	Duration     string  `yaml:"duration,omitempty"`
-	Warmup       string  `yaml:"warmup,omitempty"`
+	Concurrency  *int     `yaml:"concurrency,omitempty"`
+	Duration     string   `yaml:"duration,omitempty"`
+	Warmup       string   `yaml:"warmup,omitempty"`
 	Uptime       *float64 `yaml:"uptime,omitempty"`
-	MaxRPS       *int    `yaml:"max_rps,omitempty"`
-	Burst        *int    `yaml:"burst,omitempty"`
-	MaxLines     *int    `yaml:"max_lines,omitempty"`
-	MaxFunctions *int    `yaml:"max_functions,omitempty"`
-	MaxDepth     *int    `yaml:"max_depth,omitempty"`
+	MaxRPS       *int     `yaml:"max_rps,omitempty"`
+	Burst        *int     `yaml:"burst,omitempty"`
+	MaxLines     *int     `yaml:"max_lines,omitempty"`
+	MaxFunctions *int     `yaml:"max_functions,omitempty"`
+	MaxDepth     *int     `yaml:"max_depth,omitempty"`
 }
 
 type Audit struct {

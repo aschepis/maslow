@@ -13,11 +13,11 @@ import (
 
 // Report is the top-level verification/audit report structure.
 type Report struct {
-	Timestamp    string         `json:"timestamp"`
-	GitSHA       string         `json:"git_sha,omitempty"`
-	Profile      string         `json:"profile"`
-	Verdict      string         `json:"verdict"` // pass, fail, inconclusive
-	CheckResults []CheckResult  `json:"check_results"`
+	Timestamp    string           `json:"timestamp"`
+	GitSHA       string           `json:"git_sha,omitempty"`
+	Profile      string           `json:"profile"`
+	Verdict      string           `json:"verdict"` // pass, fail, inconclusive
+	CheckResults []CheckResult    `json:"check_results"`
 	Contracts    []ContractResult `json:"contracts,omitempty"`
 	Budgets      []BudgetResult   `json:"budgets,omitempty"`
 	Refs         []RefResult      `json:"refs,omitempty"`

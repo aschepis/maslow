@@ -56,14 +56,14 @@ func Run(opts Options) error {
 
 	// Generate all files.
 	files := map[string]string{
-		filepath.Join(dir, "maslow.yaml"):                       generateMaslowYAML(opts.ProjectName, description, opts.Toolchain),
-		filepath.Join(dir, "CLAUDE.md"):                         GenerateClaudeMD(opts.ProjectName),
-		filepath.Join(dir, "docs", "MAP.md"):                    GenerateMapMD(opts.ProjectName),
-		filepath.Join(dir, "docs", "PLAN.md"):                   GeneratePlanMD(opts.ProjectName),
-		filepath.Join(dir, "docs", "tasks", "CONVENTION.md"):    GenerateTaskConvention(),
-		filepath.Join(dir, ".gitignore"):                        GenerateGitignore(),
-		filepath.Join(dir, "reports", ".gitkeep"):               "",
-		filepath.Join(dir, ".skills", "maslow", "SKILL.md"):    GenerateSkillMD(),
+		filepath.Join(dir, "maslow.yaml"):                    generateMaslowYAML(opts.ProjectName, description, opts.Toolchain),
+		filepath.Join(dir, "CLAUDE.md"):                      GenerateClaudeMD(opts.ProjectName),
+		filepath.Join(dir, "docs", "MAP.md"):                 GenerateMapMD(opts.ProjectName),
+		filepath.Join(dir, "docs", "PLAN.md"):                GeneratePlanMD(opts.ProjectName),
+		filepath.Join(dir, "docs", "tasks", "CONVENTION.md"): GenerateTaskConvention(),
+		filepath.Join(dir, ".gitignore"):                     GenerateGitignore(),
+		filepath.Join(dir, "reports", ".gitkeep"):            "",
+		filepath.Join(dir, ".skills", "maslow", "SKILL.md"):  GenerateSkillMD(),
 	}
 
 	for path, content := range files {
@@ -224,20 +224,20 @@ Draft tasks are how agents signal platform gaps — NOT how agents ask for permi
 - To propose refactoring or improvements — write an ADR or just do it
 
 **Format**: Create the task in docs/tasks/ with status: draft and tag it:
-- ` + "`kind:gap`" + ` — for verification or harness capability gaps
-- ` + "`kind:capability`" + ` — for missing tools, MCPs, or access
+- `+"`kind:gap`"+` — for verification or harness capability gaps
+- `+"`kind:capability`"+` — for missing tools, MCPs, or access
 
 The human reviews draft tasks at their own pace and promotes important ones to todo.
 
 ## Capability Discovery
 
 At the start of a session, inventory what MCPs and tools are available to you. Check refs in
-maslow.yaml with ` + "`kind: mcp`" + ` — these declare capabilities the project expects you to have.
+maslow.yaml with `+"`kind: mcp`"+` — these declare capabilities the project expects you to have.
 
 **If you have the capability**: use it. A browser MCP means you can do visual testing.
 A database MCP means you can seed test data. A deployment MCP means you can ship to staging.
 
-**If you lack a required capability**: create a draft task tagged ` + "`kind:capability`" + ` describing
+**If you lack a required capability**: create a draft task tagged `+"`kind:capability`"+` describing
 what you need and why. Example: "Need browser MCP for visual regression testing of the
 dashboard — cannot verify layout matches design spec without screenshot comparison."
 
@@ -385,9 +385,9 @@ TODO: Describe your project here.
 
 TODO: Add an architecture diagram or description.
 
-` + "```" + `
+`+"```"+`
 TODO: Add key components and their relationships
-` + "```" + `
+`+"```"+`
 
 ---
 

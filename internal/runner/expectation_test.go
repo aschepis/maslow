@@ -92,10 +92,10 @@ func TestCheckExpectation_JSONPath(t *testing.T) {
 	state := &stepState{output: jsonBody}
 
 	tests := []struct {
-		name     string
-		path     string
-		value    any
-		wantErr  bool
+		name    string
+		path    string
+		value   any
+		wantErr bool
 	}{
 		{"root field int", "$.id", 1, false},
 		{"root field string", "$.title", "Buy milk", false},
