@@ -106,7 +106,9 @@
         "phase": { "enum": ["contract_setup", "setup", "steps"] },
         "index": { "type": "integer", "minimum": 0 },
         "action": { "type": "string" },
-        "target": { "type": "string" }
+        "target": { "type": "string" },
+        "page_url": { "type": "string" },
+        "console": { "type": "array", "items": { "type": "string" } }
       }
     },
     "budget": {

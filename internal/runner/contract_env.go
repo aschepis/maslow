@@ -35,6 +35,14 @@ func redact(result evidence.ContractResult, env map[string]string) evidence.Cont
 	if result.FailedStep != nil {
 		step := *result.FailedStep
 		step.Target = r.Replace(step.Target)
+		step.PageURL = r.Replace(step.PageURL)
+		if step.Console != nil {
+			console := make([]string, len(step.Console))
+			for i, m := range step.Console {
+				console[i] = r.Replace(m)
+			}
+			step.Console = console
+		}
 		result.FailedStep = &step
 	}
 	return result

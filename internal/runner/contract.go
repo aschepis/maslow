@@ -7,7 +7,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/cookiejar"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -31,6 +33,7 @@ const (
 	phaseContractSetup = "contract_setup"
 	phaseSetup         = "setup"
 	phaseSteps         = "steps"
+	phaseTeardown      = "teardown"
 )
 
 // stepFailure says which step failed and keeps the output it produced.
@@ -40,16 +43,22 @@ type stepFailure struct {
 	step   spec.Step
 	output string
 	err    error
+	// Set for a failing browser step.
+	pageURL    string
+	console    []string
+	screenshot string
 }
 
 func (f *stepFailure) Error() string { return f.err.Error() }
 
 func (f *stepFailure) evidence() *evidence.FailedStep {
 	return &evidence.FailedStep{
-		Phase:  f.phase,
-		Index:  f.index,
-		Action: f.step.Action,
-		Target: stepTarget(f.step),
+		Phase:   f.phase,
+		Index:   f.index,
+		Action:  f.step.Action,
+		Target:  stepTarget(f.step),
+		PageURL: f.pageURL,
+		Console: f.console,
 	}
 }
 
@@ -68,6 +77,14 @@ func stepTarget(step spec.Step) string {
 		return "GET " + step.URL
 	case "capture":
 		return step.From
+	case "browser":
+		switch {
+		case step.Do == "navigate":
+			return "navigate " + step.URL
+		case step.Selector != "":
+			return step.Do + " " + step.Selector
+		}
+		return step.Do + " page"
 	}
 	return ""
 }
@@ -88,12 +105,32 @@ type scope struct {
 	vars map[string]string
 	// client keeps cookies between HTTP steps, so a scenario can sign in once.
 	client *http.Client
+	// browser starts with the first browser step and shares client's cookies.
+	browser *browser
+	// screenshot is the repository-relative path for a failing browser
+	// step's screenshot; "" takes none.
+	screenshot string
 }
 
 func newScope(cfg contractConfig) *scope {
 	jar, _ := cookiejar.New(nil) // New never fails without options.
 	return &scope{contractConfig: cfg, vars: map[string]string{}, client: &http.Client{Jar: jar}}
 }
+
+// withScreenshot makes failing browser steps leave a screenshot at path,
+// removing one a previous run left so it is never mistaken for this run's.
+func (sc *scope) withScreenshot(path string) *scope {
+	sc.screenshot = path
+	_ = os.Remove(sc.onDisk(path))
+	return sc
+}
+
+// onDisk is where a repository-relative path lives for this run.
+func (sc *scope) onDisk(path string) string {
+	return filepath.Join(sc.dir, filepath.FromSlash(path))
+}
+
+func (sc *scope) close() { sc.browser.close() }
 
 // ContractOptions changes where contracts run.
 type ContractOptions struct {
@@ -133,9 +170,14 @@ func runContract(contract spec.Contract, cfg contractConfig) []evidence.Contract
 
 	// Contract-level setup runs once before all scenarios.
 	if len(contract.Setup) > 0 {
-		state, sc := &stepState{}, newScope(cfg)
-		if err := runSteps(phaseContractSetup, contract.Setup, state, sc); err != nil {
+		state := &stepState{}
+		sc := newScope(cfg).withScreenshot(screenshotPath(contract.Name, "_contract_setup"))
+		err := runSteps(phaseContractSetup, contract.Setup, state, sc)
+		if err != nil {
 			runStepsIgnoreError(contract.Teardown, state, sc)
+		}
+		sc.close()
+		if err != nil {
 			return failAll(contract, "contract setup failed: ", err)
 		}
 	}
@@ -145,7 +187,9 @@ func runContract(contract spec.Contract, cfg contractConfig) []evidence.Contract
 		results = append(results, runScenario(contract.Name, scenario, cfg))
 	}
 
-	runStepsIgnoreError(contract.Teardown, &stepState{}, newScope(cfg))
+	teardown := newScope(cfg)
+	runStepsIgnoreError(contract.Teardown, &stepState{}, teardown)
+	teardown.close()
 	return results
 }
 
@@ -162,7 +206,8 @@ func failAll(contract spec.Contract, prefix string, err error) []evidence.Contra
 
 func runScenario(contractName string, scenario spec.Scenario, cfg contractConfig) evidence.ContractResult {
 	name := fmt.Sprintf("%s/%s", contractName, scenario.Name)
-	state, sc := &stepState{}, newScope(cfg)
+	state, sc := &stepState{}, newScope(cfg).withScreenshot(screenshotPath(contractName, scenario.Name))
+	defer sc.close()
 
 	var result evidence.ContractResult
 	if err := runSteps(phaseSetup, scenario.Setup, state, sc); err != nil {
@@ -184,6 +229,9 @@ func failedResult(name, prefix string, err error) evidence.ContractResult {
 	if f, ok := err.(*stepFailure); ok {
 		result.FailedStep = f.evidence()
 		result.Output = f.output
+		if f.screenshot != "" {
+			result.Artifacts = []string{f.screenshot}
+		}
 	}
 	return result
 }
@@ -192,10 +240,27 @@ func failedResult(name, prefix string, err error) evidence.ContractResult {
 func runSteps(phase string, steps []spec.Step, state *stepState, sc *scope) error {
 	for i, step := range steps {
 		if err := runStep(step, state, sc); err != nil {
-			return &stepFailure{phase: phase, index: i, step: substitutedOrRaw(step, sc), output: state.output, err: err}
+			f := &stepFailure{phase: phase, index: i, step: substitutedOrRaw(step, sc), output: state.output, err: err}
+			if step.Action == "browser" && phase != phaseTeardown {
+				recordPage(f, sc)
+			}
+			return f
 		}
 	}
 	return nil
+}
+
+// recordPage keeps what the browser showed when a step failed. The
+// screenshot is best effort, so failing to take one never hides the step's error.
+func recordPage(f *stepFailure, sc *scope) {
+	if sc.browser == nil {
+		return
+	}
+	f.pageURL = sc.browser.pageURL()
+	f.console = sc.browser.consoleErrors()
+	if sc.screenshot != "" && sc.browser.screenshot(sc.onDisk(sc.screenshot)) == nil {
+		f.screenshot = sc.screenshot
+	}
 }
 
 // substitutedOrRaw shows the step as it ran, or as written if substitution failed.
@@ -272,6 +337,11 @@ func runStep(step spec.Step, state *stepState, sc *scope) error {
 		state.exitCode = 0
 		state.output = body
 
+	case "browser":
+		if err := runBrowserStep(step, state, sc); err != nil {
+			return fmt.Errorf("step browser %s: %v", stepTarget(step), err)
+		}
+
 	default:
 		return fmt.Errorf("unknown step action: %s", step.Action)
 	}
@@ -280,7 +350,7 @@ func runStep(step spec.Step, state *stepState, sc *scope) error {
 
 // runStepsIgnoreError runs steps but does not propagate errors (for teardown).
 func runStepsIgnoreError(steps []spec.Step, state *stepState, sc *scope) {
-	_ = runSteps("teardown", steps, state, sc)
+	_ = runSteps(phaseTeardown, steps, state, sc)
 }
 
 // captureValue extracts a value from the current step state based on the capture's "from" field.
@@ -370,6 +440,14 @@ func substituteStep(step spec.Step, sc *scope) (spec.Step, error) {
 	step.Stdin, err = applyTemplate(step.Stdin, sc)
 	if err != nil {
 		return step, fmt.Errorf("stdin: %w", err)
+	}
+	step.Selector, err = applyTemplate(step.Selector, sc)
+	if err != nil {
+		return step, fmt.Errorf("selector: %w", err)
+	}
+	step.Text, err = applyTemplate(step.Text, sc)
+	if err != nil {
+		return step, fmt.Errorf("text: %w", err)
 	}
 
 	if len(step.Headers) > 0 {

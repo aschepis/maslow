@@ -108,6 +108,9 @@ type FailedStep struct {
 	Index  int    `json:"index"` // zero-based position within the phase
 	Action string `json:"action"`
 	Target string `json:"target,omitempty"` // command line or "METHOD url", after substitution
+	// PageURL and Console describe the page a failing browser step left behind.
+	PageURL string   `json:"page_url,omitempty"`
+	Console []string `json:"console,omitempty"`
 }
 
 // BudgetResult records the outcome of a budget check.
