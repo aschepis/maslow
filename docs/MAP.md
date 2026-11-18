@@ -2,9 +2,9 @@
 
 ## What Maslow Is
 
-Maslow is an executable specification system for agent-built software. It validates a declarative
-spec file (`maslow.yaml`) against a CUE schema, runs verification checks, and produces deterministic
-evidence. It is designed to be used equally by humans and AI agents.
+Maslow is a verifier. It validates a declarative spec file (`maslow.yaml`) against a CUE schema,
+runs verification, and produces deterministic evidence with one verdict. It runs the same way on a
+laptop, inside an agent session and in CI, and imposes no workflow on the project (ADR 0016).
 
 ---
 
@@ -17,11 +17,9 @@ maslow.yaml (spec)
 cmd/maslow/main.go          <- CLI entrypoint; parses subcommands and flags
      |
      +-- validate           <- loads spec, runs CUE schema validation
-     +-- verify             <- runs check harness, emits reports/verify.json
+     +-- verify             <- runs checks, contracts, budgets, refs, policy; emits evidence
      +-- audit              <- black-box mode; runs against artifact/endpoint targets
-     +-- scaffold           <- scaffolds a new project with agentic harness
-     +-- harness            <- manages harness lifecycle (install, update, detach)
-     +-- init               <- scaffolds maslow.yaml; detects toolchain
+     +-- init               <- writes a starter maslow.yaml; detects toolchain
      +-- version            <- prints build metadata
      |
      v
@@ -33,8 +31,6 @@ internal/
      +-- runner/            <- orchestrates check runners in defined order
      +-- audit/             <- black-box audit execution; target abstraction layer
      +-- evidence/          <- emits reports/verify.json; deterministic serialization
-     +-- scaffold/          <- project scaffolding with agentic harness generation
-     +-- harness/           <- harness lifecycle management (install, update, detach)
      |
      v
 schema/maslow.cue           <- CUE schema; single source of truth for MAS structure
@@ -54,8 +50,6 @@ reports/verify.json         <- output evidence file; written by verify and audit
 | `internal/runner/` | Runs individual checks (shell, HTTP, CLI); abstracts runner kinds |
 | `internal/audit/` | Black-box audit mode; supports binary, container, and HTTP endpoint targets |
 | `internal/evidence/` | Serializes and writes `reports/verify.json`; ensures determinism |
-| `internal/scaffold/` | Generates new project structure with agentic harness (CLAUDE.md, docs/, maslow.yaml) |
-| `internal/harness/` | Manages harness lifecycle: install into existing projects, update to latest, detach |
 | `schema/maslow.cue` | CUE schema defining the MAS format |
 
 ---
@@ -117,6 +111,7 @@ The file is stable, deterministic, diffable, and machine-readable.
 
 ## Task System
 
+This repository's own working process; Maslow does not generate it for other projects.
 Tasks in `docs/tasks/` are the mechanism for humans to inject work and for agents to discover it.
 See `docs/tasks/CONVENTION.md` for the full protocol.
 
