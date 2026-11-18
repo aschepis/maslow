@@ -1,0 +1,202 @@
+name: Maslow verify
+description: Run maslow verify against the repository and publish the evidence file.
+author: aschepis
+
+inputs:
+  version:
+    description: Maslow release to download, e.g. 0.6.0. Ignored when binary is set.
+    required: false
+    default: ""
+  binary:
+    description: Path to a maslow binary to use instead of downloading a release.
+    required: false
+    default: ""
+  profile:
+    description: Profile to run.
+    required: false
+    default: ci
+  spec:
+    description: Spec path, relative to the working directory.
+    required: false
+    default: maslow.yaml
+  base:
+    description: Git ref or SHA to judge the change against. Requires a checkout with history (fetch-depth 0).
+    required: false
+    default: ""
+  spec-from:
+    description: head to use the branch's spec, base to use the spec at the merge base.
+    required: false
+    default: head
+  report:
+    description: Where to write the evidence file. Outside the workspace is safer.
+    required: false
+    default: ${{ runner.temp }}/maslow/verify.json
+  strict:
+    description: Fail the step on needs_review as well as fail and inconclusive.
+    required: false
+    default: "false"
+  working-directory:
+    description: Directory to run in.
+    required: false
+    default: .
+  artifact-name:
+    description: Name of the uploaded evidence artifact.
+    required: false
+    default: maslow-evidence
+
+outputs:
+  verdict:
+    description: pass, fail, needs_review or inconclusive.
+    value: ${{ steps.verify.outputs.verdict }}
+  report:
+    description: Path to the evidence file.
+    value: ${{ steps.paths.outputs.report }}
+
+runs:
+  using: composite
+  steps:
+    # One absolute report path for every step; a relative one would resolve
+    # inside working-directory for maslow but at the workspace root elsewhere.
+    - name: Resolve paths
+      id: paths
+      shell: bash
+      env:
+        REPORT: ${{ inputs.report }}
+        WORKDIR: ${{ inputs.working-directory }}
+      run: |
+        set -euo pipefail
+        case "$REPORT" in
+          /*) abs="$REPORT" ;;
+          *) abs="$GITHUB_WORKSPACE/$WORKDIR/$REPORT" ;;
+        esac
+        echo "report=$abs" >> "$GITHUB_OUTPUT"
+
+    - name: Install maslow
+      id: install
+      shell: bash
+      env:
+        MASLOW_VERSION: ${{ inputs.version }}
+        MASLOW_BINARY: ${{ inputs.binary }}
+        RUNNER_OS_NAME: ${{ runner.os }}
+        RUNNER_ARCH_NAME: ${{ runner.arch }}
+      run: |
+        set -euo pipefail
+        if [ -n "$MASLOW_BINARY" ]; then
+          echo "path=$(cd "$(dirname "$MASLOW_BINARY")" && pwd)/$(basename "$MASLOW_BINARY")" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        if [ -z "$MASLOW_VERSION" ]; then
+          echo "::error::set either version or binary"
+          exit 2
+        fi
+
+        version="${MASLOW_VERSION#v}"
+        case "$RUNNER_OS_NAME" in
+          Linux) os=linux ;;
+          macOS) os=darwin ;;
+          *) echo "::error::unsupported runner OS $RUNNER_OS_NAME"; exit 2 ;;
+        esac
+        case "$RUNNER_ARCH_NAME" in
+          X64) arch=amd64 ;;
+          ARM64) arch=arm64 ;;
+          *) echo "::error::unsupported runner architecture $RUNNER_ARCH_NAME"; exit 2 ;;
+        esac
+
+        name="maslow_${version}_${os}_${arch}"
+        dir="$RUNNER_TEMP/maslow-install"
+        rm -rf "$dir" && mkdir -p "$dir"
+        url="https://github.com/aschepis/maslow/releases/download/v${version}"
+        curl -fsSL -o "$dir/${name}.tar.gz" "$url/${name}.tar.gz"
+        curl -fsSL -o "$dir/checksums.txt" "$url/checksums.txt"
+
+        expected="$(awk -v f="${name}.tar.gz" '$2 == f { print $1 }' "$dir/checksums.txt")"
+        if [ -z "$expected" ]; then
+          echo "::error::${name}.tar.gz is not listed in checksums.txt"
+          exit 1
+        fi
+        if command -v sha256sum >/dev/null; then
+          actual="$(sha256sum "$dir/${name}.tar.gz" | awk '{print $1}')"
+        else
+          actual="$(shasum -a 256 "$dir/${name}.tar.gz" | awk '{print $1}')"
+        fi
+        if [ "$expected" != "$actual" ]; then
+          echo "::error::checksum mismatch for ${name}.tar.gz"
+          exit 1
+        fi
+
+        tar -xzf "$dir/${name}.tar.gz" -C "$dir"
+        echo "path=$dir/${name}/maslow" >> "$GITHUB_OUTPUT"
+
+    - name: Run maslow verify
+      id: verify
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        MASLOW: ${{ steps.install.outputs.path }}
+        PROFILE: ${{ inputs.profile }}
+        SPEC: ${{ inputs.spec }}
+        BASE: ${{ inputs.base }}
+        SPEC_FROM: ${{ inputs.spec-from }}
+        REPORT: ${{ steps.paths.outputs.report }}
+        STRICT: ${{ inputs.strict }}
+      run: |
+        set -uo pipefail
+        args=(verify --profile "$PROFILE" --spec "$SPEC" --spec-from "$SPEC_FROM" --report "$REPORT")
+        if [ -n "$BASE" ]; then args+=(--base "$BASE"); fi
+        if [ "$STRICT" = "true" ]; then args+=(--strict); fi
+
+        # A report left by an earlier run must not be read as this run's verdict.
+        rm -f "$REPORT"
+        "$MASLOW" version
+        "$MASLOW" "${args[@]}"
+        code=$?
+
+        verdict="error"
+        if [ -f "$REPORT" ]; then
+          verdict="$(jq -r .verdict "$REPORT")"
+        fi
+        echo "verdict=$verdict" >> "$GITHUB_OUTPUT"
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+
+    - name: Write job summary
+      if: always()
+      shell: bash
+      env:
+        REPORT: ${{ steps.paths.outputs.report }}
+        VERDICT: ${{ steps.verify.outputs.verdict }}
+      run: |
+        set -uo pipefail
+        {
+          echo "## Maslow: \`${VERDICT:-error}\`"
+          if [ ! -f "$REPORT" ]; then
+            echo
+            echo "No evidence file was written. See the step log."
+            exit 0
+          fi
+          jq -r '"Profile `\(.profile)` · spec `\(.spec_path)` from `\(.spec_source)` · maslow \(.maslow_version)" + (if .base_sha then " · base `\(.base_sha[0:12])`" else "" end)' "$REPORT"
+          echo
+          jq -r '
+            def bad: .status == "fail" or .status == "error";
+            def cell: tostring | gsub("\n"; " ") | gsub("\\|"; "\\|");
+            [ ((.check_results // [])[] | select(bad) | "| check | \(.name) | \(.status) | \(.error // "" | cell) |"),
+              ((.contracts // [])[] | select(bad) | "| contract | \(.name) | \(.status) | \(.error // "" | cell) |"),
+              ((.budgets // [])[] | select(bad) | "| budget | \(.name) | \(.status) | \(.error // .actual // "" | cell) |"),
+              ((.refs // [])[] | select(bad) | "| ref | \(.path) | \(.status) | \(.error // "" | cell) |"),
+              ((.policy // [])[] | select(bad or .status == "needs_review") | "| policy/\(.kind) | \(.rule) | \(.status) | \(.detail // .error // "" | cell) |") ]
+            | if length == 0 then "Nothing failed." else (["| Section | Item | Status | Detail |", "|---|---|---|---|"] + .) | join("\n") end
+          ' "$REPORT"
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload evidence
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ steps.paths.outputs.report }}
+        if-no-files-found: warn
+
+    - name: Fail on verdict
+      shell: bash
+      env:
+        CODE: ${{ steps.verify.outputs.exit-code }}
+      run: exit "${CODE:-1}"

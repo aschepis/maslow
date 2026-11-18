@@ -44,6 +44,9 @@ refs:
     path: .github/workflows/release.yml
     description: Tag-triggered release that publishes binaries and checksums
   - kind: file
+    path: action/action.yml
+    description: Composite GitHub Action that installs a pinned release and runs maslow verify
+  - kind: file
     path: scripts/build-release.sh
     description: Builds release archives for linux and darwin on amd64 and arm64, plus checksums.txt
   - kind: binary

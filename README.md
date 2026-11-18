@@ -64,6 +64,10 @@ The verdict is `fail`, `needs_review`, `inconclusive` or `pass`, in that order o
 
 Results are written to `reports/verify.json` (or `--report <path>`) as structured evidence. `schema/evidence.schema.json` describes the format. `maslow audit` writes `reports/audit.json`.
 
+## In CI
+
+`action/` holds a GitHub Action that installs a pinned release, runs `maslow verify` against the pull request's base with the base branch's spec, uploads the evidence and summarises it. See [action/README.md](action/README.md).
+
 ## Writing a Spec
 
 Grow the spec alongside the code rather than writing it all up front:
