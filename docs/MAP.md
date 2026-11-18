@@ -88,7 +88,7 @@ A valid `maslow.yaml` defines:
 - `name` - project name
 - `toolchain` - required tools and version managers (asdf, mise, nix, custom)
 - `refs` - external references (repos, modules, APIs)
-- `policy` - path allow/deny lists; protected files; gated directories
+- `policy` - path allow/deny lists; protected files; gated directories; an `observe` block of the same rules reported without enforcement (ADR 0031)
 - `contracts` - scenario-based behavioral contracts (HTTP and CLI calls); each scenario keeps its own cookie jar (ADR 0027)
 - `budgets` - performance, availability, artifact size, complexity limits
 - `checks` - named check definitions and runner configuration
@@ -109,7 +109,8 @@ A valid `maslow.yaml` defines:
 - `overlays` - path and SHA-256 of each `--overlay` file; its contract results carry `overlay` (ADR 0029)
 - `git_sha`, `base_sha` - the commit verified and the merge base policy was judged against
 - `profile`, `timestamp`
-- `check_results`, `contracts`, `budgets`, `refs`, `policy` - one entry per item with a `status`
+- `check_results`, `contracts`, `budgets`, `refs`, `policy` - one entry per item with a `status`;
+  an observed policy entry has `mode: observe`, a `would_*` status, and no effect on the verdict
 - `verdict` - `fail`, `needs_review`, `inconclusive` or `pass` (in that precedence)
 
 Check output keeps the last `--output-limit` bytes and records `output_truncated` when cut.

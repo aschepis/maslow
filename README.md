@@ -58,7 +58,14 @@ maslow version                   # Print version info
 2. **Contracts** — scenario-based behavioural tests (CLI and HTTP); a profile's `contracts` list selects by name or tag, and `--overlay <file>` adds a file of extra contracts for one run, such as a change's acceptance scenarios
 3. **Budgets** — artifact size, performance, and complexity limits; selected by a profile's `budgets` list
 4. **Refs** — verify declared files, binaries, and URLs exist
-5. **Policy** — `deny`, `protected`, `allow` and `gated` rules, judged on the change since `--base <ref>` when given
+5. **Policy** — `deny`, `protected`, `allow` and `gated` rules, judged on the change since `--base <ref>` when given. Rules under `policy.observe` are evaluated and reported with `mode: observe` and a `would_fail`, `would_need_review` or `would_error` status, but never change the verdict or exit code, so a new rule can be tried on real changes before it is enforced:
+
+   ```yaml
+   policy:
+     protected: [maslow.yaml]
+     observe:
+       protected: [go.sum]   # reported, not enforced
+   ```
 
 The verdict is `fail`, `needs_review`, `inconclusive` or `pass`, in that order of precedence. `needs_review` means everything passed but the change touched a `gated` path, and names its owner. It exits 0 unless `--strict` is passed.
 

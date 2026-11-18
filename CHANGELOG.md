@@ -2,6 +2,12 @@
 
 Notable changes to Maslow, newest first. Versions follow [semantic versioning](https://semver.org/); until 1.0, a minor version may break specs.
 
+## [Unreleased]
+
+### Added
+
+- **Policy observe mode.** Rules under `policy.observe` (any of `deny`, `allow`, `protected`, `gated`) are evaluated and reported with `mode: observe` and a `would_fail`, `would_need_review` or `would_error` status, without changing the verdict or exit code. The evidence format stays version 2; `mode` and the `would_*` statuses are additive. (ADR 0031)
+
 ## [0.7.0] - 2026-11-18
 
 ### Breaking

@@ -152,6 +152,17 @@ contracts:
             expect:
               exit_code: 0
               body_contains: "is valid"
+      - name: policy-observe-block-is-valid
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - validate
+              - testdata/valid/policy_observe.yaml
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "is valid"
       - name: invalid-file-fails
         steps:
           - action: cli
