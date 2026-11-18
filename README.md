@@ -56,7 +56,7 @@ maslow version                   # Print version info
 `maslow verify` runs the following in order:
 
 1. **Checks** — shell commands (build, test, lint) filtered by profile
-2. **Contracts** — scenario-based behavioural tests (CLI and HTTP); a profile's `contracts` list selects by name or tag, and `--overlay <file>` adds a file of extra contracts for one run, such as a change's acceptance scenarios
+2. **Contracts** — scenario-based behavioural tests (CLI and HTTP); a profile's `contracts` list selects by name or tag, and `--overlay <file>` adds a file of extra contracts for one run, such as a change's acceptance scenarios. With `--red-green --base <ref>`, each overlay contract also runs in a temporary worktree of the merge base and passes only if it fails there; one that already passes on the base gets status `not_red` and fails the verdict, because it proves nothing about the change (ADR 0034). The base checkout is not built: put any build the scenario needs in the contract's `setup`, which runs in that checkout
 3. **Budgets** — artifact size, performance, and complexity limits; selected by a profile's `budgets` list
 4. **Refs** — verify declared files, binaries, and URLs exist
 5. **Policy** — `deny`, `protected`, `allow`, `gated`, `shrink_only` and `test_integrity` rules, judged on the change since `--base <ref>` when given. Rules under `policy.observe` are evaluated and reported with `mode: observe` and a `would_fail`, `would_need_review` or `would_error` status, but never change the verdict or exit code, so a new rule can be tried on real changes before it is enforced:

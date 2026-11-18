@@ -50,11 +50,11 @@ reports/verify.json         <- verify evidence (reports/audit.json for audit)
 | `cmd/maslow/main.go` | CLI entrypoint; command dispatch |
 | `internal/spec/` | Parses `maslow.yaml`; exposes typed MAS struct |
 | `internal/schema/` | Loads `schema/maslow.cue`; validates spec using CUE Go library |
-| `internal/verify/` | Executes verification: profile selection, check sequencing, result collection |
+| `internal/verify/` | Executes verification: profile selection, check sequencing, result collection; `--red-green` reruns overlay contracts in a base worktree (ADR 0034) |
 | `internal/runner/` | Runs individual checks (shell, HTTP, CLI); abstracts runner kinds |
 | `internal/audit/` | Black-box audit mode; binary targets, endpoint targets that run contracts against a base URL (ADR 0028), container stub |
 | `internal/evidence/` | Builds the evidence report, computes the verdict, caps output, writes JSON; `Check` decides pass, needs_review or decline for a report against trusted inputs (ADR 0033) |
-| `internal/gitrepo/` | Git queries shared by policy and spec loading, including line-level diffs against a base |
+| `internal/gitrepo/` | Git queries shared by policy and spec loading, including line-level diffs against a base and temporary worktrees |
 | `schema/maslow.cue` | CUE schema defining the MAS format |
 | `action/action.yml` | Composite GitHub Action wrapping `maslow verify` |
 | `scripts/build-release.sh` | Builds release archives and checksums |
@@ -108,7 +108,9 @@ A valid `maslow.yaml` defines:
 
 - `evidence_version`, `maslow_version`, `command` - what produced the file
 - `spec_path`, `spec_sha256`, `spec_source` - which spec bytes were verified (`head` or `base`)
-- `overlays` - path and SHA-256 of each `--overlay` file; its contract results carry `overlay` (ADR 0029)
+- `overlays` - path and SHA-256 of each `--overlay` file; its contract results carry `overlay` (ADR 0029);
+  under `--red-green` they also carry `head_status` and `base` (`sha`, `status`, `error`, `failed_step`),
+  and a contract already passing on the base has status `not_red`, which fails the verdict (ADR 0034)
 - `git_sha`, `base_sha` - the commit verified and the merge base policy was judged against
 - `profile`, `timestamp`
 - `check_results`, `contracts`, `budgets`, `refs`, `policy` - one entry per item with a `status`;
