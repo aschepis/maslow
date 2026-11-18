@@ -12,6 +12,15 @@ Maslow imposes no workflow. It does not generate agent instructions, manage task
 go install github.com/aschepis/maslow/cmd/maslow@latest
 ```
 
+Or download a release binary for linux or darwin (amd64, arm64) from the GitHub releases page and check it against `checksums.txt`:
+
+```bash
+v=0.6.0; os=linux; arch=amd64
+curl -fsSLO "https://github.com/aschepis/maslow/releases/download/v${v}/maslow_${v}_${os}_${arch}.tar.gz"
+curl -fsSLO "https://github.com/aschepis/maslow/releases/download/v${v}/checksums.txt"
+grep "maslow_${v}_${os}_${arch}.tar.gz" checksums.txt | sha256sum -c -
+```
+
 Or build from source:
 
 ```bash
@@ -77,5 +86,6 @@ make vet        # Run go vet
 make lint       # Run go vet + cue vet
 make validate   # Validate maslow.yaml
 make verify     # Run full verification
+make release    # Build release archives and checksums into dist/
 make clean      # Remove build artifacts
 ```
