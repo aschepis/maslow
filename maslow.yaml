@@ -380,6 +380,75 @@ contracts:
               exit_code: 0
               body_contains: "report written to reports/contract-audit.json"
 
+  - name: evidence-check-command
+    description: Evidence check approves only evidence that matches the trusted inputs
+    tags:
+      - smoke
+    scenarios:
+      - name: matching-evidence-passes
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - evidence
+              - check
+              - testdata/evidence/pass.json
+              - --head
+              - "1111111111111111111111111111111111111111"
+              - --spec
+              - testdata/valid/minimal.yaml
+              - --profile
+              - quick
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "maslow evidence check: pass"
+      - name: needs-review-verdict
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - evidence
+              - check
+              - testdata/evidence/needs-review.json
+              - --head
+              - "1111111111111111111111111111111111111111"
+              - --spec
+              - testdata/valid/minimal.yaml
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: "maslow evidence check: needs_review"
+      - name: other-head-declines
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - evidence
+              - check
+              - testdata/evidence/pass.json
+              - --head
+              - "2222222222222222222222222222222222222222"
+              - --spec
+              - testdata/valid/minimal.yaml
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: "does not match --head"
+      - name: missing-head-is-usage-error
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - evidence
+              - check
+              - testdata/evidence/pass.json
+              - --spec
+              - testdata/valid/minimal.yaml
+          - action: assert
+            expect:
+              exit_code: 2
+
   - name: init-command
     description: The init command manages maslow.yaml in the current directory
     scenarios:
