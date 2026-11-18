@@ -91,7 +91,7 @@ A valid `maslow.yaml` defines:
 - `toolchain` - required tools and version managers (asdf, mise, nix, custom)
 - `refs` - external references (repos, modules, APIs)
 - `policy` - path allow/deny lists; protected files; gated directories; shrink-only files and test-integrity checks judged on changed lines (ADR 0032); an `observe` block of the same rules reported without enforcement (ADR 0031)
-- `contracts` - scenario-based behavioral contracts (HTTP and CLI calls); each scenario keeps its own cookie jar (ADR 0027)
+- `contracts` - scenario-based behavioral contracts (HTTP, CLI and headless-browser steps); each scenario keeps its own cookie jar (ADR 0027), shared with its browser, which `internal/runner/browser.go` drives through chromedp (ADR 0035)
 - `budgets` - performance, availability, artifact size, complexity limits
 - `checks` - named check definitions and runner configuration
 - `profiles` - named subsets of checks, contracts and budgets (`quick`, `full`, custom); refs and policy run unless a profile turns them off
@@ -120,7 +120,8 @@ A valid `maslow.yaml` defines:
 
 Check output keeps the last `--output-limit` bytes and records `output_truncated` when cut.
 A failing contract records its `failed_step` and that step's `output` under the same cap, and
-lists files matching the scenario's `artifacts` patterns (ADR 0025). Values of the variables a
+lists files matching the scenario's `artifacts` patterns (ADR 0025). A failing browser step adds
+`page_url` and `console` to `failed_step` and its screenshot to `artifacts` (ADR 0035). Values of the variables a
 contract allow-lists in `env` are redacted from its result (ADR 0026).
 
 ---

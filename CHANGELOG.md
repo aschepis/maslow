@@ -6,6 +6,7 @@ Notable changes to Maslow, newest first. Versions follow [semantic versioning](h
 
 ### Added
 
+- **Browser contract steps.** A `browser` step drives a headless Chrome through chromedp: `navigate`, `click`, `fill`, `wait`, and `assert` on text, URL, visibility or enabled state. It shares the scenario's cookies with HTTP steps and resolves `/` URLs against `base_url`. A failing step records `page_url` and `console` on `failed_step`, both additive in evidence version 2, and a screenshot in `artifacts`. Needs Chrome or Chromium, found on the usual paths or named by `MASLOW_BROWSER`. (ADR 0035)
 - **Shrink-only files and test-integrity policy.** `policy.shrink_only` fails a change that adds a line to a matching file. `policy.test_integrity` reports deleted test files, removed tests, added skip markers and lowered numbers in `thresholds` files as `needs_review`, with defaults for Go, Ruby, JavaScript and Python. Policy evidence gains an optional `lines` field; the format stays version 2. (ADR 0032)
 - **Policy observe mode.** Rules under `policy.observe` (any of `deny`, `allow`, `protected`, `gated`) are evaluated and reported with `mode: observe` and a `would_fail`, `would_need_review` or `would_error` status, without changing the verdict or exit code. The evidence format stays version 2; `mode` and the `would_*` statuses are additive. (ADR 0031)
 
