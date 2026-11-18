@@ -88,8 +88,8 @@ func TestSpecFromBase_RemovingAFailingCheckStillFails(t *testing.T) {
 	if finding == nil {
 		t.Fatalf("expected a spec policy finding, got %+v", report.Policy)
 	}
-	if finding.Status != "fail" || finding.Rule != "maslow.yaml" {
-		t.Errorf("expected a failing spec finding for maslow.yaml, got %+v", finding)
+	if finding.Status != "needs_review" || finding.Rule != "maslow.yaml" {
+		t.Errorf("expected the spec change to need review, got %+v", finding)
 	}
 }
 

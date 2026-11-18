@@ -240,6 +240,87 @@ func TestRunPolicy_DeletedProtectedFileFailsAgainstBase(t *testing.T) {
 	}
 }
 
+// branchWithChange commits base files on main, then commits changed files on a
+// feature branch, and returns the repository and the base SHA.
+func branchWithChange(t *testing.T, base, changed map[string]string) (string, string) {
+	t.Helper()
+	dir := newGitRepo(t)
+	for name, content := range base {
+		writeFile(t, dir, name, content)
+	}
+	runGit(t, dir, "add", ".")
+	runGit(t, dir, "commit", "-qm", "base")
+	baseSHA := strings.TrimSpace(gitOutput(t, dir, "rev-parse", "HEAD"))
+	runGit(t, dir, "checkout", "-qb", "feature")
+	for name, content := range changed {
+		writeFile(t, dir, name, content)
+	}
+	runGit(t, dir, "add", ".")
+	runGit(t, dir, "commit", "-qm", "change")
+	return dir, baseSHA
+}
+
+func TestGated_ChangeNeedsReviewAndNamesOwner(t *testing.T) {
+	dir, base := branchWithChange(t,
+		map[string]string{"infra/prod/main.tf": "v1", "app.go": "v1"},
+		map[string]string{"infra/prod/main.tf": "v2"})
+
+	policy := &spec.Policy{Gated: []spec.GatedDir{{Path: "infra/**", Owner: "@acme/platform"}}}
+	results := RunPolicy(policy, PolicyScope{Dir: dir, BaseSHA: base})
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %+v", results)
+	}
+	got := results[0]
+	if got.Kind != "gated" || got.Status != "needs_review" {
+		t.Fatalf("expected gated needs_review, got %+v", got)
+	}
+	if got.Owner != "@acme/platform" {
+		t.Errorf("expected owner @acme/platform, got %q", got.Owner)
+	}
+	if len(got.Files) != 1 || got.Files[0] != "infra/prod/main.tf" {
+		t.Errorf("expected matched file infra/prod/main.tf, got %v", got.Files)
+	}
+}
+
+func TestGated_UntouchedPathPasses(t *testing.T) {
+	dir, base := branchWithChange(t,
+		map[string]string{"infra/main.tf": "v1", "app.go": "v1"},
+		map[string]string{"app.go": "v2"})
+
+	results := RunPolicy(&spec.Policy{Gated: []spec.GatedDir{{Path: "infra/**", Owner: "ops"}}}, PolicyScope{Dir: dir, BaseSHA: base})
+	if results[0].Status != "pass" {
+		t.Errorf("expected pass when no gated path changed, got %+v", results[0])
+	}
+}
+
+func TestAllow_ChangeOutsideAllowedPathsFails(t *testing.T) {
+	dir, base := branchWithChange(t,
+		map[string]string{"apps/web/a.ts": "v1", "Makefile": "v1"},
+		map[string]string{"apps/web/a.ts": "v2", "Makefile": "v2"})
+
+	results := RunPolicy(&spec.Policy{Allow: []string{"apps/**", "packages/**"}}, PolicyScope{Dir: dir, BaseSHA: base})
+	if len(results) != 1 {
+		t.Fatalf("expected 1 allow result, got %+v", results)
+	}
+	if results[0].Kind != "allow" || results[0].Status != "fail" {
+		t.Fatalf("expected allow fail, got %+v", results[0])
+	}
+	if len(results[0].Files) != 1 || results[0].Files[0] != "Makefile" {
+		t.Errorf("expected only Makefile reported as out of scope, got %v", results[0].Files)
+	}
+}
+
+func TestAllow_ChangesInsideAllowedPathsPass(t *testing.T) {
+	dir, base := branchWithChange(t,
+		map[string]string{"apps/web/a.ts": "v1", "Makefile": "v1"},
+		map[string]string{"apps/web/a.ts": "v2", "apps/api/new.go": "new"})
+
+	results := RunPolicy(&spec.Policy{Allow: []string{"apps/**"}}, PolicyScope{Dir: dir, BaseSHA: base})
+	if results[0].Status != "pass" {
+		t.Errorf("expected pass, got %+v", results[0])
+	}
+}
+
 func gitOutput(t *testing.T, dir string, args ...string) string {
 	t.Helper()
 	cmd := exec.Command("git", args...)

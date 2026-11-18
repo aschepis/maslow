@@ -104,6 +104,33 @@ func TestComputeVerdict_OnlySkipsIsInconclusive(t *testing.T) {
 	}
 }
 
+func TestComputeVerdict_NeedsReviewPrecedence(t *testing.T) {
+	review := PolicyResult{Rule: "infra/**", Kind: "gated", Status: "needs_review"}
+
+	r := NewReport(Meta{})
+	r.CheckResults = []CheckResult{{Name: "ok", Status: "pass"}}
+	r.Policy = []PolicyResult{review}
+	r.ComputeVerdict()
+	if r.Verdict != "needs_review" {
+		t.Errorf("expected needs_review when everything else is green, got %s", r.Verdict)
+	}
+
+	r = NewReport(Meta{})
+	r.CheckResults = []CheckResult{{Name: "bad", Status: "fail"}}
+	r.Policy = []PolicyResult{review}
+	r.ComputeVerdict()
+	if r.Verdict != "fail" {
+		t.Errorf("expected fail to win over needs_review, got %s", r.Verdict)
+	}
+
+	r = NewReport(Meta{})
+	r.Policy = []PolicyResult{review, {Rule: "x", Kind: "deny", Status: "skip"}}
+	r.ComputeVerdict()
+	if r.Verdict != "needs_review" {
+		t.Errorf("expected needs_review to win over inconclusive, got %s", r.Verdict)
+	}
+}
+
 func TestCapOutput_KeepsTailAndRecordsTruncation(t *testing.T) {
 	long := strings.Repeat("noise\n", 1000) + "FAIL: the real error"
 	r := NewReport(Meta{Command: "verify"})

@@ -49,7 +49,9 @@ maslow version                   # Print version info
 2. **Contracts** — scenario-based behavioural tests (CLI and HTTP)
 3. **Budgets** — artifact size, performance, and complexity limits
 4. **Refs** — verify declared files, binaries, and URLs exist
-5. **Policy** — enforce deny patterns and protected file rules
+5. **Policy** — `deny`, `protected`, `allow` and `gated` rules, judged on the change since `--base <ref>` when given
+
+The verdict is `fail`, `needs_review`, `inconclusive` or `pass`, in that order of precedence. `needs_review` means everything passed but the change touched a `gated` path, and names its owner. It exits 0 unless `--strict` is passed.
 
 Results are written to `reports/verify.json` (or `--report <path>`) as structured evidence. `schema/evidence.schema.json` describes the format. `maslow audit` writes `reports/audit.json`.
 

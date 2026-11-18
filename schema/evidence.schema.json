@@ -28,7 +28,7 @@
     "git_sha": { "type": "string" },
     "base_sha": { "type": "string" },
     "profile": { "type": "string" },
-    "verdict": { "enum": ["pass", "fail", "inconclusive"] },
+    "verdict": { "enum": ["pass", "fail", "needs_review", "inconclusive"] },
     "check_results": {
       "type": ["array", "null"],
       "items": { "$ref": "#/$defs/check" }
@@ -40,6 +40,7 @@
   },
   "$defs": {
     "status": { "enum": ["pass", "fail", "skip", "error"] },
+    "policyStatus": { "enum": ["pass", "fail", "skip", "error", "needs_review"] },
     "check": {
       "type": "object",
       "additionalProperties": false,
@@ -95,10 +96,11 @@
       "required": ["rule", "kind", "status"],
       "properties": {
         "rule": { "type": "string" },
-        "kind": { "enum": ["deny", "protected", "gated", "spec"] },
-        "status": { "$ref": "#/$defs/status" },
+        "kind": { "enum": ["deny", "protected", "gated", "allow", "spec"] },
+        "status": { "$ref": "#/$defs/policyStatus" },
         "detail": { "type": "string" },
         "files": { "type": "array", "items": { "type": "string" } },
+        "owner": { "type": "string" },
         "error": { "type": "string" }
       }
     }

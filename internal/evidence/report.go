@@ -95,6 +95,7 @@ type PolicyResult struct {
 	Status string   `json:"status"`
 	Detail string   `json:"detail,omitempty"`
 	Files  []string `json:"files,omitempty"`
+	Owner  string   `json:"owner,omitempty"` // who reviews a gated change
 	Error  string   `json:"error,omitempty"`
 }
 
@@ -142,25 +143,29 @@ func tail(s string, n int) string {
 	return s[start:]
 }
 
-// ComputeVerdict sets the verdict from every section of the report.
-// Any fail or error gives "fail"; "inconclusive" means nothing ran at all.
+// ComputeVerdict sets the verdict from every section of the report, with
+// precedence fail, needs_review, inconclusive, pass. Any fail or error gives
+// "fail"; "inconclusive" means nothing ran at all.
 func (r *Report) ComputeVerdict() {
-	statuses := r.allStatuses()
-
-	ran := false
-	for _, s := range statuses {
+	ran, review := false, false
+	for _, s := range r.allStatuses() {
 		switch s {
 		case "fail", "error":
 			r.Verdict = "fail"
 			return
+		case "needs_review":
+			review = true
 		case "pass":
 			ran = true
 		}
 	}
 
-	if ran {
+	switch {
+	case review:
+		r.Verdict = "needs_review"
+	case ran:
 		r.Verdict = "pass"
-	} else {
+	default:
 		r.Verdict = "inconclusive"
 	}
 }
