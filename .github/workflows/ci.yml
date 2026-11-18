@@ -17,6 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-go@v6
         with:
@@ -46,16 +48,19 @@ jobs:
       - name: Lint
         run: make lint
 
+      - name: Build
+        run: make build
+
+      # Dogfood the Action: on pull requests, judge the change against its base
+      # using the base branch's spec, exactly as an adopting project would.
       - name: Verify (full profile)
-        run: make verify
+        id: maslow
+        uses: ./action
+        with:
+          binary: bin/maslow
+          profile: full
+          base: ${{ github.event.pull_request.base.sha }}
+          spec-from: ${{ github.event_name == 'pull_request' && 'base' || 'head' }}
 
       - name: Release build smoke test
         run: scripts/build-release.sh "v0.0.0-ci"
-
-      - name: Upload verify report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: verify-report
-          path: reports/verify.json
-          if-no-files-found: ignore

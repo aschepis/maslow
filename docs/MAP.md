@@ -55,6 +55,8 @@ reports/verify.json         <- verify evidence (reports/audit.json for audit)
 | `internal/evidence/` | Builds the evidence report, computes the verdict, caps output, writes JSON |
 | `internal/gitrepo/` | Git queries shared by policy and spec loading |
 | `schema/maslow.cue` | CUE schema defining the MAS format |
+| `action/action.yml` | Composite GitHub Action wrapping `maslow verify` |
+| `scripts/build-release.sh` | Builds release archives and checksums |
 
 ---
 
