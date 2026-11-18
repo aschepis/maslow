@@ -27,6 +27,10 @@ inputs:
     description: head to use the branch's spec, base to use the spec at the merge base.
     required: false
     default: head
+  overlays:
+    description: Overlay files of extra contracts to run, one path per line. Keep them where the change cannot edit them.
+    required: false
+    default: ""
   report:
     description: Where to write the evidence file. Outside the workspace is safer.
     required: false
@@ -139,10 +143,14 @@ runs:
         SPEC_FROM: ${{ inputs.spec-from }}
         REPORT: ${{ steps.paths.outputs.report }}
         STRICT: ${{ inputs.strict }}
+        OVERLAYS: ${{ inputs.overlays }}
       run: |
         set -uo pipefail
         args=(verify --profile "$PROFILE" --spec "$SPEC" --spec-from "$SPEC_FROM" --report "$REPORT")
         if [ -n "$BASE" ]; then args+=(--base "$BASE"); fi
+        while IFS= read -r overlay; do
+          if [ -n "$overlay" ]; then args+=(--overlay "$overlay"); fi
+        done <<< "$OVERLAYS"
         if [ "$STRICT" = "true" ]; then args+=(--strict); fi
 
         # A report left by an earlier run must not be read as this run's verdict.

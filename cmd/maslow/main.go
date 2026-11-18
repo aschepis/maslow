@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/aschepis/maslow/internal/audit"
 	"github.com/aschepis/maslow/internal/buildinfo"
@@ -49,6 +50,7 @@ Commands:
   verify   --profile <name>    Run verification and write evidence
            [--base <ref>]      Judge policy on every change since the merge base with <ref>
            [--spec-from base]  Verify against the spec at the merge base, not the branch's
+           [--overlay <file>]  Also run the contracts in <file>; repeatable
            [--report <path>]   Evidence file (default reports/verify.json)
            [--output-limit n]  Bytes of each check's output to keep (default 4096)
            [--strict]          Exit 1 on needs_review too (default: only fail and inconclusive)
@@ -84,6 +86,12 @@ func cmdValidate(args []string) int {
 	return 0
 }
 
+// stringList collects a flag given more than once.
+type stringList []string
+
+func (l *stringList) String() string     { return strings.Join(*l, ",") }
+func (l *stringList) Set(v string) error { *l = append(*l, v); return nil }
+
 // newFlagSet returns a flag set that reports usage errors without exiting.
 func newFlagSet(name string) *flag.FlagSet {
 	fs := flag.NewFlagSet("maslow "+name, flag.ContinueOnError)
@@ -100,6 +108,8 @@ func cmdVerify(args []string) int {
 	reportPath := fs.String("report", verify.DefaultReportPath, "where to write the evidence file")
 	outputLimit := fs.Int("output-limit", evidence.DefaultOutputLimit, "bytes of each check's output to keep (0 keeps everything)")
 	strict := fs.Bool("strict", false, "exit non-zero on needs_review as well as fail and inconclusive")
+	var overlayPaths stringList
+	fs.Var(&overlayPaths, "overlay", "file of extra contracts to run beside the spec's (repeatable)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -140,6 +150,14 @@ func cmdVerify(args []string) int {
 	if _, ok := loaded.MAS.Profiles[*profile]; !ok {
 		fmt.Fprintf(os.Stderr, "maslow verify: profile %q not found in %s\n", *profile, *specPath)
 		return 2
+	}
+	for _, path := range overlayPaths {
+		overlay, err := spec.ReadOverlay(path)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "maslow verify: %v\n", err)
+			return 1
+		}
+		opts.Overlays = append(opts.Overlays, overlay)
 	}
 
 	report, err := verify.Run(loaded.MAS, opts)
@@ -311,9 +329,13 @@ func printReport(report *evidence.Report, path string) {
 		}
 	}
 	for _, c := range report.Contracts {
-		fmt.Printf("  [%s] contract: %s\n", c.Status, c.Name)
+		if c.Overlay != "" {
+			fmt.Printf("  [%s] contract: %s (overlay %s)\n", c.Status, c.Name, c.Overlay)
+		} else {
+			fmt.Printf("  [%s] contract: %s\n", c.Status, c.Name)
+		}
 		if f := c.FailedStep; f != nil {
-			fmt.Printf("         step: %s[%d] %s %s\n", f.Phase, f.Index, f.Action, f.Target)
+			fmt.Printf("         step: %s\n", strings.TrimSpace(fmt.Sprintf("%s[%d] %s %s", f.Phase, f.Index, f.Action, f.Target)))
 		}
 		if c.Error != "" {
 			fmt.Printf("         error: %s\n", c.Error)

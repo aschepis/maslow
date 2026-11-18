@@ -33,6 +33,7 @@ type Report struct {
 	BaseSHA         string           `json:"base_sha,omitempty"`
 	Profile         string           `json:"profile"`
 	Verdict         string           `json:"verdict"` // pass, fail, inconclusive
+	Overlays        []OverlayRef     `json:"overlays,omitempty"`
 	CheckResults    []CheckResult    `json:"check_results"`
 	Contracts       []ContractResult `json:"contracts,omitempty"`
 	Budgets         []BudgetResult   `json:"budgets,omitempty"`
@@ -50,6 +51,12 @@ type Meta struct {
 	BaseSHA    string
 }
 
+// OverlayRef records which overlay bytes added contracts to a run.
+type OverlayRef struct {
+	Path   string `json:"path"`
+	SHA256 string `json:"sha256"`
+}
+
 // CheckResult records the outcome of a single check.
 type CheckResult struct {
 	Name     string  `json:"name"`
@@ -65,9 +72,11 @@ type CheckResult struct {
 
 // ContractResult records the outcome of a contract scenario.
 type ContractResult struct {
-	Name       string      `json:"name"`
-	Status     string      `json:"status"`
-	Error      string      `json:"error,omitempty"`
+	Name   string `json:"name"`
+	Status string `json:"status"`
+	Error  string `json:"error,omitempty"`
+	// Overlay is the path of the overlay that added the contract, if any.
+	Overlay    string      `json:"overlay,omitempty"`
 	FailedStep *FailedStep `json:"failed_step,omitempty"`
 	// Output is what the step before the failure printed or returned.
 	Output          string `json:"output,omitempty"`

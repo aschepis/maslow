@@ -1,0 +1,10 @@
+description: An overlay may only add contracts, so this one is rejected
+contracts:
+  - name: acceptance
+    scenarios:
+      - name: echoes
+        steps:
+          - action: cli
+            command: echo
+policy:
+  deny: []

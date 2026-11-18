@@ -29,6 +29,18 @@
     "base_sha": { "type": "string" },
     "profile": { "type": "string" },
     "verdict": { "enum": ["pass", "fail", "needs_review", "inconclusive"] },
+    "overlays": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256"],
+        "properties": {
+          "path": { "type": "string" },
+          "sha256": { "type": "string" }
+        }
+      }
+    },
     "check_results": {
       "type": ["array", "null"],
       "items": { "$ref": "#/$defs/check" }
@@ -64,6 +76,7 @@
         "name": { "type": "string" },
         "status": { "$ref": "#/$defs/status" },
         "error": { "type": "string" },
+        "overlay": { "type": "string" },
         "failed_step": { "$ref": "#/$defs/failedStep" },
         "output": { "type": "string" },
         "output_bytes": { "type": "integer", "minimum": 0 },

@@ -42,6 +42,13 @@ package maslow
 	packages?: [...#Package]
 }
 
+// A spec overlay adds contracts beside the base spec for one run
+// (maslow verify --overlay). It cannot change anything else.
+#Overlay: {
+	description?: string
+	contracts: [...#Contract]
+}
+
 #Project: {
 	name:         string & =~"^[a-zA-Z][a-zA-Z0-9_-]*$"
 	description?: string

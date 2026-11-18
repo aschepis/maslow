@@ -24,6 +24,8 @@ type Options struct {
 	// SpecFromBase records that the spec was read from BaseSHA, so a change
 	// to the spec on this branch is reported instead of trusted.
 	SpecFromBase bool
+	// Overlays add contracts that run on every profile, beside those the profile selects.
+	Overlays []*spec.LoadedOverlay
 }
 
 // ResolveBase returns the merge base of ref and HEAD.
@@ -54,6 +56,9 @@ func Run(mas *spec.MAS, opts Options) (*evidence.Report, error) {
 	if !ok {
 		return nil, fmt.Errorf("profile %q not found in spec", opts.Profile)
 	}
+	if err := spec.CheckOverlayNames(mas, opts.Overlays); err != nil {
+		return nil, err
+	}
 	contracts, err := runner.SelectContracts(mas.Contracts, "profiles."+opts.Profile, profile.Contracts)
 	if err != nil {
 		return nil, err
@@ -71,6 +76,13 @@ func Run(mas *spec.MAS, opts Options) (*evidence.Report, error) {
 
 	if len(contracts) > 0 {
 		report.Contracts = runner.RunContracts(contracts)
+	}
+	for _, o := range opts.Overlays {
+		report.Overlays = append(report.Overlays, evidence.OverlayRef{Path: o.Path, SHA256: o.SHA256})
+		for _, result := range runner.RunContracts(o.Overlay.Contracts) {
+			result.Overlay = o.Path
+			report.Contracts = append(report.Contracts, result)
+		}
 	}
 
 	if len(budgets) > 0 {

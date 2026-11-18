@@ -106,6 +106,7 @@ A valid `maslow.yaml` defines:
 
 - `evidence_version`, `maslow_version`, `command` - what produced the file
 - `spec_path`, `spec_sha256`, `spec_source` - which spec bytes were verified (`head` or `base`)
+- `overlays` - path and SHA-256 of each `--overlay` file; its contract results carry `overlay` (ADR 0029)
 - `git_sha`, `base_sha` - the commit verified and the merge base policy was judged against
 - `profile`, `timestamp`
 - `check_results`, `contracts`, `budgets`, `refs`, `policy` - one entry per item with a `status`
