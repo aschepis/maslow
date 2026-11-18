@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/aschepis/maslow/internal/evidence"
+	"github.com/aschepis/maslow/internal/spec"
 )
 
 const gatedSpec = `mas: "1.0"
@@ -59,11 +60,11 @@ func TestSpecFromBase_RemovingAFailingCheckStillFails(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	headSpec, err := LoadSpec("maslow.yaml", "")
+	headSpec, err := spec.Read("maslow.yaml", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	headReport, err := Run(headSpec, Options{Profile: "full", BaseSHA: baseSHA, SpecPath: "maslow.yaml"})
+	headReport, err := Run(headSpec.MAS, Options{Profile: "full", BaseSHA: baseSHA, SpecPath: "maslow.yaml"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,11 +72,11 @@ func TestSpecFromBase_RemovingAFailingCheckStillFails(t *testing.T) {
 		t.Fatalf("verified against its own spec the branch passes; got %s", headReport.Verdict)
 	}
 
-	baseSpec, err := LoadSpec("maslow.yaml", baseSHA)
+	baseSpec, err := spec.Read("maslow.yaml", baseSHA)
 	if err != nil {
 		t.Fatal(err)
 	}
-	report, err := Run(baseSpec, Options{Profile: "full", BaseSHA: baseSHA, SpecPath: "maslow.yaml", SpecFromBase: true})
+	report, err := Run(baseSpec.MAS, Options{Profile: "full", BaseSHA: baseSHA, SpecPath: "maslow.yaml", SpecFromBase: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,11 +112,11 @@ func TestSpecFromBase_UnchangedSpecPasses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	mas, err := LoadSpec("maslow.yaml", baseSHA)
+	loaded, err := spec.Read("maslow.yaml", baseSHA)
 	if err != nil {
 		t.Fatal(err)
 	}
-	report, err := Run(mas, Options{Profile: "full", BaseSHA: baseSHA, SpecPath: "maslow.yaml", SpecFromBase: true})
+	report, err := Run(loaded.MAS, Options{Profile: "full", BaseSHA: baseSHA, SpecPath: "maslow.yaml", SpecFromBase: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -142,7 +143,7 @@ func TestLoadSpec_InvalidSpecAtBase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := LoadSpec("maslow.yaml", baseSHA); err == nil {
+	if _, err := spec.Read("maslow.yaml", baseSHA); err == nil {
 		t.Error("expected an invalid base spec to be rejected")
 	}
 }

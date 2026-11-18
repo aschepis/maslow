@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestNewReport(t *testing.T) {
-	r := NewReport("quick")
+	r := NewReport(Meta{Profile: "quick"})
 	if r.Profile != "quick" {
 		t.Errorf("expected profile quick, got %s", r.Profile)
 	}
@@ -21,7 +23,7 @@ func TestNewReport(t *testing.T) {
 }
 
 func TestComputeVerdict_Pass(t *testing.T) {
-	r := NewReport("full")
+	r := NewReport(Meta{Profile: "full"})
 	r.CheckResults = []CheckResult{
 		{Name: "test1", Status: "pass"},
 		{Name: "test2", Status: "pass"},
@@ -33,7 +35,7 @@ func TestComputeVerdict_Pass(t *testing.T) {
 }
 
 func TestComputeVerdict_Fail(t *testing.T) {
-	r := NewReport("full")
+	r := NewReport(Meta{Profile: "full"})
 	r.CheckResults = []CheckResult{
 		{Name: "test1", Status: "pass"},
 		{Name: "test2", Status: "fail"},
@@ -45,7 +47,7 @@ func TestComputeVerdict_Fail(t *testing.T) {
 }
 
 func TestComputeVerdict_Empty(t *testing.T) {
-	r := NewReport("full")
+	r := NewReport(Meta{Profile: "full"})
 	r.ComputeVerdict()
 	if r.Verdict != "inconclusive" {
 		t.Errorf("expected inconclusive, got %s", r.Verdict)
@@ -63,7 +65,7 @@ func TestComputeVerdict_FailuresOutsideChecks(t *testing.T) {
 	}
 	for name, setup := range cases {
 		t.Run(name+" without checks", func(t *testing.T) {
-			r := NewReport("full")
+			r := NewReport(Meta{Profile: "full"})
 			setup(r)
 			r.ComputeVerdict()
 			if r.Verdict != "fail" {
@@ -71,7 +73,7 @@ func TestComputeVerdict_FailuresOutsideChecks(t *testing.T) {
 			}
 		})
 		t.Run(name+" with passing checks", func(t *testing.T) {
-			r := NewReport("full")
+			r := NewReport(Meta{Profile: "full"})
 			r.CheckResults = []CheckResult{{Name: "ok", Status: "pass"}}
 			setup(r)
 			r.ComputeVerdict()
@@ -83,7 +85,7 @@ func TestComputeVerdict_FailuresOutsideChecks(t *testing.T) {
 }
 
 func TestComputeVerdict_PassWithoutChecks(t *testing.T) {
-	r := NewReport("full")
+	r := NewReport(Meta{Profile: "full"})
 	r.Policy = []PolicyResult{{Rule: "p", Status: "pass"}}
 	r.ComputeVerdict()
 	if r.Verdict != "pass" {
@@ -92,7 +94,7 @@ func TestComputeVerdict_PassWithoutChecks(t *testing.T) {
 }
 
 func TestComputeVerdict_OnlySkipsIsInconclusive(t *testing.T) {
-	r := NewReport("full")
+	r := NewReport(Meta{Profile: "full"})
 	r.CheckResults = []CheckResult{{Name: "c", Status: "skip"}}
 	r.Budgets = []BudgetResult{{Name: "b", Status: "skip"}}
 	r.Policy = []PolicyResult{{Rule: "g", Status: "skip"}}
@@ -102,11 +104,66 @@ func TestComputeVerdict_OnlySkipsIsInconclusive(t *testing.T) {
 	}
 }
 
+func TestCapOutput_KeepsTailAndRecordsTruncation(t *testing.T) {
+	long := strings.Repeat("noise\n", 1000) + "FAIL: the real error"
+	r := NewReport(Meta{Command: "verify"})
+	r.CheckResults = []CheckResult{
+		{Name: "long", Status: "fail", Output: long},
+		{Name: "short", Status: "pass", Output: "ok"},
+	}
+
+	r.CapOutput(100)
+
+	got := r.CheckResults[0]
+	if len(got.Output) > 100 {
+		t.Errorf("expected at most 100 bytes, got %d", len(got.Output))
+	}
+	if !strings.HasSuffix(got.Output, "FAIL: the real error") {
+		t.Errorf("expected the tail to be kept, got %q", got.Output)
+	}
+	if !got.OutputTruncated || got.OutputBytes != len(long) {
+		t.Errorf("expected truncation recorded with %d bytes, got truncated=%v bytes=%d", len(long), got.OutputTruncated, got.OutputBytes)
+	}
+
+	short := r.CheckResults[1]
+	if short.Output != "ok" || short.OutputTruncated || short.OutputBytes != 0 {
+		t.Errorf("expected short output untouched, got %+v", short)
+	}
+}
+
+func TestCapOutput_DoesNotSplitRunes(t *testing.T) {
+	r := NewReport(Meta{})
+	r.CheckResults = []CheckResult{{Output: strings.Repeat("é", 100)}}
+	r.CapOutput(9)
+	if !utf8.ValidString(r.CheckResults[0].Output) {
+		t.Errorf("expected valid UTF-8, got %q", r.CheckResults[0].Output)
+	}
+}
+
+func TestCapOutput_ZeroMeansUnlimited(t *testing.T) {
+	r := NewReport(Meta{})
+	r.CheckResults = []CheckResult{{Output: strings.Repeat("x", 10000)}}
+	r.CapOutput(0)
+	if len(r.CheckResults[0].Output) != 10000 || r.CheckResults[0].OutputTruncated {
+		t.Error("expected no truncation with a zero limit")
+	}
+}
+
+func TestNewReport_StampsHeader(t *testing.T) {
+	r := NewReport(Meta{Command: "verify", Profile: "ci", SpecPath: "maslow.yaml", SpecSHA256: "abc", SpecSource: "base", BaseSHA: "def"})
+	if r.EvidenceVersion != Version || r.MaslowVersion == "" {
+		t.Errorf("expected versions stamped, got evidence=%q maslow=%q", r.EvidenceVersion, r.MaslowVersion)
+	}
+	if r.Command != "verify" || r.SpecSource != "base" || r.SpecSHA256 != "abc" || r.BaseSHA != "def" || r.Profile != "ci" {
+		t.Errorf("expected meta copied into the report, got %+v", r)
+	}
+}
+
 func TestReport_Write(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "reports", "verify.json")
 
-	r := NewReport("quick")
+	r := NewReport(Meta{Profile: "quick"})
 	r.CheckResults = []CheckResult{
 		{Name: "test1", Status: "pass", Duration: 1.5},
 	}

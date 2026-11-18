@@ -29,6 +29,9 @@ refs:
     path: maslow.yaml
     description: Self-hosting MAS spec
   - kind: file
+    path: schema/evidence.schema.json
+    description: JSON Schema for the evidence file (format version 2)
+  - kind: file
     path: README.md
     description: Project README with install, usage, and development instructions
   - kind: file
@@ -236,6 +239,32 @@ contracts:
           - action: assert
             expect:
               exit_code: 2
+
+  - name: audit-command
+    description: Audit writes its own evidence file so it never overwrites verify's
+    scenarios:
+      - name: default-report-path
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - audit
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "report written to reports/audit.json"
+      - name: custom-report-path
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - audit
+              - --report
+              - reports/contract-audit.json
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "report written to reports/contract-audit.json"
 
   - name: init-command
     description: The init command manages maslow.yaml in the current directory

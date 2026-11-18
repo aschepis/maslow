@@ -30,11 +30,14 @@ internal/
      +-- verify/            <- verification logic; profile selection; check execution
      +-- runner/            <- orchestrates check runners in defined order
      +-- audit/             <- black-box audit execution; target abstraction layer
-     +-- evidence/          <- emits reports/verify.json; deterministic serialization
+     +-- evidence/          <- builds and writes the evidence file; output capping
+     +-- gitrepo/           <- git queries: changed files, merge base, file at a commit
+     +-- buildinfo/         <- version stamped into the binary and the evidence
      |
      v
 schema/maslow.cue           <- CUE schema; single source of truth for MAS structure
-reports/verify.json         <- output evidence file; written by verify and audit
+schema/evidence.schema.json <- JSON Schema for the evidence file
+reports/verify.json         <- verify evidence (reports/audit.json for audit)
 ```
 
 ---
@@ -49,7 +52,8 @@ reports/verify.json         <- output evidence file; written by verify and audit
 | `internal/verify/` | Executes verification: profile selection, check sequencing, result collection |
 | `internal/runner/` | Runs individual checks (shell, HTTP, CLI); abstracts runner kinds |
 | `internal/audit/` | Black-box audit mode; supports binary, container, and HTTP endpoint targets |
-| `internal/evidence/` | Serializes and writes `reports/verify.json`; ensures determinism |
+| `internal/evidence/` | Builds the evidence report, computes the verdict, caps output, writes JSON |
+| `internal/gitrepo/` | Git queries shared by policy and spec loading |
 | `schema/maslow.cue` | CUE schema defining the MAS format |
 
 ---
@@ -60,7 +64,8 @@ reports/verify.json         <- output evidence file; written by verify and audit
 |---|---|---|
 | CUE schema | `schema/maslow.cue` | Versioned; controls all valid MAS structure |
 | Project spec | `maslow.yaml` | Project root; one per repo (or per package in monorepos) |
-| Verify output | `reports/verify.json` | Written by `maslow verify` and `maslow audit` |
+| Evidence | `reports/verify.json`, `reports/audit.json` | Default paths; `--report` overrides |
+| Evidence schema | `schema/evidence.schema.json` | JSON Schema for evidence version 2 |
 | Test fixtures | `testdata/valid/` | Valid maslow.yaml examples for schema and verify tests |
 | Test fixtures | `testdata/invalid/` | Invalid maslow.yaml examples that must fail validation |
 | README | `README.md` | Install, usage, commands, dev instructions |
@@ -91,21 +96,20 @@ A valid `maslow.yaml` defines:
 
 ---
 
-## Evidence Format (reports/verify.json)
+## Evidence Format (version 2)
 
-Every run of `maslow verify` or `maslow audit` writes `reports/verify.json`. It contains:
+`maslow verify` writes `reports/verify.json` and `maslow audit` writes `reports/audit.json`;
+`--report <path>` overrides either. `schema/evidence.schema.json` is the authoritative shape
+(ADR 0020). Top-level fields:
 
-- `timestamp` - ISO 8601 run time
-- `git_sha` - current HEAD SHA (if available)
-- `profile` - profile name used
-- `check_results` - result per check runner
-- `contract_results` - result per contract scenario
-- `budget_results` - result per budget assertion
-- `ref_results` - result per ref verification (file, binary, url existence)
-- `policy_results` - result per policy enforcement (deny patterns, protected files)
+- `evidence_version`, `maslow_version`, `command` - what produced the file
+- `spec_path`, `spec_sha256`, `spec_source` - which spec bytes were verified (`head` or `base`)
+- `git_sha`, `base_sha` - the commit verified and the merge base policy was judged against
+- `profile`, `timestamp`
+- `check_results`, `contracts`, `budgets`, `refs`, `policy` - one entry per item with a `status`
 - `verdict` - `pass`, `fail`, or `inconclusive`
 
-The file is stable, deterministic, diffable, and machine-readable.
+Check output keeps the last `--output-limit` bytes and records `output_truncated` when cut.
 
 ---
 
