@@ -353,6 +353,19 @@ contracts:
             expect:
               exit_code: 1
               body_contains: "already defined by the spec"
+      - name: red-green-requires-base
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - verify
+              - --red-green
+              - --overlay
+              - testdata/overlays/changes-policy.yaml
+          - action: assert
+            expect:
+              exit_code: 2
+              body_contains: "--red-green requires --base"
 
   - name: audit-command
     description: Audit writes its own evidence file so it never overwrites verify's
