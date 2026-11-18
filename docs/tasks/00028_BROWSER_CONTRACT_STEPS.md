@@ -1,12 +1,12 @@
 ---
 id: 28
 title: Verify web UIs with a browser contract step
-status: draft
+status: in_progress
 priority: medium
 created: 2026-11-18
 updated: 2026-11-18
-assigned_to: ""
-assigned_at: ""
+assigned_to: "claude-workflow"
+assigned_at: "2026-11-18T12:00:00Z"
 depends_on: []
 tags: [kind:gap, kind:capability, contracts, verification]
 ---
