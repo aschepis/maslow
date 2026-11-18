@@ -104,7 +104,7 @@ var builtinTestLanguages = map[string]spec.TestLanguage{
 	"go": {
 		Files: []string{"**/*_test.go"},
 		Tests: []string{`^func\s+(\([^)]*\)\s*)?(Test|Benchmark|Fuzz|Example)\w*\(`},
-		Skips: []string{`\.Skip(Now|f)?\(`},
+		Skips: []string{`^\s*\w+\.Skip(Now|f)?\(`},
 	},
 	"ruby": {
 		Files: []string{"**/*_spec.rb", "**/*_test.rb", "**/test_*.rb"},
@@ -120,7 +120,7 @@ var builtinTestLanguages = map[string]spec.TestLanguage{
 	"python": {
 		Files: []string{"**/test_*.py", "**/*_test.py"},
 		Tests: []string{`^\s*(async\s+)?def\s+test\w*`},
-		Skips: []string{`@pytest\.mark\.(skip|skipif|xfail)\b`, `@unittest\.(skip|skipIf|skipUnless|expectedFailure)\b`, `\bpytest\.skip\(`, `\.skipTest\(`},
+		Skips: []string{`@pytest\.mark\.(skip|skipif|xfail)\b`, `@unittest\.(skip|skipIf|skipUnless|expectedFailure)\b`, `^\s*pytest\.skip\(`, `^\s*self\.skipTest\(`},
 	},
 }
 
