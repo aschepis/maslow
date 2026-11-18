@@ -237,3 +237,22 @@ contracts:
 		t.Fatalf("expected valid, got errors: %v", result.Errors)
 	}
 }
+
+// Every fixture is checked, so a new one cannot sit unexercised.
+func TestValidate_Fixtures(t *testing.T) {
+	for dir, wantValid := range map[string]bool{"valid": true, "invalid": false} {
+		paths, err := filepath.Glob(filepath.Join("..", "..", "testdata", dir, "*.yaml"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, path := range paths {
+			result, err := ValidateFile(path)
+			if err != nil {
+				t.Fatalf("%s: unexpected error: %v", path, err)
+			}
+			if result.Valid != wantValid {
+				t.Errorf("%s: valid=%v, want %v (errors: %v)", path, result.Valid, wantValid, result.Errors)
+			}
+		}
+	}
+}

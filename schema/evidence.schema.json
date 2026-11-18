@@ -52,7 +52,7 @@
   },
   "$defs": {
     "status": { "enum": ["pass", "fail", "skip", "error"] },
-    "policyStatus": { "enum": ["pass", "fail", "skip", "error", "needs_review"] },
+    "policyStatus": { "enum": ["pass", "fail", "skip", "error", "needs_review", "would_fail", "would_need_review", "would_error"] },
     "check": {
       "type": "object",
       "additionalProperties": false,
@@ -126,6 +126,7 @@
       "properties": {
         "rule": { "type": "string" },
         "kind": { "enum": ["deny", "protected", "gated", "allow", "spec"] },
+        "mode": { "enum": ["observe"] },
         "status": { "$ref": "#/$defs/policyStatus" },
         "detail": { "type": "string" },
         "files": { "type": "array", "items": { "type": "string" } },

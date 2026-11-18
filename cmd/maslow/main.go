@@ -367,7 +367,11 @@ func printReport(report *evidence.Report, path string) {
 		}
 	}
 	for _, p := range report.Policy {
-		fmt.Printf("  [%s] policy/%s: %s\n", p.Status, p.Kind, p.Rule)
+		mode := ""
+		if p.Mode != "" {
+			mode = " (" + p.Mode + ")"
+		}
+		fmt.Printf("  [%s] policy/%s%s: %s\n", p.Status, p.Kind, mode, p.Rule)
 		if p.Owner != "" {
 			fmt.Printf("         owner: %s\n", p.Owner)
 		}

@@ -87,8 +87,15 @@ package maslow
 	}
 }
 
-// Patterns are repository-relative; a "**" segment matches any depth.
 #Policy: {
+	#PolicyRules
+	// Rules evaluated and reported as would_* findings without affecting the verdict,
+	// so a new rule can be tried on real changes before it is enforced.
+	observe?: #PolicyRules
+}
+
+// Patterns are repository-relative; a "**" segment matches any depth.
+#PolicyRules: {
 	// Tracked or unignored files that must not exist.
 	deny?: [...string]
 	// When set, every changed file must match one of these.

@@ -1,0 +1,5 @@
+mas: "1.0"
+project:
+  name: policy-observe-string
+policy:
+  observe: "go.sum"

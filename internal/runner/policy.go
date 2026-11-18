@@ -45,6 +45,36 @@ func RunPolicy(policy *spec.Policy, scope PolicyScope) []evidence.PolicyResult {
 		return results
 	}
 
+	results = append(results, runRules(policy, scope)...)
+	if policy.Observe != nil {
+		results = append(results, observed(runRules(policy.Observe, scope))...)
+	}
+	return results
+}
+
+// observedStatus names what enforcement would have done; pass and skip read the same either way.
+var observedStatus = map[string]string{
+	"fail":         "would_fail",
+	"needs_review": "would_need_review",
+	"error":        "would_error",
+}
+
+// observed marks results from observe-mode rules after evaluation, so every
+// rule kind gets observe mode without knowing about it.
+func observed(results []evidence.PolicyResult) []evidence.PolicyResult {
+	for i := range results {
+		results[i].Mode = evidence.ModeObserve
+		if status, ok := observedStatus[results[i].Status]; ok {
+			results[i].Status = status
+		}
+	}
+	return results
+}
+
+// runRules evaluates one set of rules; it ignores policy.Observe.
+func runRules(policy *spec.Policy, scope PolicyScope) []evidence.PolicyResult {
+	var results []evidence.PolicyResult
+
 	if len(policy.Deny) > 0 {
 		files, err := gitrepo.CandidateFiles(scope.Dir)
 		if err != nil {

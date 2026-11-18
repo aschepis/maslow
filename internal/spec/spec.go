@@ -63,6 +63,9 @@ type Policy struct {
 	Allow     []string   `yaml:"allow,omitempty"`
 	Protected []string   `yaml:"protected,omitempty"`
 	Gated     []GatedDir `yaml:"gated,omitempty"`
+	// Observe holds rules reported without enforcing them; the schema forbids
+	// an observe block inside another.
+	Observe *Policy `yaml:"observe,omitempty"`
 }
 
 type GatedDir struct {

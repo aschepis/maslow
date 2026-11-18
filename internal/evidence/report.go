@@ -112,10 +112,16 @@ type RefResult struct {
 	Error  string `json:"error,omitempty"`
 }
 
+// ModeObserve marks a policy result that is reported but does not affect the verdict.
+const ModeObserve = "observe"
+
 // PolicyResult records the outcome of a policy rule check.
 type PolicyResult struct {
-	Rule   string   `json:"rule"`
-	Kind   string   `json:"kind"` // deny, protected, gated
+	Rule string `json:"rule"`
+	Kind string `json:"kind"` // deny, allow, protected, gated, spec
+	// Mode "observe" marks a rule that is reported but not enforced; its
+	// non-pass statuses are prefixed "would_".
+	Mode   string   `json:"mode,omitempty"`
 	Status string   `json:"status"`
 	Detail string   `json:"detail,omitempty"`
 	Files  []string `json:"files,omitempty"`
@@ -177,7 +183,7 @@ func tail(s string, n int) string {
 
 // ComputeVerdict sets the verdict from every section of the report, with
 // precedence fail, needs_review, inconclusive, pass. Any fail or error gives
-// "fail"; "inconclusive" means nothing ran at all.
+// "fail"; "inconclusive" means nothing ran at all. Observed policy rules never count.
 func (r *Report) ComputeVerdict() {
 	ran, review := false, false
 	for _, s := range r.allStatuses() {
@@ -217,6 +223,9 @@ func (r *Report) allStatuses() []string {
 		statuses = append(statuses, ref.Status)
 	}
 	for _, p := range r.Policy {
+		if p.Mode == ModeObserve {
+			continue
+		}
 		statuses = append(statuses, p.Status)
 	}
 	return statuses

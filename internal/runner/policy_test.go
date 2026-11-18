@@ -321,6 +321,69 @@ func TestAllow_ChangesInsideAllowedPathsPass(t *testing.T) {
 	}
 }
 
+func TestObserve_ViolationsReportWhatEnforcementWouldDo(t *testing.T) {
+	dir, base := branchWithChange(t,
+		map[string]string{"locked.txt": "v1", "infra/main.tf": "v1", "app.go": "v1"},
+		map[string]string{"locked.txt": "v2", "infra/main.tf": "v2"})
+
+	policy := &spec.Policy{Observe: &spec.Policy{
+		Protected: []string{"locked.txt"},
+		Gated:     []spec.GatedDir{{Path: "infra/**", Owner: "ops"}},
+		Allow:     []string{"infra/**"},
+		Deny:      []string{"app.go"},
+	}}
+	results := RunPolicy(policy, PolicyScope{Dir: dir, BaseSHA: base})
+
+	want := map[string]string{"deny": "would_fail", "protected": "would_fail", "gated": "would_need_review", "allow": "would_fail"}
+	if len(results) != len(want) {
+		t.Fatalf("expected %d observed results, got %+v", len(want), results)
+	}
+	for _, r := range results {
+		if r.Mode != "observe" {
+			t.Errorf("%s: expected mode observe, got %q", r.Kind, r.Mode)
+		}
+		if r.Status != want[r.Kind] {
+			t.Errorf("%s: expected %s, got %+v", r.Kind, want[r.Kind], r)
+		}
+		if len(r.Files) == 0 {
+			t.Errorf("%s: expected the files it would have flagged, got none", r.Kind)
+		}
+	}
+}
+
+func TestObserve_SameRuleEnforcedFails(t *testing.T) {
+	dir, base := branchWithChange(t,
+		map[string]string{"locked.txt": "v1"},
+		map[string]string{"locked.txt": "v2"})
+
+	results := RunPolicy(&spec.Policy{Protected: []string{"locked.txt"}}, PolicyScope{Dir: dir, BaseSHA: base})
+	if len(results) != 1 || results[0].Status != "fail" || results[0].Mode != "" {
+		t.Fatalf("expected one enforced fail, got %+v", results)
+	}
+}
+
+func TestObserve_CleanRulePassesInObserveMode(t *testing.T) {
+	dir, base := branchWithChange(t,
+		map[string]string{"locked.txt": "v1", "app.go": "v1"},
+		map[string]string{"app.go": "v2"})
+
+	policy := &spec.Policy{Observe: &spec.Policy{Protected: []string{"locked.txt"}}}
+	results := RunPolicy(policy, PolicyScope{Dir: dir, BaseSHA: base})
+	if len(results) != 1 || results[0].Status != "pass" || results[0].Mode != "observe" {
+		t.Fatalf("expected one observed pass, got %+v", results)
+	}
+}
+
+func TestObserve_InvalidPatternIsObservedError(t *testing.T) {
+	dir, base := branchWithChange(t, map[string]string{"a": "1"}, map[string]string{"a": "2"})
+
+	policy := &spec.Policy{Observe: &spec.Policy{Protected: []string{"[bad"}}}
+	results := RunPolicy(policy, PolicyScope{Dir: dir, BaseSHA: base})
+	if len(results) != 1 || results[0].Status != "would_error" || results[0].Error == "" {
+		t.Fatalf("expected one would_error with a message, got %+v", results)
+	}
+}
+
 func gitOutput(t *testing.T, dir string, args ...string) string {
 	t.Helper()
 	cmd := exec.Command("git", args...)
