@@ -75,7 +75,7 @@ func TestEvidenceMatchesSchema(t *testing.T) {
 		Name:      "acceptance",
 		Scenarios: []spec.Scenario{{Name: "s", Steps: []spec.Step{{Action: "cli", Command: "true"}}}},
 	}}}}
-	report, err := Run(mas, Options{Profile: "full", BaseSHA: head, SpecPath: "maslow.yaml", SpecSHA256: loaded.SHA256, SpecFromBase: true, Overlays: []*spec.LoadedOverlay{overlay}})
+	report, err := Run(mas, Options{Profile: "full", BaseSHA: head, SpecPath: "maslow.yaml", SpecSHA256: loaded.SHA256, SpecFromBase: true, RedGreen: true, Overlays: []*spec.LoadedOverlay{overlay}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,6 +100,9 @@ func TestEvidenceMatchesSchema(t *testing.T) {
 		if _, ok := fields[key]; !ok {
 			t.Errorf("expected the fixture to exercise %q", key)
 		}
+	}
+	if last := report.Contracts[len(report.Contracts)-1]; last.Base == nil || last.Status != evidence.StatusNotRed {
+		t.Errorf("expected the fixture to exercise a red-green base run, got %+v", last)
 	}
 
 	mutations := map[string]func(m map[string]any){

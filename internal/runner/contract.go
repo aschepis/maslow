@@ -78,6 +78,8 @@ type contractConfig struct {
 	env map[string]string
 	// baseURL is what HTTP and poll URLs starting with "/" are resolved against.
 	baseURL string
+	// dir is where CLI steps run; "" means the current directory.
+	dir string
 }
 
 // scope is what the steps of one scenario share.
@@ -98,6 +100,9 @@ type ContractOptions struct {
 	// BaseURL, when set, replaces every contract's base_url, so the same
 	// scenarios can run against a deployed service.
 	BaseURL string
+	// Dir, when set, is where CLI steps run, so the same scenarios can run
+	// against another checkout such as the base commit.
+	Dir string
 }
 
 // RunContracts executes all contract scenarios and returns results.
@@ -109,7 +114,7 @@ func RunContracts(contracts []spec.Contract) []evidence.ContractResult {
 func RunContractsWith(contracts []spec.Contract, opts ContractOptions) []evidence.ContractResult {
 	var results []evidence.ContractResult
 	for _, contract := range contracts {
-		cfg := contractConfig{env: allowedEnv(contract.Env), baseURL: opts.BaseURL}
+		cfg := contractConfig{env: allowedEnv(contract.Env), baseURL: opts.BaseURL, dir: opts.Dir}
 		for _, result := range runContract(contract, cfg) {
 			results = append(results, redact(result, cfg.env))
 		}
@@ -209,7 +214,7 @@ func runStep(step spec.Step, state *stepState, sc *scope) error {
 
 	switch step.Action {
 	case "cli":
-		exitCode, output, err := runCLIStep(step)
+		exitCode, output, err := runCLIStep(step, sc.dir)
 		if err != nil {
 			return fmt.Errorf("step cli %q: %v", step.Command, err)
 		}
@@ -431,12 +436,13 @@ func applyTemplate(s string, sc *scope) (string, error) {
 	return buf.String(), nil
 }
 
-func runCLIStep(step spec.Step) (exitCode int, output string, err error) {
+func runCLIStep(step spec.Step, dir string) (exitCode int, output string, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	args := step.Args
 	cmd := exec.CommandContext(ctx, step.Command, args...)
+	cmd.Dir = dir
 	if step.Stdin != "" {
 		cmd.Stdin = strings.NewReader(step.Stdin)
 	}

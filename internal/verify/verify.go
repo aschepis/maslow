@@ -30,6 +30,9 @@ type Options struct {
 	// SpecAddedOnBranch records that SpecFromBase was asked for but the base
 	// had no spec, so the branch's own spec was used and needs review.
 	SpecAddedOnBranch bool
+	// RedGreen also runs overlay contracts on BaseSHA and passes only those
+	// that fail there, so an overlay cannot pass without the change.
+	RedGreen bool
 }
 
 // ReadSpec loads the spec opts asks for. When the spec comes from the base
@@ -94,6 +97,9 @@ func Run(mas *spec.MAS, opts Options) (*evidence.Report, error) {
 	if err := spec.CheckOverlayNames(mas, opts.Overlays); err != nil {
 		return nil, err
 	}
+	if opts.RedGreen && opts.BaseSHA == "" {
+		return nil, errors.New("--red-green needs --base to know which commit the overlay contracts must fail on")
+	}
 	contracts, err := runner.SelectContracts(mas.Contracts, "profiles."+opts.Profile, profile.Contracts)
 	if err != nil {
 		return nil, err
@@ -112,9 +118,18 @@ func Run(mas *spec.MAS, opts Options) (*evidence.Report, error) {
 	if len(contracts) > 0 {
 		report.Contracts = runner.RunContracts(contracts)
 	}
+	var base *baseTree
+	if opts.RedGreen && len(opts.Overlays) > 0 {
+		base = checkoutBase(opts.BaseSHA)
+		defer base.remove()
+	}
 	for _, o := range opts.Overlays {
 		report.Overlays = append(report.Overlays, evidence.OverlayRef{Path: o.Path, SHA256: o.SHA256})
-		for _, result := range runner.RunContracts(o.Overlay.Contracts) {
+		results := runner.RunContracts(o.Overlay.Contracts)
+		if base != nil {
+			judgeRedGreen(o.Overlay.Contracts, results, base)
+		}
+		for _, result := range results {
 			result.Overlay = o.Path
 			report.Contracts = append(report.Contracts, result)
 		}

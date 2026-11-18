@@ -84,6 +84,22 @@ type ContractResult struct {
 	OutputTruncated bool   `json:"output_truncated,omitempty"`
 	// Artifacts are files matching the scenario's artifact patterns, such as screenshots.
 	Artifacts []string `json:"artifacts,omitempty"`
+	// HeadStatus and Base are set only by a red-green run, where Status
+	// combines the two runs.
+	HeadStatus string   `json:"head_status,omitempty"`
+	Base       *BaseRun `json:"base,omitempty"`
+}
+
+// StatusNotRed marks an overlay contract that already passed on the base
+// commit, so its pass on the head says nothing about the change.
+const StatusNotRed = "not_red"
+
+// BaseRun is the outcome of an overlay contract run against the base commit.
+type BaseRun struct {
+	SHA        string      `json:"sha"`
+	Status     string      `json:"status"`
+	Error      string      `json:"error,omitempty"`
+	FailedStep *FailedStep `json:"failed_step,omitempty"`
 }
 
 // FailedStep identifies the step that failed a contract scenario.
@@ -184,13 +200,13 @@ func tail(s string, n int) string {
 }
 
 // ComputeVerdict sets the verdict from every section of the report, with
-// precedence fail, needs_review, inconclusive, pass. Any fail or error gives
-// "fail"; "inconclusive" means nothing ran at all. Observed policy rules never count.
+// precedence fail, needs_review, inconclusive, pass. Any fail, error or
+// not_red gives "fail"; "inconclusive" means nothing ran at all. Observed policy rules never count.
 func (r *Report) ComputeVerdict() {
 	ran, review := false, false
 	for _, s := range r.allStatuses() {
 		switch s {
-		case "fail", "error":
+		case "fail", "error", StatusNotRed:
 			r.Verdict = "fail"
 			return
 		case "needs_review":

@@ -74,14 +74,28 @@
       "required": ["name", "status"],
       "properties": {
         "name": { "type": "string" },
-        "status": { "$ref": "#/$defs/status" },
+        "status": { "enum": ["pass", "fail", "skip", "error", "not_red"] },
         "error": { "type": "string" },
         "overlay": { "type": "string" },
         "failed_step": { "$ref": "#/$defs/failedStep" },
         "output": { "type": "string" },
         "output_bytes": { "type": "integer", "minimum": 0 },
         "output_truncated": { "type": "boolean" },
-        "artifacts": { "type": "array", "items": { "type": "string" } }
+        "artifacts": { "type": "array", "items": { "type": "string" } },
+        "head_status": { "$ref": "#/$defs/status", "description": "red-green runs only: the contract's own result on the head" },
+        "base": { "$ref": "#/$defs/baseRun" }
+      }
+    },
+    "baseRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "red-green runs only: the same contract run against the base commit",
+      "required": ["sha", "status"],
+      "properties": {
+        "sha": { "type": "string" },
+        "status": { "$ref": "#/$defs/status" },
+        "error": { "type": "string" },
+        "failed_step": { "$ref": "#/$defs/failedStep" }
       }
     },
     "failedStep": {

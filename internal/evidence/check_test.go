@@ -176,3 +176,21 @@ func TestReadReport(t *testing.T) {
 		t.Error("ReadReport accepted a missing file")
 	}
 }
+
+// A red-green run whose overlay contract was already green on the base must
+// not be approved by the gate.
+func TestCheck_DeclinesNotRedContract(t *testing.T) {
+	r := goodReport()
+	r.Contracts = []ContractResult{{
+		Name:       "acceptance/s",
+		Status:     StatusNotRed,
+		HeadStatus: "pass",
+		Base:       &BaseRun{SHA: testHead, Status: "pass"},
+	}}
+	r.ComputeVerdict()
+
+	got := Check(r, goodTrusted())
+	if got.Decision != DecisionDecline {
+		t.Errorf("expected decline, got %+v", got)
+	}
+}
