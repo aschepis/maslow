@@ -46,3 +46,13 @@ func TestMatchPath_InvalidPattern(t *testing.T) {
 		t.Error("expected error for malformed pattern")
 	}
 }
+
+// Patterns that can never match a repository path must be rejected, not
+// silently pass: a typo'd rule would otherwise weaken the gate.
+func TestMatchPath_RejectsPatternsThatCannotMatch(t *testing.T) {
+	for _, pattern := range []string{"sub/", "./secrets/*", "/abs/path", "a//b", "a/../b", ""} {
+		if _, err := matchPath(pattern, "sub/a.txt"); err == nil {
+			t.Errorf("expected %q to be rejected", pattern)
+		}
+	}
+}

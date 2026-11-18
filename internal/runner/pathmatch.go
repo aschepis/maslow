@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"fmt"
 	"path"
 	"strings"
 )
@@ -15,8 +16,15 @@ func matchPath(pattern, name string) (bool, error) {
 	return matchSegments(strings.Split(pattern, "/"), strings.Split(name, "/"))
 }
 
+// validatePattern rejects patterns that could never match a repository path.
 func validatePattern(pattern string) error {
 	for _, seg := range strings.Split(pattern, "/") {
+		switch seg {
+		case "":
+			return fmt.Errorf("pattern %q has an empty segment; patterns are repository-relative with no leading, trailing or double slash (use dir/** for a directory)", pattern)
+		case ".", "..":
+			return fmt.Errorf("pattern %q contains %q; write it relative to the repository root", pattern, seg)
+		}
 		if _, err := path.Match(seg, ""); err != nil {
 			return err
 		}
