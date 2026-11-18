@@ -1,7 +1,7 @@
 ---
 id: 31
 title: Let a new policy rule observe before it enforces
-status: in_progress
+status: done
 priority: low
 created: 2026-11-18
 updated: 2026-11-18
@@ -26,9 +26,9 @@ have flagged, on real changes, without affecting the verdict.
 
 ## Acceptance Criteria
 
-- [ ] Schema and fixtures for marking a rule observe-only.
-- [ ] Tests: an observed violation leaves the verdict `pass`; the same rule enforced fails.
-- [ ] Evidence schema updated; ADR records the design.
+- [x] Schema and fixtures for marking a rule observe-only.
+- [x] Tests: an observed violation leaves the verdict `pass`; the same rule enforced fails.
+- [x] Evidence schema updated; ADR records the design.
 
 ## Notes
 
