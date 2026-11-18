@@ -51,10 +51,16 @@ policy:
     - "**/.env"
     - "**/credentials*"
   protected:
-    - maslow.yaml
-    - schema/maslow.cue
     - docs/REQUIREMENTS.md
-    - README.md
+  gated:
+    - path: maslow.yaml
+      owner: "@aschepis"
+    - path: schema/**
+      owner: "@aschepis"
+    - path: internal/schema/maslow.cue
+      owner: "@aschepis"
+    - path: README.md
+      owner: "@aschepis"
 
 checks:
   runner:
