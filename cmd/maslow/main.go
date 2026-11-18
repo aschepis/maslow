@@ -51,6 +51,7 @@ Commands:
            [--spec-from base]  Verify against the spec at the merge base, not the branch's
            [--report <path>]   Evidence file (default reports/verify.json)
            [--output-limit n]  Bytes of each check's output to keep (default 4096)
+           [--strict]          Exit 1 on needs_review too (default: only fail and inconclusive)
   audit    --profile <name>    Run black-box audit (default report reports/audit.json)
   init     [--apply]           Add a starter maslow.yaml to the current directory
   version                      Print version information`)
@@ -98,6 +99,7 @@ func cmdVerify(args []string) int {
 	specFrom := fs.String("spec-from", "head", "read the spec from head (the working tree) or base (the merge base)")
 	reportPath := fs.String("report", verify.DefaultReportPath, "where to write the evidence file")
 	outputLimit := fs.Int("output-limit", evidence.DefaultOutputLimit, "bytes of each check's output to keep (0 keeps everything)")
+	strict := fs.Bool("strict", false, "exit non-zero on needs_review as well as fail and inconclusive")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -142,7 +144,7 @@ func cmdVerify(args []string) int {
 		return 1
 	}
 
-	return finish("verify", report, *reportPath, *outputLimit)
+	return finish("verify", report, *reportPath, *outputLimit, *strict)
 }
 
 func cmdAudit(args []string) int {
@@ -171,11 +173,11 @@ func cmdAudit(args []string) int {
 		return 1
 	}
 
-	return finish("audit", report, *reportPath, *outputLimit)
+	return finish("audit", report, *reportPath, *outputLimit, false)
 }
 
 // finish caps output, writes the evidence, prints a summary and returns the exit code.
-func finish(command string, report *evidence.Report, reportPath string, outputLimit int) int {
+func finish(command string, report *evidence.Report, reportPath string, outputLimit int, strict bool) int {
 	report.CapOutput(outputLimit)
 	if err := report.Write(reportPath); err != nil {
 		fmt.Fprintf(os.Stderr, "maslow %s: %v\n", command, err)
@@ -183,11 +185,23 @@ func finish(command string, report *evidence.Report, reportPath string, outputLi
 	}
 
 	printReport(report, reportPath)
+	return exitCode(report.Verdict, strict)
+}
 
-	if report.Verdict != "pass" {
+// exitCode lets needs_review through unless strict, so a pipeline can route
+// the change to a person by reading the verdict instead of failing the job.
+func exitCode(verdict string, strict bool) int {
+	switch verdict {
+	case "pass":
+		return 0
+	case "needs_review":
+		if strict {
+			return 1
+		}
+		return 0
+	default:
 		return 1
 	}
-	return 0
 }
 
 func cmdInit(args []string) int {
@@ -320,6 +334,9 @@ func printReport(report *evidence.Report, path string) {
 	}
 	for _, p := range report.Policy {
 		fmt.Printf("  [%s] policy/%s: %s\n", p.Status, p.Kind, p.Rule)
+		if p.Owner != "" {
+			fmt.Printf("         owner: %s\n", p.Owner)
+		}
 		if p.Detail != "" {
 			fmt.Printf("         detail: %s\n", p.Detail)
 		}

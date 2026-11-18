@@ -42,26 +42,85 @@ func RunPolicy(policy *spec.Policy, scope PolicyScope) []evidence.PolicyResult {
 		}
 	}
 
-	if len(policy.Protected) > 0 {
-		changed, err := changedFiles(scope)
-		if err != nil {
-			results = append(results, ruleErrors("protected", policy.Protected, err)...)
-		} else {
-			results = append(results, checkProtectedFiles(policy.Protected, changed)...)
+	if len(policy.Protected) == 0 && len(policy.Gated) == 0 && len(policy.Allow) == 0 {
+		return results
+	}
+
+	changed, err := changedFiles(scope)
+	if err != nil {
+		results = append(results, ruleErrors("protected", policy.Protected, err)...)
+		for _, g := range policy.Gated {
+			results = append(results, evidence.PolicyResult{Rule: g.Path, Kind: "gated", Owner: g.Owner, Status: "error", Error: err.Error()})
+		}
+		if len(policy.Allow) > 0 {
+			results = append(results, evidence.PolicyResult{Rule: strings.Join(policy.Allow, ", "), Kind: "allow", Status: "error", Error: err.Error()})
+		}
+		return results
+	}
+
+	results = append(results, checkProtectedFiles(policy.Protected, changed)...)
+	results = append(results, checkGated(policy.Gated, changed)...)
+	if len(policy.Allow) > 0 {
+		results = append(results, checkAllow(policy.Allow, changed))
+	}
+	return results
+}
+
+// checkGated asks for review, rather than failing, when a change touches a
+// path that has an owner.
+func checkGated(gated []spec.GatedDir, changed []string) []evidence.PolicyResult {
+	results := make([]evidence.PolicyResult, 0, len(gated))
+	for _, g := range gated {
+		result := evidence.PolicyResult{Rule: g.Path, Kind: "gated", Owner: g.Owner}
+		matched, err := matchingFiles(g.Path, changed)
+		switch {
+		case err != nil:
+			result.Status = "error"
+			result.Error = fmt.Sprintf("invalid pattern: %v", err)
+		case len(matched) > 0:
+			result.Status = "needs_review"
+			result.Detail = fmt.Sprintf("gated path changed %d file(s); review by %s: %s", len(matched), g.Owner, strings.Join(matched, ", "))
+			result.Files = matched
+		default:
+			result.Status = "pass"
+		}
+		results = append(results, result)
+	}
+	return results
+}
+
+// checkAllow fails when a change touches a file outside every allowed path.
+func checkAllow(allow, changed []string) evidence.PolicyResult {
+	result := evidence.PolicyResult{Rule: strings.Join(allow, ", "), Kind: "allow"}
+
+	var outside []string
+	for _, f := range changed {
+		inside := false
+		for _, pattern := range allow {
+			ok, err := matchPath(pattern, f)
+			if err != nil {
+				result.Status = "error"
+				result.Error = fmt.Sprintf("invalid pattern %q: %v", pattern, err)
+				return result
+			}
+			if ok {
+				inside = true
+				break
+			}
+		}
+		if !inside {
+			outside = append(outside, f)
 		}
 	}
 
-	// Gated and allow rules are deferred to future versions.
-	for _, g := range policy.Gated {
-		results = append(results, evidence.PolicyResult{
-			Rule:   g.Path,
-			Kind:   "gated",
-			Status: "skip",
-			Detail: fmt.Sprintf("gated directory enforcement not yet implemented (owner: %s)", g.Owner),
-		})
+	if len(outside) == 0 {
+		result.Status = "pass"
+		return result
 	}
-
-	return results
+	result.Status = "fail"
+	result.Detail = fmt.Sprintf("%d changed file(s) outside the allowed paths: %s", len(outside), strings.Join(outside, ", "))
+	result.Files = outside
+	return result
 }
 
 func checkSpecUnchanged(scope PolicyScope) evidence.PolicyResult {
@@ -83,8 +142,8 @@ func checkSpecUnchanged(scope PolicyScope) evidence.PolicyResult {
 	specPath := prefix + filepath.ToSlash(filepath.Clean(scope.SpecPath))
 	for _, f := range changed {
 		if f == specPath {
-			result.Status = "fail"
-			result.Detail = fmt.Sprintf("%s changed since base %s; this run verified against the base version", specPath, scope.BaseSHA)
+			result.Status = "needs_review"
+			result.Detail = fmt.Sprintf("%s changed since base %s; this run verified against the base version, and a person must accept the new spec", specPath, scope.BaseSHA)
 			result.Files = []string{f}
 			return result
 		}

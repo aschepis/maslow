@@ -80,15 +80,21 @@ package maslow
 	}
 }
 
+// Patterns are repository-relative; a "**" segment matches any depth.
 #Policy: {
+	// Tracked or unignored files that must not exist.
 	deny?: [...string]
+	// When set, every changed file must match one of these.
 	allow?: [...string]
+	// Paths a change must not touch.
 	protected?: [...string]
+	// Paths a change may touch only with review by their owner.
 	gated?: [...#GatedDir]
 }
 
 #GatedDir: {
-	path:  string
+	path: string
+	// Who reviews the change; a GitHub handle or team such as "@org/team".
 	owner: string
 }
 

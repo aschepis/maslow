@@ -107,7 +107,7 @@ A valid `maslow.yaml` defines:
 - `git_sha`, `base_sha` - the commit verified and the merge base policy was judged against
 - `profile`, `timestamp`
 - `check_results`, `contracts`, `budgets`, `refs`, `policy` - one entry per item with a `status`
-- `verdict` - `pass`, `fail`, or `inconclusive`
+- `verdict` - `fail`, `needs_review`, `inconclusive` or `pass` (in that precedence)
 
 Check output keeps the last `--output-limit` bytes and records `output_truncated` when cut.
 

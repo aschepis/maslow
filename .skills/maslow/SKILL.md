@@ -26,14 +26,14 @@ maslow init                       # add a starter maslow.yaml to a project witho
 maslow version
 ```
 
-Exit codes: `0` pass, `1` validation or verification failure, `2` usage error.
+Exit codes: `0` pass or needs_review, `1` fail or inconclusive (and needs_review with `--strict`), `2` usage error.
 
 ## Reading the Evidence
 
 `maslow verify` writes `reports/verify.json` (override with `--report <path>`); `schema/evidence.schema.json` in the Maslow repository is its exact shape:
 
 - `spec_source`, `spec_sha256`, `base_sha` — which spec was used and what the change was judged against.
-- `verdict` — `pass`, `fail` or `inconclusive`. Act on this first.
+- `verdict` — `pass`, `fail`, `needs_review` or `inconclusive`. Act on this first. `needs_review` means everything passed but the change touched a `gated` path (or the spec itself) and a named `owner` must approve it; do not try to work around it.
 - `check_results` — one entry per check in the profile, with `status`, `output` and `error`. `output` holds the tail; `output_truncated` says it was cut.
 - `contracts`, `budgets`, `refs`, `policy` — one entry per item, each with a `status` and, on failure, an `error` or `detail`.
 
