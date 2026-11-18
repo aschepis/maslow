@@ -187,11 +187,14 @@ func Load(path string) (*MAS, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read %s: %w", path, err)
 	}
+	return Parse(data, path)
+}
 
+// Parse parses maslow.yaml content; name is used in error messages.
+func Parse(data []byte, name string) (*MAS, error) {
 	var mas MAS
 	if err := yaml.Unmarshal(data, &mas); err != nil {
-		return nil, fmt.Errorf("failed to parse %s: %w", path, err)
+		return nil, fmt.Errorf("failed to parse %s: %w", name, err)
 	}
-
 	return &mas, nil
 }
