@@ -18,7 +18,7 @@ func TestRun_QuickProfile(t *testing.T) {
 		},
 	}
 
-	report, err := Run(mas, "quick")
+	report, err := Run(mas, Options{Profile: "quick"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -38,7 +38,7 @@ func TestRun_MissingProfile(t *testing.T) {
 		Profiles: map[string]spec.Profile{},
 	}
 
-	_, err := Run(mas, "nonexistent")
+	_, err := Run(mas, Options{Profile: "nonexistent"})
 	if err == nil {
 		t.Fatal("expected error for missing profile")
 	}
@@ -71,7 +71,7 @@ func TestRun_WithContracts(t *testing.T) {
 		},
 	}
 
-	report, err := Run(mas, "full")
+	report, err := Run(mas, Options{Profile: "full"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

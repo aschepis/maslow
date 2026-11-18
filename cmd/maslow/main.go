@@ -51,6 +51,7 @@ func printUsage() {
 Commands:
   validate <file>              Validate a maslow.yaml against the CUE schema
   verify   --profile <name>    Run verification checks
+           [--base <ref>]      Judge policy on every change since the merge base with <ref>
   audit    --profile <name>    Run black-box audit
   init     [--apply]           Add a starter maslow.yaml to the current directory
   version                      Print version information`)
@@ -86,6 +87,7 @@ func cmdValidate(args []string) int {
 func cmdVerify(args []string) int {
 	profile := "quick"
 	specPath := "maslow.yaml"
+	base := ""
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
@@ -103,6 +105,13 @@ func cmdVerify(args []string) int {
 			}
 			i++
 			specPath = args[i]
+		case "--base":
+			if i+1 >= len(args) {
+				fmt.Fprintln(os.Stderr, "maslow verify: --base requires a git ref")
+				return 2
+			}
+			i++
+			base = args[i]
 		default:
 			fmt.Fprintf(os.Stderr, "maslow verify: unknown option %q\n", args[i])
 			return 2
@@ -131,7 +140,7 @@ func cmdVerify(args []string) int {
 	}
 
 	// Run verification.
-	report, err := verify.Run(mas, profile)
+	report, err := verify.Run(mas, verify.Options{Profile: profile, Base: base})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "maslow verify: %v\n", err)
 		return 1
@@ -314,6 +323,9 @@ func cmdVersion() int {
 
 func printReport(report *evidence.Report, path string) {
 	fmt.Printf("maslow: verdict=%s profile=%s\n", report.Verdict, report.Profile)
+	if report.BaseSHA != "" {
+		fmt.Printf("maslow: policy judged against base %s\n", report.BaseSHA)
+	}
 	for _, r := range report.CheckResults {
 		fmt.Printf("  [%s] %s (%.2fs)\n", r.Status, r.Name, r.Duration)
 		if r.Error != "" {
