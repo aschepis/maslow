@@ -1,7 +1,7 @@
 ---
 id: 32
 title: Add maslow evidence check to judge an evidence file
-status: in_progress
+status: done
 priority: high
 created: 2026-11-18
 updated: 2026-11-18
@@ -32,10 +32,10 @@ should own this decision.
 
 ## Acceptance Criteria
 
-- [ ] Command implemented and wired in `cmd/maslow/main.go`.
-- [ ] Table tests cover each decline reason, needs_review, and pass.
-- [ ] CLI contract scenario added to `maslow.yaml`.
-- [ ] ADR records the decision rules; README documents the command.
+- [x] Command implemented and wired in `cmd/maslow/main.go`.
+- [x] Table tests cover each decline reason, needs_review, and pass.
+- [x] CLI contract scenario added to `maslow.yaml`.
+- [x] ADR records the decision rules; README documents the command.
 
 ## Notes
 
