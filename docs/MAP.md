@@ -19,6 +19,7 @@ cmd/maslow/main.go          <- CLI entrypoint; parses subcommands and flags
      +-- validate           <- loads spec, runs CUE schema validation
      +-- verify             <- runs checks, contracts, budgets, refs, policy; emits evidence
      +-- audit              <- black-box mode; runs against artifact/endpoint targets
+     +-- evidence check     <- judges an evidence file against trusted inputs (cmd/maslow/evidence.go)
      +-- init               <- writes a starter maslow.yaml; detects toolchain
      +-- version            <- prints build metadata
      |
@@ -52,7 +53,7 @@ reports/verify.json         <- verify evidence (reports/audit.json for audit)
 | `internal/verify/` | Executes verification: profile selection, check sequencing, result collection |
 | `internal/runner/` | Runs individual checks (shell, HTTP, CLI); abstracts runner kinds |
 | `internal/audit/` | Black-box audit mode; binary targets, endpoint targets that run contracts against a base URL (ADR 0028), container stub |
-| `internal/evidence/` | Builds the evidence report, computes the verdict, caps output, writes JSON |
+| `internal/evidence/` | Builds the evidence report, computes the verdict, caps output, writes JSON; `Check` decides pass, needs_review or decline for a report against trusted inputs (ADR 0033) |
 | `internal/gitrepo/` | Git queries shared by policy and spec loading, including line-level diffs against a base |
 | `schema/maslow.cue` | CUE schema defining the MAS format |
 | `action/action.yml` | Composite GitHub Action wrapping `maslow verify` |
@@ -70,6 +71,7 @@ reports/verify.json         <- verify evidence (reports/audit.json for audit)
 | Evidence schema | `schema/evidence.schema.json` | JSON Schema for evidence version 2 |
 | Test fixtures | `testdata/valid/` | Valid maslow.yaml examples for schema and verify tests |
 | Test fixtures | `testdata/invalid/` | Invalid maslow.yaml examples that must fail validation |
+| Test fixtures | `testdata/evidence/` | Evidence files for `maslow evidence check` tests and contracts |
 | README | `README.md` | Install, usage, commands, dev instructions |
 | Makefile | `Makefile` | Standard dev targets: build, test, vet, lint, validate, verify, clean |
 | Documentation | `docs/` | MAP, PLAN, ADRs, templates, runbooks |

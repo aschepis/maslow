@@ -47,6 +47,7 @@ maslow init                      # Add a starter maslow.yaml to an existing proj
 maslow validate <file>           # Validate a maslow.yaml against the schema
 maslow verify --profile <name>   # Run verification and write evidence
 maslow audit --profile <name>    # Run a black-box audit against built artifacts
+maslow evidence check <file> --head <sha> --spec <file>  # Decide whether evidence approves a change
 maslow version                   # Print version info
 ```
 
@@ -84,6 +85,20 @@ maslow version                   # Print version info
 The verdict is `fail`, `needs_review`, `inconclusive` or `pass`, in that order of precedence. `needs_review` means everything passed but the change touched a `gated` path, and names its owner. It exits 0 unless `--strict` is passed.
 
 Results are written to `reports/verify.json` (or `--report <path>`) as structured evidence. `schema/evidence.schema.json` describes the format. `maslow audit` writes `reports/audit.json`; an `endpoint` audit target runs the contracts it selects against a deployed base URL, resolving step URLs that start with `/`, so the same scenarios work as a post-deploy smoke test.
+
+## Checking Evidence
+
+A merge gate should not trust an evidence file just because it says `pass`. `maslow evidence check` compares it with what the gate knows independently and answers `pass`, `needs_review` or `decline` (ADR 0033):
+
+```bash
+maslow evidence check reports/verify.json \
+  --head "$(git rev-parse HEAD)" \
+  --spec trusted/maslow.yaml \
+  --profile full \
+  --overlay trusted/acceptance.yaml   # or --overlay-sha256 <hex>; repeatable
+```
+
+It declines when `evidence_version` is unknown, `git_sha` is not `--head`, `spec_sha256` is not the hash of `--spec`, the run's `overlays` are not exactly the trusted ones, `profile` differs from `--profile` (when given), the verdict is `fail`, `inconclusive` or anything else unknown, or the file cannot be read. With every input matching, a `needs_review` verdict gives `needs_review` and a `pass` verdict gives `pass`. Every reason is printed; `--json` prints the decision and reasons as `{"evidence", "decision", "reasons": [{"field", "message"}]}`. It exits 0 on `pass`, 1 on `needs_review` or `decline`, and 2 on a usage error such as a missing flag or an unreadable trusted file.
 
 ## In CI
 
