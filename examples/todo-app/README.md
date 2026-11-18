@@ -10,20 +10,17 @@ This example demonstrates how to use Maslow to define, build, and verify a web-b
 
 ## Quick Start
 
-### 1. Scaffold a new project
+### 1. Build Maslow
 
 ```bash
-# From the maslow repo root, build the maslow binary
+# From the maslow repo root
 go build -o bin/maslow ./cmd/maslow/
-
-# Scaffold a new project in a directory of your choice
-./bin/maslow scaffold todo-app --dir /path/to/your/todo-app --description "A simple web-based TODO application"
 ```
 
 ### 2. Copy the example spec
 
 ```bash
-# Copy the maslow.yaml from this example into your new project
+mkdir -p /path/to/your/todo-app
 cp examples/todo-app/maslow.yaml /path/to/your/todo-app/maslow.yaml
 ```
 

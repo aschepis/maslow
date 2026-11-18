@@ -1,5 +1,7 @@
 # ADR 0015: Scaffold Post-Creation Workflow
 
+- **Status**: Superseded by ADR 0016
+
 ## Context
 
 The scaffold command's "Next steps" output originally directed users to "edit maslow.yaml" and "run maslow validate" — generic instructions that didn't teach the intended workflow. Users (especially agents) need to understand that refs are the steering mechanism and tasks are the execution mechanism.

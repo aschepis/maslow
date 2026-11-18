@@ -1,15 +1,12 @@
-// Maslow CLI — executable specification system for agent-built software.
+// Maslow CLI — verifies a repository against a declarative spec and writes evidence.
 package main
 
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/aschepis/maslow/internal/audit"
 	"github.com/aschepis/maslow/internal/evidence"
-	"github.com/aschepis/maslow/internal/harness"
-	"github.com/aschepis/maslow/internal/scaffold"
 	"github.com/aschepis/maslow/internal/schema"
 	"github.com/aschepis/maslow/internal/spec"
 	"github.com/aschepis/maslow/internal/verify"
@@ -34,10 +31,6 @@ func main() {
 		os.Exit(cmdVerify(os.Args[2:]))
 	case "audit":
 		os.Exit(cmdAudit(os.Args[2:]))
-	case "scaffold":
-		os.Exit(cmdScaffold(os.Args[2:]))
-	case "harness":
-		os.Exit(cmdHarness(os.Args[2:]))
 	case "init":
 		os.Exit(cmdInit(os.Args[2:]))
 	case "version":
@@ -59,9 +52,7 @@ Commands:
   validate <file>              Validate a maslow.yaml against the CUE schema
   verify   --profile <name>    Run verification checks
   audit    --profile <name>    Run black-box audit
-  scaffold <name> [options]    Scaffold a new Maslow-managed project with agentic harness
-  harness  <subcommand>        Manage the agentic harness (install, update, detach)
-  init     [--apply]           Initialize or scaffold maslow.yaml in current directory
+  init     [--apply]           Add a starter maslow.yaml to the current directory
   version                      Print version information`)
 }
 
@@ -228,200 +219,6 @@ func cmdAudit(args []string) int {
 		return 1
 	}
 	return 0
-}
-
-func cmdScaffold(args []string) int {
-	var name, dir, description string
-
-	i := 0
-	for i < len(args) {
-		switch args[i] {
-		case "--dir":
-			if i+1 >= len(args) {
-				fmt.Fprintln(os.Stderr, "maslow scaffold: --dir requires a value")
-				return 2
-			}
-			i++
-			dir = args[i]
-		case "--description":
-			if i+1 >= len(args) {
-				fmt.Fprintln(os.Stderr, "maslow scaffold: --description requires a value")
-				return 2
-			}
-			i++
-			description = args[i]
-		default:
-			if name == "" && !isFlag(args[i]) {
-				name = args[i]
-			} else {
-				fmt.Fprintf(os.Stderr, "maslow scaffold: unknown option %q\n", args[i])
-				fmt.Fprintln(os.Stderr, "Usage: maslow scaffold <name> [--dir <path>] [--description <text>]")
-				return 2
-			}
-		}
-		i++
-	}
-
-	if name == "" {
-		fmt.Fprintln(os.Stderr, "maslow scaffold: missing project name")
-		fmt.Fprintln(os.Stderr, "Usage: maslow scaffold <name> [--dir <path>] [--description <text>]")
-		return 2
-	}
-
-	opts := scaffold.Options{
-		ProjectName: name,
-		Dir:         dir,
-		Description: description,
-	}
-
-	// Detect toolchain in the target directory if it already exists.
-	targetDir := dir
-	if targetDir == "" {
-		targetDir = name
-	}
-	if info, err := os.Stat(targetDir); err == nil && info.IsDir() {
-		opts.Toolchain = detectToolchainManagerIn(targetDir)
-		if opts.Toolchain != "" {
-			fmt.Printf("maslow scaffold: detected toolchain manager: %s\n", opts.Toolchain)
-		}
-	}
-
-	if err := scaffold.Run(opts); err != nil {
-		fmt.Fprintf(os.Stderr, "maslow scaffold: %v\n", err)
-		return 1
-	}
-
-	fmt.Printf("maslow scaffold: created project %q in %s/\n", name, targetDir)
-	fmt.Println("maslow scaffold: files created:")
-	fmt.Println("  maslow.yaml    — project spec")
-	fmt.Println("  CLAUDE.md      — agentic harness guide")
-	fmt.Println("  docs/MAP.md    — architecture map")
-	fmt.Println("  docs/PLAN.md   — execution plan")
-	fmt.Println("  docs/adr/      — architecture decision records")
-	fmt.Println("  docs/templates/— decision templates")
-	fmt.Println("  docs/tasks/    — task queue for agents")
-	fmt.Println("  .gitignore     — git ignore rules")
-	fmt.Println()
-	fmt.Println("Next steps:")
-	fmt.Printf("  cd %s\n", targetDir)
-	fmt.Println("  git init && git add -A && git commit -m 'initial scaffold'")
-	fmt.Println()
-	fmt.Println("  # 1. Write your intent as a doc and add it as a ref:")
-	fmt.Println("  #    Create docs/REQUIREMENTS.md with your vision and constraints")
-	fmt.Println("  #    Add a ref in maslow.yaml pointing to it")
-	fmt.Println()
-	fmt.Println("  # 2. Edit maslow.yaml: project name, description, policy, refs")
-	fmt.Println()
-	fmt.Println("  # 3. Write your first task:")
-	fmt.Println("  #    Create docs/tasks/00001_YOUR_FIRST_TASK.md with status: todo")
-	fmt.Println()
-	fmt.Println("  # 4. Tell your agent: 'Read CLAUDE.md and implement the next task'")
-	return 0
-}
-
-func cmdHarness(args []string) int {
-	if len(args) == 0 {
-		printHarnessUsage()
-		return 2
-	}
-
-	switch args[0] {
-	case "install":
-		return cmdHarnessInstall(args[1:])
-	case "update":
-		return cmdHarnessUpdate(args[1:])
-	case "detach":
-		return cmdHarnessDetach(args[1:])
-	case "help", "--help", "-h":
-		printHarnessUsage()
-		return 0
-	default:
-		fmt.Fprintf(os.Stderr, "maslow harness: unknown subcommand %q\n", args[0])
-		printHarnessUsage()
-		return 2
-	}
-}
-
-func printHarnessUsage() {
-	fmt.Fprintln(os.Stderr, `Usage: maslow harness <subcommand> [options]
-
-Subcommands:
-  install    Install the agentic harness into a project
-  update     Update harness files to the latest version
-  detach     Detach the harness to prevent future updates
-
-Options:
-  --dir <path>    Target directory (default: current directory)
-  --force         Overwrite existing files without prompting
-  --dry-run       Show what would happen without writing anything`)
-}
-
-func parseHarnessFlags(args []string) harness.Options {
-	var opts harness.Options
-	for i := 0; i < len(args); i++ {
-		switch args[i] {
-		case "--dir":
-			if i+1 < len(args) {
-				i++
-				opts.Dir = args[i]
-			}
-		case "--force":
-			opts.Force = true
-		case "--dry-run":
-			opts.DryRun = true
-		}
-	}
-	opts.Stdin = os.Stdin
-	opts.Stdout = os.Stdout
-	return opts
-}
-
-func cmdHarnessInstall(args []string) int {
-	opts := parseHarnessFlags(args)
-	if err := harness.Install(opts); err != nil {
-		fmt.Fprintf(os.Stderr, "maslow: %v\n", err)
-		return 1
-	}
-	return 0
-}
-
-func cmdHarnessUpdate(args []string) int {
-	opts := parseHarnessFlags(args)
-	if err := harness.Update(opts); err != nil {
-		fmt.Fprintf(os.Stderr, "maslow: %v\n", err)
-		return 1
-	}
-	return 0
-}
-
-func cmdHarnessDetach(args []string) int {
-	opts := parseHarnessFlags(args)
-	if err := harness.Detach(opts); err != nil {
-		fmt.Fprintf(os.Stderr, "maslow: %v\n", err)
-		return 1
-	}
-	return 0
-}
-
-func isFlag(s string) bool {
-	return len(s) > 0 && s[0] == '-'
-}
-
-func detectToolchainManagerIn(dir string) string {
-	check := func(name string) bool {
-		_, err := os.Stat(filepath.Join(dir, name))
-		return err == nil
-	}
-	if check(".mise.toml") || check(".mise") {
-		return "mise"
-	}
-	if check(".tool-versions") {
-		return "asdf"
-	}
-	if check("flake.nix") || check("shell.nix") {
-		return "nix"
-	}
-	return ""
 }
 
 func cmdInit(args []string) int {
