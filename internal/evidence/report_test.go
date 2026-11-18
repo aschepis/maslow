@@ -52,6 +52,56 @@ func TestComputeVerdict_Empty(t *testing.T) {
 	}
 }
 
+func TestComputeVerdict_FailuresOutsideChecks(t *testing.T) {
+	cases := map[string]func(r *Report){
+		"contract fail":  func(r *Report) { r.Contracts = []ContractResult{{Name: "c", Status: "fail"}} },
+		"contract error": func(r *Report) { r.Contracts = []ContractResult{{Name: "c", Status: "error"}} },
+		"budget fail":    func(r *Report) { r.Budgets = []BudgetResult{{Name: "b", Status: "fail"}} },
+		"budget error":   func(r *Report) { r.Budgets = []BudgetResult{{Name: "b", Status: "error"}} },
+		"ref fail":       func(r *Report) { r.Refs = []RefResult{{Path: "p", Status: "fail"}} },
+		"policy fail":    func(r *Report) { r.Policy = []PolicyResult{{Rule: "p", Status: "fail"}} },
+	}
+	for name, setup := range cases {
+		t.Run(name+" without checks", func(t *testing.T) {
+			r := NewReport("full")
+			setup(r)
+			r.ComputeVerdict()
+			if r.Verdict != "fail" {
+				t.Errorf("expected fail, got %s", r.Verdict)
+			}
+		})
+		t.Run(name+" with passing checks", func(t *testing.T) {
+			r := NewReport("full")
+			r.CheckResults = []CheckResult{{Name: "ok", Status: "pass"}}
+			setup(r)
+			r.ComputeVerdict()
+			if r.Verdict != "fail" {
+				t.Errorf("expected fail, got %s", r.Verdict)
+			}
+		})
+	}
+}
+
+func TestComputeVerdict_PassWithoutChecks(t *testing.T) {
+	r := NewReport("full")
+	r.Policy = []PolicyResult{{Rule: "p", Status: "pass"}}
+	r.ComputeVerdict()
+	if r.Verdict != "pass" {
+		t.Errorf("expected pass when policy ran and passed, got %s", r.Verdict)
+	}
+}
+
+func TestComputeVerdict_OnlySkipsIsInconclusive(t *testing.T) {
+	r := NewReport("full")
+	r.CheckResults = []CheckResult{{Name: "c", Status: "skip"}}
+	r.Budgets = []BudgetResult{{Name: "b", Status: "skip"}}
+	r.Policy = []PolicyResult{{Rule: "g", Status: "skip"}}
+	r.ComputeVerdict()
+	if r.Verdict != "inconclusive" {
+		t.Errorf("expected inconclusive when nothing ran, got %s", r.Verdict)
+	}
+}
+
 func TestReport_Write(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "reports", "verify.json")

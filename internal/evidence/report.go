@@ -61,11 +61,12 @@ type RefResult struct {
 
 // PolicyResult records the outcome of a policy rule check.
 type PolicyResult struct {
-	Rule   string `json:"rule"`
-	Kind   string `json:"kind"` // deny, protected, gated
-	Status string `json:"status"`
-	Detail string `json:"detail,omitempty"`
-	Error  string `json:"error,omitempty"`
+	Rule   string   `json:"rule"`
+	Kind   string   `json:"kind"` // deny, protected, gated
+	Status string   `json:"status"`
+	Detail string   `json:"detail,omitempty"`
+	Files  []string `json:"files,omitempty"`
+	Error  string   `json:"error,omitempty"`
 }
 
 // NewReport creates a report with timestamp and git SHA.
@@ -78,45 +79,47 @@ func NewReport(profile string) *Report {
 	}
 }
 
-// ComputeVerdict sets the verdict based on check results.
+// ComputeVerdict sets the verdict from every section of the report.
+// Any fail or error gives "fail"; "inconclusive" means nothing ran at all.
 func (r *Report) ComputeVerdict() {
-	if len(r.CheckResults) == 0 {
-		r.Verdict = "inconclusive"
-		return
-	}
+	statuses := r.allStatuses()
 
-	for _, c := range r.CheckResults {
-		if c.Status == "fail" || c.Status == "error" {
+	ran := false
+	for _, s := range statuses {
+		switch s {
+		case "fail", "error":
 			r.Verdict = "fail"
 			return
+		case "pass":
+			ran = true
 		}
+	}
+
+	if ran {
+		r.Verdict = "pass"
+	} else {
+		r.Verdict = "inconclusive"
+	}
+}
+
+func (r *Report) allStatuses() []string {
+	var statuses []string
+	for _, c := range r.CheckResults {
+		statuses = append(statuses, c.Status)
 	}
 	for _, c := range r.Contracts {
-		if c.Status == "fail" {
-			r.Verdict = "fail"
-			return
-		}
+		statuses = append(statuses, c.Status)
 	}
 	for _, b := range r.Budgets {
-		if b.Status == "fail" {
-			r.Verdict = "fail"
-			return
-		}
+		statuses = append(statuses, b.Status)
 	}
 	for _, ref := range r.Refs {
-		if ref.Status == "fail" || ref.Status == "error" {
-			r.Verdict = "fail"
-			return
-		}
+		statuses = append(statuses, ref.Status)
 	}
 	for _, p := range r.Policy {
-		if p.Status == "fail" || p.Status == "error" {
-			r.Verdict = "fail"
-			return
-		}
+		statuses = append(statuses, p.Status)
 	}
-
-	r.Verdict = "pass"
+	return statuses
 }
 
 // Write emits the report as JSON to the given path.
