@@ -1,7 +1,7 @@
 ---
 id: 33
 title: Prove overlay contracts fail on the base and pass on the head
-status: in_progress
+status: done
 priority: high
 created: 2026-11-18
 updated: 2026-11-18
@@ -28,10 +28,10 @@ vague acceptance step, producing a hollow pass.
 
 ## Acceptance Criteria
 
-- [ ] Tests: a contract red on base and green on head passes; green on both is flagged; red on
+- [x] Tests: a contract red on base and green on head passes; green on both is flagged; red on
       both fails as today.
-- [ ] Evidence schema updated with the base run.
-- [ ] ADR records how the base tree is prepared (worktree, build steps) and the status chosen.
+- [x] Evidence schema updated with the base run.
+- [x] ADR records how the base tree is prepared (worktree, build steps) and the status chosen.
 
 ## Notes
 
