@@ -1,6 +1,7 @@
 // Package gitrepo answers the questions Maslow asks of a git repository:
 // which files exist, which changed, and what a file looked like at a commit.
-// Every function takes the repository directory; "" means the current one.
+// Every function takes a directory inside the repository; "" means the
+// current one. File lists always hold repository-root-relative paths.
 package gitrepo
 
 import (
@@ -31,7 +32,7 @@ func MergeBase(dir, ref string) (string, error) {
 
 // CandidateFiles lists tracked files plus untracked files that are not ignored.
 func CandidateFiles(dir string) ([]string, error) {
-	out, err := run(dir, "ls-files", "-z", "--cached", "--others", "--exclude-standard")
+	out, err := runAtRoot(dir, "ls-files", "-z", "--cached", "--others", "--exclude-standard")
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +42,7 @@ func CandidateFiles(dir string) ([]string, error) {
 // WorkingTreeChanges lists files with staged, unstaged or untracked changes
 // relative to HEAD, excluding ignored files.
 func WorkingTreeChanges(dir string) ([]string, error) {
-	out, err := run(dir, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames")
+	out, err := runAtRoot(dir, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames")
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +59,7 @@ func WorkingTreeChanges(dir string) ([]string, error) {
 // ChangedSince lists files that differ between base and the working tree:
 // committed changes since base plus anything uncommitted or untracked.
 func ChangedSince(dir, base string) ([]string, error) {
-	out, err := run(dir, "diff", "--name-only", "-z", "--no-renames", base, "HEAD")
+	out, err := runAtRoot(dir, "diff", "--name-only", "-z", "--no-renames", base, "HEAD")
 	if err != nil {
 		return nil, err
 	}
@@ -74,6 +75,26 @@ func ChangedSince(dir, base string) ([]string, error) {
 // Show returns the content of path at commit.
 func Show(dir, commit, path string) ([]byte, error) {
 	return run(dir, "show", commit+":"+path)
+}
+
+// Prefix returns dir's path below the repository root, with a trailing
+// slash, or "" at the root.
+func Prefix(dir string) (string, error) {
+	out, err := run(dir, "rev-parse", "--show-prefix")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// runAtRoot runs git from the repository root, so listings cover the whole
+// repository and use root-relative paths wherever dir is.
+func runAtRoot(dir string, args ...string) ([]byte, error) {
+	out, err := run(dir, "rev-parse", "--show-toplevel")
+	if err != nil {
+		return nil, err
+	}
+	return run(strings.TrimSpace(string(out)), args...)
 }
 
 func run(dir string, args ...string) ([]byte, error) {
