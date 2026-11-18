@@ -20,7 +20,7 @@ for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
   mkdir -p "${stage}"
   CGO_ENABLED=0 GOOS="${os}" GOARCH="${arch}" \
     go build -trimpath -ldflags "${ldflags}" -o "${stage}/maslow" ./cmd/maslow
-  cp README.md "${stage}/"
+  cp LICENSE README.md "${stage}/"
   tar -C dist -czf "dist/${name}.tar.gz" "${name}"
   rm -rf "${stage}"
 done
