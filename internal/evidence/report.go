@@ -61,11 +61,12 @@ type RefResult struct {
 
 // PolicyResult records the outcome of a policy rule check.
 type PolicyResult struct {
-	Rule   string `json:"rule"`
-	Kind   string `json:"kind"` // deny, protected, gated
-	Status string `json:"status"`
-	Detail string `json:"detail,omitempty"`
-	Error  string `json:"error,omitempty"`
+	Rule   string   `json:"rule"`
+	Kind   string   `json:"kind"` // deny, protected, gated
+	Status string   `json:"status"`
+	Detail string   `json:"detail,omitempty"`
+	Files  []string `json:"files,omitempty"`
+	Error  string   `json:"error,omitempty"`
 }
 
 // NewReport creates a report with timestamp and git SHA.
