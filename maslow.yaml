@@ -212,6 +212,18 @@ contracts:
             expect:
               exit_code: 2
 
+      - name: unknown-profile
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - verify
+              - --profile
+              - no-such-profile
+          - action: assert
+            expect:
+              exit_code: 2
+              body_contains: "not found"
       - name: base-requires-ref
         steps:
           - action: cli

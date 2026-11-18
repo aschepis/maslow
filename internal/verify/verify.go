@@ -81,13 +81,16 @@ func Run(mas *spec.MAS, opts Options) (*evidence.Report, error) {
 		report.Refs = runner.RunRefs(mas.Refs)
 	}
 
-	if enabled(profile.Policy) {
-		report.Policy = runner.RunPolicy(mas.Policy, runner.PolicyScope{
-			BaseSHA:      opts.BaseSHA,
-			SpecPath:     opts.SpecPath,
-			SpecFromBase: opts.SpecFromBase,
-		})
+	// policy: false turns off the spec's rules, never the spec-change check.
+	rules := mas.Policy
+	if !enabled(profile.Policy) {
+		rules = nil
 	}
+	report.Policy = runner.RunPolicy(rules, runner.PolicyScope{
+		BaseSHA:      opts.BaseSHA,
+		SpecPath:     opts.SpecPath,
+		SpecFromBase: opts.SpecFromBase,
+	})
 
 	report.ComputeVerdict()
 	return report, nil
