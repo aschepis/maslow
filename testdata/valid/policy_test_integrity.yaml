@@ -1,0 +1,25 @@
+mas: "1.0"
+project:
+  name: policy-test-integrity
+policy:
+  shrink_only:
+    - config/authz_baseline.txt
+  test_integrity:
+    languages:
+      go: {}
+      python:
+        skips:
+          - '@pytest\.mark\.skip\b'
+      elixir:
+        files:
+          - "test/**/*_test.exs"
+        tests:
+          - '^\s*test\s+"[^"]*"'
+        skips:
+          - "@tag :skip"
+    thresholds:
+      - coverage.yml
+  observe:
+    shrink_only:
+      - docs/allowlist.txt
+    test_integrity: {}

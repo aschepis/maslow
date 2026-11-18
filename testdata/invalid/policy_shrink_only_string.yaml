@@ -1,0 +1,5 @@
+mas: "1.0"
+project:
+  name: policy-shrink-only-string
+policy:
+  shrink_only: config/authz_baseline.txt

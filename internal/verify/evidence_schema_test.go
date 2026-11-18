@@ -62,10 +62,12 @@ func TestEvidenceMatchesSchema(t *testing.T) {
 	mas.Budgets = []spec.Budget{{Name: "size", Kind: "artifact_size", Target: "maslow.yaml", Max: "1MB"}}
 	mas.Refs = []spec.Ref{{Kind: "file", Path: "maslow.yaml", Required: true}}
 	mas.Policy = &spec.Policy{
-		Deny:      []string{"**/.env"},
-		Protected: []string{"locked.txt"},
-		Gated:     []spec.GatedDir{{Path: "infra/**", Owner: "ops"}},
-		Observe:   &spec.Policy{Protected: []string{"locked.txt"}, Gated: []spec.GatedDir{{Path: "*.txt", Owner: "ops"}}},
+		Deny:          []string{"**/.env"},
+		Protected:     []string{"locked.txt"},
+		Gated:         []spec.GatedDir{{Path: "infra/**", Owner: "ops"}},
+		ShrinkOnly:    []string{"locked.txt"},
+		TestIntegrity: &spec.TestIntegrity{Thresholds: []string{"*.txt"}},
+		Observe:       &spec.Policy{Protected: []string{"locked.txt"}, Gated: []spec.GatedDir{{Path: "*.txt", Owner: "ops"}}},
 	}
 
 	head := strings.TrimSpace(gitOut(t, dir, "rev-parse", "HEAD"))

@@ -100,11 +100,19 @@ func Prefix(dir string) (string, error) {
 // runAtRoot runs git from the repository root, so listings cover the whole
 // repository and use root-relative paths wherever dir is.
 func runAtRoot(dir string, args ...string) ([]byte, error) {
-	out, err := run(dir, "rev-parse", "--show-toplevel")
+	root, err := toplevel(dir)
 	if err != nil {
 		return nil, err
 	}
-	return run(strings.TrimSpace(string(out)), args...)
+	return run(root, args...)
+}
+
+func toplevel(dir string) (string, error) {
+	out, err := run(dir, "rev-parse", "--show-toplevel")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
 }
 
 func run(dir string, args ...string) ([]byte, error) {

@@ -63,9 +63,28 @@ type Policy struct {
 	Allow     []string   `yaml:"allow,omitempty"`
 	Protected []string   `yaml:"protected,omitempty"`
 	Gated     []GatedDir `yaml:"gated,omitempty"`
+	// ShrinkOnly files may lose lines in a change but never gain any.
+	ShrinkOnly    []string       `yaml:"shrink_only,omitempty"`
+	TestIntegrity *TestIntegrity `yaml:"test_integrity,omitempty"`
 	// Observe holds rules reported without enforcing them; the schema forbids
 	// an observe block inside another.
 	Observe *Policy `yaml:"observe,omitempty"`
+}
+
+// TestIntegrity flags changes that weaken tests. With no Languages, every
+// built-in language applies with its defaults.
+type TestIntegrity struct {
+	Languages map[string]TestLanguage `yaml:"languages,omitempty"`
+	// Thresholds are files whose numbers are floors, such as coverage minimums.
+	Thresholds []string `yaml:"thresholds,omitempty"`
+}
+
+// TestLanguage says which files hold tests and how to spot a test
+// declaration and a skip marker. Tests and Skips are RE2 expressions.
+type TestLanguage struct {
+	Files []string `yaml:"files,omitempty"`
+	Tests []string `yaml:"tests,omitempty"`
+	Skips []string `yaml:"skips,omitempty"`
 }
 
 type GatedDir struct {

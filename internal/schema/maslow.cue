@@ -104,6 +104,32 @@ package maslow
 	protected?: [...string]
 	// Paths a change may touch only with review by their owner.
 	gated?: [...#GatedDir]
+	// Files a change may remove lines from but never add lines to.
+	shrink_only?: [...string]
+	// Asks for review when a change deletes tests, adds skips or lowers thresholds.
+	test_integrity?: #TestIntegrity
+}
+
+#TestIntegrity: {
+	// Unset means every built-in language with its defaults. A listed built-in
+	// fills unset fields from its defaults; any other language must give files.
+	languages?: {
+		[#BuiltinTestLanguage]: #TestLanguage
+		[!~"^(go|ruby|javascript|python)$"]: #TestLanguage & {files!: [string, ...string]}
+	}
+	// Files whose numbers are floors, such as coverage minimums.
+	thresholds?: [...string]
+}
+
+#BuiltinTestLanguage: "go" | "ruby" | "javascript" | "python"
+
+#TestLanguage: {
+	// Path patterns of test files.
+	files?: [...string]
+	// RE2 expressions matching a test declaration; the matched text names the test.
+	tests?: [...string]
+	// RE2 expressions matching a skip marker.
+	skips?: [...string]
 }
 
 #GatedDir: {

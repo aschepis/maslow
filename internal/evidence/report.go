@@ -118,15 +118,17 @@ const ModeObserve = "observe"
 // PolicyResult records the outcome of a policy rule check.
 type PolicyResult struct {
 	Rule string `json:"rule"`
-	Kind string `json:"kind"` // deny, allow, protected, gated, spec
+	Kind string `json:"kind"` // deny, allow, protected, gated, spec, shrink_only, test_integrity
 	// Mode "observe" marks a rule that is reported but not enforced; its
 	// non-pass statuses are prefixed "would_".
 	Mode   string   `json:"mode,omitempty"`
 	Status string   `json:"status"`
 	Detail string   `json:"detail,omitempty"`
 	Files  []string `json:"files,omitempty"`
-	Owner  string   `json:"owner,omitempty"` // who reviews a gated change
-	Error  string   `json:"error,omitempty"`
+	// Lines are the "path:line: text" entries a line-level rule flagged.
+	Lines []string `json:"lines,omitempty"`
+	Owner string   `json:"owner,omitempty"` // who reviews a gated change
+	Error string   `json:"error,omitempty"`
 }
 
 // NewReport creates a report stamped with the format version, the Maslow

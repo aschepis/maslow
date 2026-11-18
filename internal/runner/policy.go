@@ -84,6 +84,8 @@ func runRules(policy *spec.Policy, scope PolicyScope) []evidence.PolicyResult {
 		}
 	}
 
+	results = append(results, runLineRules(policy, scope)...)
+
 	if len(policy.Protected) == 0 && len(policy.Gated) == 0 && len(policy.Allow) == 0 {
 		return results
 	}

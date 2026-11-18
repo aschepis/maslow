@@ -378,6 +378,9 @@ func printReport(report *evidence.Report, path string) {
 		if p.Detail != "" {
 			fmt.Printf("         detail: %s\n", p.Detail)
 		}
+		for _, line := range p.Lines {
+			fmt.Printf("         line: %s\n", line)
+		}
 		if p.Error != "" {
 			fmt.Printf("         error: %s\n", p.Error)
 		}

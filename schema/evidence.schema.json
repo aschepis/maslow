@@ -125,11 +125,12 @@
       "required": ["rule", "kind", "status"],
       "properties": {
         "rule": { "type": "string" },
-        "kind": { "enum": ["deny", "protected", "gated", "allow", "spec"] },
+        "kind": { "enum": ["deny", "protected", "gated", "allow", "spec", "shrink_only", "test_integrity"] },
         "mode": { "enum": ["observe"] },
         "status": { "$ref": "#/$defs/policyStatus" },
         "detail": { "type": "string" },
         "files": { "type": "array", "items": { "type": "string" } },
+        "lines": { "type": "array", "items": { "type": "string" }, "description": "path:line: text entries flagged by a line-level rule" },
         "owner": { "type": "string" },
         "error": { "type": "string" }
       }
