@@ -2,6 +2,7 @@ package verify
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -112,6 +113,22 @@ func TestEvidenceMatchesSchema(t *testing.T) {
 			t.Errorf("expected the schema to reject evidence with %s", name)
 		}
 	}
+}
+
+func TestSpecLoadFailureMatchesSchema(t *testing.T) {
+	report := SpecLoadFailure(Options{Profile: "ci", SpecPath: "maslow.yaml", BaseSHA: "abc"}, errors.New("maslow.yaml at abc is invalid"))
+	if report.Verdict != "fail" {
+		t.Errorf("expected fail, got %s", report.Verdict)
+	}
+	path := filepath.Join(t.TempDir(), "verify.json")
+	if err := report.Write(path); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	validateAgainstSchema(t, data)
 }
 
 func TestEvidenceSchemaRejectsUnknownFields(t *testing.T) {

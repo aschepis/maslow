@@ -2,6 +2,7 @@
 package verify
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/aschepis/maslow/internal/evidence"
@@ -26,6 +27,40 @@ type Options struct {
 	SpecFromBase bool
 	// Overlays add contracts that run on every profile, beside those the profile selects.
 	Overlays []*spec.LoadedOverlay
+	// SpecAddedOnBranch records that SpecFromBase was asked for but the base
+	// had no spec, so the branch's own spec was used and needs review.
+	SpecAddedOnBranch bool
+}
+
+// ReadSpec loads the spec opts asks for. When the spec comes from the base
+// and the base has none, as on the change that adopts Maslow, it falls back
+// to the branch's spec and sets SpecAddedOnBranch instead of failing.
+func ReadSpec(opts *Options) (*spec.Loaded, error) {
+	if !opts.SpecFromBase {
+		return spec.Read(opts.SpecPath, "")
+	}
+	loaded, err := spec.Read(opts.SpecPath, opts.BaseSHA)
+	if !errors.Is(err, spec.ErrNotAtCommit) {
+		return loaded, err
+	}
+	opts.SpecFromBase = false
+	opts.SpecAddedOnBranch = true
+	return spec.Read(opts.SpecPath, "")
+}
+
+// SpecLoadFailure is the evidence for a run that could not load its spec from
+// the base, so a pipeline reading the report sees why instead of nothing.
+func SpecLoadFailure(opts Options, err error) *evidence.Report {
+	report := evidence.NewReport(evidence.Meta{
+		Command:    "verify",
+		Profile:    opts.Profile,
+		SpecPath:   opts.SpecPath,
+		SpecSource: "base",
+		BaseSHA:    opts.BaseSHA,
+	})
+	report.Policy = []evidence.PolicyResult{{Rule: opts.SpecPath, Kind: "spec", Status: "error", Error: err.Error()}}
+	report.ComputeVerdict()
+	return report
 }
 
 // ResolveBase returns the merge base of ref and HEAD.
@@ -99,9 +134,10 @@ func Run(mas *spec.MAS, opts Options) (*evidence.Report, error) {
 		rules = nil
 	}
 	report.Policy = runner.RunPolicy(rules, runner.PolicyScope{
-		BaseSHA:      opts.BaseSHA,
-		SpecPath:     opts.SpecPath,
-		SpecFromBase: opts.SpecFromBase,
+		BaseSHA:           opts.BaseSHA,
+		SpecPath:          opts.SpecPath,
+		SpecFromBase:      opts.SpecFromBase,
+		SpecAddedOnBranch: opts.SpecAddedOnBranch,
 	})
 
 	report.ComputeVerdict()

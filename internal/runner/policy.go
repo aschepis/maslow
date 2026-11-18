@@ -19,13 +19,25 @@ type PolicyScope struct {
 	// run verified against the base commit's spec.
 	SpecPath     string
 	SpecFromBase bool
+	// SpecAddedOnBranch reports that the base had no spec, so the branch's
+	// own spec was verified and a person must accept it.
+	SpecAddedOnBranch bool
 }
 
 // RunPolicy evaluates policy rules and returns results.
 func RunPolicy(policy *spec.Policy, scope PolicyScope) []evidence.PolicyResult {
 	var results []evidence.PolicyResult
 
-	if scope.SpecFromBase && scope.BaseSHA != "" {
+	switch {
+	case scope.SpecAddedOnBranch:
+		results = append(results, evidence.PolicyResult{
+			Rule:   scope.SpecPath,
+			Kind:   "spec",
+			Status: "needs_review",
+			Detail: fmt.Sprintf("%s does not exist at base %s; this run verified against the branch's own spec, and a person must accept it", scope.SpecPath, scope.BaseSHA),
+			Files:  []string{scope.SpecPath},
+		})
+	case scope.SpecFromBase && scope.BaseSHA != "":
 		results = append(results, checkSpecUnchanged(scope))
 	}
 

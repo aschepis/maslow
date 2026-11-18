@@ -137,14 +137,16 @@ func cmdVerify(args []string) int {
 		opts.BaseSHA = sha
 	}
 
-	specCommit := ""
-	if opts.SpecFromBase {
-		specCommit = opts.BaseSHA
-	}
-	loaded, err := spec.Read(*specPath, specCommit)
+	loaded, err := verify.ReadSpec(&opts)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "maslow verify: %v\n", err)
+		if opts.SpecFromBase {
+			return finish("verify", verify.SpecLoadFailure(opts, err), *reportPath, *outputLimit, *strict)
+		}
 		return 1
+	}
+	if opts.SpecAddedOnBranch {
+		fmt.Fprintf(os.Stderr, "maslow verify: %s is not in base %s; verifying against the branch's spec, which needs review\n", *specPath, opts.BaseSHA)
 	}
 	opts.SpecSHA256 = loaded.SHA256
 	if _, ok := loaded.MAS.Profiles[*profile]; !ok {

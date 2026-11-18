@@ -47,6 +47,9 @@ refs:
     path: action/action.yml
     description: Composite GitHub Action that installs a pinned release and runs maslow verify
   - kind: file
+    path: scripts/check-action-pins.sh
+    description: Fails when action/action.yml uses another action by anything but a commit SHA
+  - kind: file
     path: scripts/build-release.sh
     description: Builds release archives for linux and darwin on amd64 and arm64, plus checksums.txt
   - kind: binary
@@ -103,6 +106,12 @@ checks:
       timeout: 30s
       tags:
         - self-host
+    - name: action-pins
+      kind: script
+      run: "scripts/check-action-pins.sh action/action.yml"
+      timeout: 10s
+      tags:
+        - lint
 
 profiles:
   quick:
@@ -112,6 +121,7 @@ profiles:
       - go-vet
       - cue-vet
       - self-validate
+      - action-pins
     contracts:
       - smoke
     budgets: []
@@ -123,6 +133,7 @@ profiles:
       - go-vet
       - cue-vet
       - self-validate
+      - action-pins
 
 contracts:
   - name: validate-command

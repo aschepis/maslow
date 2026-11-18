@@ -28,7 +28,7 @@ jobs:
 | `profile` | `ci` | Profile to run |
 | `spec` | `maslow.yaml` | Spec path |
 | `base` | | Judge the change since the merge base with this ref or SHA |
-| `spec-from` | `head` | `base` verifies against the spec at the merge base, so a change cannot weaken its own checks |
+| `spec-from` | `head` | `base` verifies against the spec at the merge base, so a change cannot weaken its own checks. If the base has no spec, as on the change that adopts Maslow, the branch's spec is used and the verdict is at best `needs_review` |
 | `overlays` | | Overlay files of extra contracts, one path per line (`--overlay`) |
 | `report` | `$RUNNER_TEMP/maslow/verify.json` | Evidence file path |
 | `strict` | `false` | Also fail on `needs_review` |
