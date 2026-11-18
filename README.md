@@ -81,6 +81,22 @@ Grow the spec alongside the code rather than writing it all up front:
 | Add a dependency or config file | A ref for it |
 | Create a file that a change must not touch | A `policy.deny` or `policy.protected` entry |
 
+Contract templates read captured values as `{{.cap.NAME}}` and environment variables as `{{.env.NAME}}`. A contract can read only the variables listed in its `env`, and their values are redacted from the evidence:
+
+```yaml
+contracts:
+  - name: api
+    env: [API_BASE_URL, API_TOKEN]
+    scenarios:
+      - name: health
+        steps:
+          - action: http
+            method: GET
+            url: "{{.env.API_BASE_URL}}/healthz"
+            headers: { Authorization: "Bearer {{.env.API_TOKEN}}" }
+            expect: { status: 200 }
+```
+
 ## Development
 
 ```bash

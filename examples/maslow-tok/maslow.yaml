@@ -170,6 +170,8 @@ contracts:
   # Schema poll: url, interval, timeout, expect (no "until" with json matcher)
   - name: api-contract
     description: Basic API health and auth contract
+    env:
+      - API_BASE_URL
     scenarios:
       - name: health-check
         steps:

@@ -94,12 +94,14 @@ type Profile struct {
 }
 
 type Contract struct {
-	Name        string     `yaml:"name"`
-	Description string     `yaml:"description,omitempty"`
-	Tags        []string   `yaml:"tags,omitempty"`
-	Setup       []Step     `yaml:"setup,omitempty"`
-	Teardown    []Step     `yaml:"teardown,omitempty"`
-	Scenarios   []Scenario `yaml:"scenarios"`
+	Name        string   `yaml:"name"`
+	Description string   `yaml:"description,omitempty"`
+	Tags        []string `yaml:"tags,omitempty"`
+	// Env lists the environment variables templates may read as {{.env.NAME}}.
+	Env       []string   `yaml:"env,omitempty"`
+	Setup     []Step     `yaml:"setup,omitempty"`
+	Teardown  []Step     `yaml:"teardown,omitempty"`
+	Scenarios []Scenario `yaml:"scenarios"`
 }
 
 type Scenario struct {

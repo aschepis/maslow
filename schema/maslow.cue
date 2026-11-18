@@ -125,6 +125,8 @@ package maslow
 	name:        string
 	description?: string
 	tags?: [...string]
+	// Environment variables templates may read as {{.env.NAME}}; their values are redacted from evidence.
+	env?: [...=~"^[A-Za-z_][A-Za-z0-9_]*$"]
 	setup?: [...#Step]
 	teardown?: [...#Step]
 	scenarios: [...#Scenario]

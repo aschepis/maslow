@@ -134,6 +134,8 @@ profiles:
 contracts:
   - name: game-contracts
     description: Boot and basic gameplay contracts
+    env:
+      - GAME_BIN
     scenarios:
       - name: boot-to-title-screen
         steps:

@@ -465,6 +465,7 @@ func TestRunContracts_EnvVarSubstitution(t *testing.T) {
 	contracts := []spec.Contract{
 		{
 			Name: "env-var",
+			Env:  []string{"MASLOW_TEST_BASE_URL"},
 			Scenarios: []spec.Scenario{
 				{
 					Name: "uses-env-var",
@@ -514,6 +515,7 @@ func TestRunContracts_MixedEnvAndCapturedVars(t *testing.T) {
 	contracts := []spec.Contract{
 		{
 			Name: "mixed-vars",
+			Env:  []string{"MASLOW_TEST_API"},
 			Scenarios: []spec.Scenario{
 				{
 					Name: "env-and-capture",
@@ -1006,10 +1008,9 @@ func TestRunContracts_BackwardCompatSingleJSONPath(t *testing.T) {
 // --- Unit tests for template substitution ---
 
 func TestApplyTemplate_EnvVar(t *testing.T) {
-	os.Setenv("MASLOW_TEST_HOST", "localhost")
-	defer os.Unsetenv("MASLOW_TEST_HOST")
+	t.Setenv("MASLOW_TEST_HOST", "localhost")
 
-	got, err := applyTemplate("http://{{.env.MASLOW_TEST_HOST}}:8080/api", nil)
+	got, err := applyTemplate("http://{{.env.MASLOW_TEST_HOST}}:8080/api", newScope(allowedEnv([]string{"MASLOW_TEST_HOST"})))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1019,15 +1020,16 @@ func TestApplyTemplate_EnvVar(t *testing.T) {
 }
 
 func TestApplyTemplate_EnvVarMissing(t *testing.T) {
-	_, err := applyTemplate("http://{{.env.MASLOW_NONEXISTENT_VAR_12345}}/api", nil)
+	_, err := applyTemplate("http://{{.env.MASLOW_NONEXISTENT_VAR_12345}}/api", newScope(allowedEnv([]string{"MASLOW_NONEXISTENT_VAR_12345"})))
 	if err == nil {
 		t.Error("expected error for missing env var, got nil")
 	}
 }
 
 func TestApplyTemplate_CapturedVars(t *testing.T) {
-	vars := map[string]string{"token": "abc", "id": "42"}
-	got, err := applyTemplate("Bearer {{.cap.token}} for user {{.cap.id}}", vars)
+	sc := newScope(nil)
+	sc.vars = map[string]string{"token": "abc", "id": "42"}
+	got, err := applyTemplate("Bearer {{.cap.token}} for user {{.cap.id}}", sc)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1037,19 +1039,20 @@ func TestApplyTemplate_CapturedVars(t *testing.T) {
 }
 
 func TestApplyTemplate_CapturedVarMissing(t *testing.T) {
-	vars := map[string]string{"token": "abc"}
-	_, err := applyTemplate("{{.cap.token}} and {{.cap.missing}}", vars)
+	sc := newScope(nil)
+	sc.vars = map[string]string{"token": "abc"}
+	_, err := applyTemplate("{{.cap.token}} and {{.cap.missing}}", sc)
 	if err == nil {
 		t.Error("expected error for missing captured var, got nil")
 	}
 }
 
 func TestApplyTemplate_MixedEnvAndCaptured(t *testing.T) {
-	os.Setenv("MASLOW_TEST_ENV", "prod")
-	defer os.Unsetenv("MASLOW_TEST_ENV")
+	t.Setenv("MASLOW_TEST_ENV", "prod")
 
-	vars := map[string]string{"user": "alice"}
-	got, err := applyTemplate("{{.env.MASLOW_TEST_ENV}}/{{.cap.user}}", vars)
+	sc := newScope(allowedEnv([]string{"MASLOW_TEST_ENV"}))
+	sc.vars = map[string]string{"user": "alice"}
+	got, err := applyTemplate("{{.env.MASLOW_TEST_ENV}}/{{.cap.user}}", sc)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

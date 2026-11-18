@@ -113,7 +113,8 @@ A valid `maslow.yaml` defines:
 
 Check output keeps the last `--output-limit` bytes and records `output_truncated` when cut.
 A failing contract records its `failed_step` and that step's `output` under the same cap, and
-lists files matching the scenario's `artifacts` patterns (ADR 0025).
+lists files matching the scenario's `artifacts` patterns (ADR 0025). Values of the variables a
+contract allow-lists in `env` are redacted from its result (ADR 0026).
 
 ---
 

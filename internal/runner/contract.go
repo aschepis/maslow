@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -72,50 +71,62 @@ func stepTarget(step spec.Step) string {
 	return ""
 }
 
+// scope is what a step's templates can read.
+type scope struct {
+	// env holds only the environment variables the contract allow-lists.
+	env  map[string]string
+	vars map[string]string
+}
+
+func newScope(env map[string]string) *scope {
+	return &scope{env: env, vars: map[string]string{}}
+}
+
 // RunContracts executes all contract scenarios and returns results.
 func RunContracts(contracts []spec.Contract) []evidence.ContractResult {
 	var results []evidence.ContractResult
 	for _, contract := range contracts {
-		// Run contract-level setup once before all scenarios.
-		if len(contract.Setup) > 0 {
-			state := &stepState{}
-			vars := make(map[string]string)
-			if err := runSteps(phaseContractSetup, contract.Setup, state, vars); err != nil {
-				// Contract setup failed — mark all scenarios as failed, run teardown.
-				for _, scenario := range contract.Scenarios {
-					result := failedResult(fmt.Sprintf("%s/%s", contract.Name, scenario.Name), "contract setup failed: ", err)
-					attachArtifacts(&result, scenario.Artifacts)
-					results = append(results, result)
-				}
-				runStepsIgnoreError(contract.Teardown, state, vars)
-				continue
-			}
-		}
-
-		for _, scenario := range contract.Scenarios {
-			result := runScenario(contract.Name, scenario)
-			results = append(results, result)
-		}
-
-		// Run contract-level teardown once after all scenarios.
-		if len(contract.Teardown) > 0 {
-			state := &stepState{}
-			vars := make(map[string]string)
-			runStepsIgnoreError(contract.Teardown, state, vars)
+		env := allowedEnv(contract.Env)
+		for _, result := range runContract(contract, env) {
+			results = append(results, redact(result, env))
 		}
 	}
 	return results
 }
 
-func runScenario(contractName string, scenario spec.Scenario) evidence.ContractResult {
+func runContract(contract spec.Contract, env map[string]string) []evidence.ContractResult {
+	// Contract-level setup runs once before all scenarios.
+	if len(contract.Setup) > 0 {
+		state, sc := &stepState{}, newScope(env)
+		if err := runSteps(phaseContractSetup, contract.Setup, state, sc); err != nil {
+			var results []evidence.ContractResult
+			for _, scenario := range contract.Scenarios {
+				result := failedResult(fmt.Sprintf("%s/%s", contract.Name, scenario.Name), "contract setup failed: ", err)
+				attachArtifacts(&result, scenario.Artifacts)
+				results = append(results, result)
+			}
+			runStepsIgnoreError(contract.Teardown, state, sc)
+			return results
+		}
+	}
+
+	var results []evidence.ContractResult
+	for _, scenario := range contract.Scenarios {
+		results = append(results, runScenario(contract.Name, scenario, env))
+	}
+
+	runStepsIgnoreError(contract.Teardown, &stepState{}, newScope(env))
+	return results
+}
+
+func runScenario(contractName string, scenario spec.Scenario, env map[string]string) evidence.ContractResult {
 	name := fmt.Sprintf("%s/%s", contractName, scenario.Name)
-	state := &stepState{}
-	vars := make(map[string]string)
+	state, sc := &stepState{}, newScope(env)
 
 	var result evidence.ContractResult
-	if err := runSteps(phaseSetup, scenario.Setup, state, vars); err != nil {
+	if err := runSteps(phaseSetup, scenario.Setup, state, sc); err != nil {
 		result = failedResult(name, "setup failed: ", err)
-	} else if err := runSteps(phaseSteps, scenario.Steps, state, vars); err != nil {
+	} else if err := runSteps(phaseSteps, scenario.Steps, state, sc); err != nil {
 		result = failedResult(name, "", err)
 	} else {
 		result = evidence.ContractResult{Name: name, Status: "pass"}
@@ -123,7 +134,7 @@ func runScenario(contractName string, scenario spec.Scenario) evidence.ContractR
 
 	// Collected before teardown, which may clean the artifacts up.
 	attachArtifacts(&result, scenario.Artifacts)
-	runStepsIgnoreError(scenario.Teardown, state, vars)
+	runStepsIgnoreError(scenario.Teardown, state, sc)
 	return result
 }
 
@@ -137,25 +148,25 @@ func failedResult(name, prefix string, err error) evidence.ContractResult {
 }
 
 // runSteps executes a sequence of steps, returning a *stepFailure for the first one that fails.
-func runSteps(phase string, steps []spec.Step, state *stepState, vars map[string]string) error {
+func runSteps(phase string, steps []spec.Step, state *stepState, sc *scope) error {
 	for i, step := range steps {
-		if err := runStep(step, state, vars); err != nil {
-			return &stepFailure{phase: phase, index: i, step: substitutedOrRaw(step, vars), output: state.output, err: err}
+		if err := runStep(step, state, sc); err != nil {
+			return &stepFailure{phase: phase, index: i, step: substitutedOrRaw(step, sc), output: state.output, err: err}
 		}
 	}
 	return nil
 }
 
 // substitutedOrRaw shows the step as it ran, or as written if substitution failed.
-func substitutedOrRaw(step spec.Step, vars map[string]string) spec.Step {
-	if s, err := substituteStep(step, vars); err == nil {
+func substitutedOrRaw(step spec.Step, sc *scope) spec.Step {
+	if s, err := substituteStep(step, sc); err == nil {
 		return s
 	}
 	return step
 }
 
-func runStep(step spec.Step, state *stepState, vars map[string]string) error {
-	step, err := substituteStep(step, vars)
+func runStep(step spec.Step, state *stepState, sc *scope) error {
+	step, err := substituteStep(step, sc)
 	if err != nil {
 		return fmt.Errorf("variable substitution: %w", err)
 	}
@@ -208,7 +219,7 @@ func runStep(step spec.Step, state *stepState, vars map[string]string) error {
 		if step.As == "" {
 			return fmt.Errorf("capture step missing 'as' field")
 		}
-		vars[step.As] = val
+		sc.vars[step.As] = val
 
 	case "poll":
 		statusCode, headers, body, err := runPollStep(step)
@@ -227,8 +238,8 @@ func runStep(step spec.Step, state *stepState, vars map[string]string) error {
 }
 
 // runStepsIgnoreError runs steps but does not propagate errors (for teardown).
-func runStepsIgnoreError(steps []spec.Step, state *stepState, vars map[string]string) {
-	_ = runSteps("teardown", steps, state, vars)
+func runStepsIgnoreError(steps []spec.Step, state *stepState, sc *scope) {
+	_ = runSteps("teardown", steps, state, sc)
 }
 
 // captureValue extracts a value from the current step state based on the capture's "from" field.
@@ -296,22 +307,22 @@ func captureValue(step spec.Step, state *stepState) (string, error) {
 
 // substituteStep applies Go text/template substitution to all string fields in a step.
 // Use {{.env.NAME}} for environment variables and {{.cap.NAME}} for captured variables.
-func substituteStep(step spec.Step, vars map[string]string) (spec.Step, error) {
+func substituteStep(step spec.Step, sc *scope) (spec.Step, error) {
 	var err error
 
-	step.URL, err = applyTemplate(step.URL, vars)
+	step.URL, err = applyTemplate(step.URL, sc)
 	if err != nil {
 		return step, fmt.Errorf("url: %w", err)
 	}
-	step.Body, err = applyTemplate(step.Body, vars)
+	step.Body, err = applyTemplate(step.Body, sc)
 	if err != nil {
 		return step, fmt.Errorf("body: %w", err)
 	}
-	step.Command, err = applyTemplate(step.Command, vars)
+	step.Command, err = applyTemplate(step.Command, sc)
 	if err != nil {
 		return step, fmt.Errorf("command: %w", err)
 	}
-	step.Stdin, err = applyTemplate(step.Stdin, vars)
+	step.Stdin, err = applyTemplate(step.Stdin, sc)
 	if err != nil {
 		return step, fmt.Errorf("stdin: %w", err)
 	}
@@ -319,7 +330,7 @@ func substituteStep(step spec.Step, vars map[string]string) (spec.Step, error) {
 	if len(step.Headers) > 0 {
 		headers := make(map[string]string, len(step.Headers))
 		for k, v := range step.Headers {
-			headers[k], err = applyTemplate(v, vars)
+			headers[k], err = applyTemplate(v, sc)
 			if err != nil {
 				return step, fmt.Errorf("header %s: %w", k, err)
 			}
@@ -330,7 +341,7 @@ func substituteStep(step spec.Step, vars map[string]string) (spec.Step, error) {
 	if len(step.Args) > 0 {
 		args := make([]string, len(step.Args))
 		for i, a := range step.Args {
-			args[i], err = applyTemplate(a, vars)
+			args[i], err = applyTemplate(a, sc)
 			if err != nil {
 				return step, fmt.Errorf("arg[%d]: %w", i, err)
 			}
@@ -343,14 +354,14 @@ func substituteStep(step spec.Step, vars map[string]string) (spec.Step, error) {
 
 // applyTemplate applies Go text/template substitution to a string.
 // Returns the original string unchanged if it contains no template markers.
-func applyTemplate(s string, vars map[string]string) (string, error) {
+func applyTemplate(s string, sc *scope) (string, error) {
 	if s == "" || !strings.Contains(s, "{{") {
 		return s, nil
 	}
 
 	data := map[string]any{
-		"env": buildEnvMap(),
-		"cap": vars,
+		"env": sc.env,
+		"cap": sc.vars,
 	}
 
 	tmpl, err := template.New("").Option("missingkey=error").Parse(s)
@@ -360,21 +371,13 @@ func applyTemplate(s string, vars map[string]string) (string, error) {
 
 	var buf strings.Builder
 	if err := tmpl.Execute(&buf, data); err != nil {
+		if strings.Contains(err.Error(), ".env.") {
+			return "", fmt.Errorf("%w (a contract reads only the variables in its env list, and they must be set)", err)
+		}
 		return "", err
 	}
 
 	return buf.String(), nil
-}
-
-// buildEnvMap creates a map of all environment variables for template access.
-func buildEnvMap() map[string]string {
-	env := make(map[string]string)
-	for _, e := range os.Environ() {
-		if i := strings.IndexByte(e, '='); i >= 0 {
-			env[e[:i]] = e[i+1:]
-		}
-	}
-	return env
 }
 
 func runCLIStep(step spec.Step) (exitCode int, output string, err error) {
