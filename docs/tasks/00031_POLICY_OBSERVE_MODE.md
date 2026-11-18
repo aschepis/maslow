@@ -1,12 +1,12 @@
 ---
 id: 31
 title: Let a new policy rule observe before it enforces
-status: draft
+status: in_progress
 priority: low
 created: 2026-11-18
 updated: 2026-11-18
-assigned_to: ""
-assigned_at: ""
+assigned_to: "claude-workflow"
+assigned_at: "2026-11-18T20:21:44Z"
 depends_on: []
 tags: [kind:gap, policy, evidence]
 ---
