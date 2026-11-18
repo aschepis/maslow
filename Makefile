@@ -1,7 +1,12 @@
-.PHONY: build test vet lint validate verify clean
+.PHONY: build test vet lint validate verify release clean
+
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+COMMIT  ?= $(shell git rev-parse HEAD 2>/dev/null || echo unknown)
+PKG     := github.com/aschepis/maslow/internal/buildinfo
+LDFLAGS := -X $(PKG).version=$(VERSION) -X $(PKG).gitSHA=$(COMMIT)
 
 build:
-	go build -o bin/maslow ./cmd/maslow/
+	go build -ldflags "$(LDFLAGS)" -o bin/maslow ./cmd/maslow/
 
 test:
 	go test ./...
@@ -18,5 +23,8 @@ validate: build
 verify: build
 	bin/maslow verify --profile full
 
+release:
+	scripts/build-release.sh $(VERSION)
+
 clean:
-	rm -rf bin/ reports/
+	rm -rf bin/ dist/ reports/

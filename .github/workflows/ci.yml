@@ -40,8 +40,17 @@ jobs:
       - name: Check embedded schema matches schema/maslow.cue
         run: diff -u schema/maslow.cue internal/schema/maslow.cue
 
+      - name: Test
+        run: make test
+
+      - name: Lint
+        run: make lint
+
       - name: Verify (full profile)
         run: make verify
+
+      - name: Release build smoke test
+        run: scripts/build-release.sh "v0.0.0-ci"
 
       - name: Upload verify report
         if: always()

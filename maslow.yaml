@@ -40,6 +40,12 @@ refs:
   - kind: file
     path: .github/workflows/ci.yml
     description: GitHub Actions CI running hygiene checks and maslow verify --profile full
+  - kind: file
+    path: .github/workflows/release.yml
+    description: Tag-triggered release that publishes binaries and checksums
+  - kind: file
+    path: scripts/build-release.sh
+    description: Builds release archives for linux and darwin on amd64 and arm64, plus checksums.txt
   - kind: binary
     path: bin/maslow
     description: Built Maslow binary
