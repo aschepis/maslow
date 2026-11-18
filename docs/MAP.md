@@ -90,7 +90,7 @@ A valid `maslow.yaml` defines:
 - `contracts` - scenario-based behavioral contracts (HTTP and CLI calls)
 - `budgets` - performance, availability, artifact size, complexity limits
 - `checks` - named check definitions and runner configuration
-- `profiles` - named subsets of checks (`quick`, `full`, custom)
+- `profiles` - named subsets of checks, contracts and budgets (`quick`, `full`, custom); refs and policy run unless a profile turns them off
 - `audit` - black-box audit targets and configuration
 - `extensions` - domain overlays (web, game, cli, service)
 

@@ -84,6 +84,10 @@ profiles:
     checks:
       - go-build
       - go-vet
+    contracts:
+      - smoke
+    budgets: []
+    refs: false
   full:
     description: All checks
     checks:
@@ -94,6 +98,8 @@ profiles:
 
 contracts:
   - name: validate-command
+    tags:
+      - smoke
     scenarios:
       - name: valid-file-passes
         steps:

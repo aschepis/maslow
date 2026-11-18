@@ -103,6 +103,9 @@ profiles:
       - go-vet
       - cue-vet
       - self-validate
+    contracts:
+      - smoke
+    budgets: []
   full:
     description: All checks including tests
     checks:
@@ -115,6 +118,8 @@ profiles:
 contracts:
   - name: validate-command
     description: The validate command correctly validates MAS files
+    tags:
+      - smoke
     scenarios:
       - name: valid-file-passes
         steps:
@@ -187,6 +192,8 @@ contracts:
 
   - name: usage-errors
     description: Invalid usage produces exit code 2
+    tags:
+      - smoke
     scenarios:
       - name: unknown-command
         steps:

@@ -113,11 +113,18 @@ package maslow
 #Profile: {
 	description?: string
 	checks: [...string]
+	// Contract and budget names or tags to run. Omitted runs all; [] runs none.
+	contracts?: [...string]
+	budgets?: [...string]
+	// Refs and policy run on every profile unless turned off here.
+	refs?:   bool
+	policy?: bool
 }
 
 #Contract: {
 	name:        string
 	description?: string
+	tags?: [...string]
 	setup?: [...#Step]
 	teardown?: [...#Step]
 	scenarios: [...#Scenario]
@@ -200,6 +207,7 @@ package maslow
 #Budget: {
 	name: string
 	kind: "performance" | "availability" | "rate_limit" | "artifact_size" | "complexity"
+	tags?: [...string]
 
 	// Performance budget fields.
 	if kind == "performance" {

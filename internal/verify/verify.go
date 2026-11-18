@@ -50,30 +50,50 @@ func Run(mas *spec.MAS, opts Options) (*evidence.Report, error) {
 		BaseSHA:    opts.BaseSHA,
 	})
 
+	profile, ok := mas.Profiles[opts.Profile]
+	if !ok {
+		return nil, fmt.Errorf("profile %q not found in spec", opts.Profile)
+	}
+	contracts, err := runner.SelectContracts(mas.Contracts, opts.Profile, profile.Contracts)
+	if err != nil {
+		return nil, err
+	}
+	budgets, err := runner.SelectBudgets(mas.Budgets, opts.Profile, profile.Budgets)
+	if err != nil {
+		return nil, err
+	}
+
 	results, err := runner.RunProfileChecks(mas, opts.Profile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to run checks: %w", err)
 	}
 	report.CheckResults = results
 
-	if len(mas.Contracts) > 0 {
-		report.Contracts = runner.RunContracts(mas.Contracts)
+	if len(contracts) > 0 {
+		report.Contracts = runner.RunContracts(contracts)
 	}
 
-	if len(mas.Budgets) > 0 {
-		report.Budgets = runner.RunBudgets(mas.Budgets)
+	if len(budgets) > 0 {
+		report.Budgets = runner.RunBudgets(budgets)
 	}
 
-	if len(mas.Refs) > 0 {
+	if len(mas.Refs) > 0 && enabled(profile.Refs) {
 		report.Refs = runner.RunRefs(mas.Refs)
 	}
 
-	report.Policy = runner.RunPolicy(mas.Policy, runner.PolicyScope{
-		BaseSHA:      opts.BaseSHA,
-		SpecPath:     opts.SpecPath,
-		SpecFromBase: opts.SpecFromBase,
-	})
+	if enabled(profile.Policy) {
+		report.Policy = runner.RunPolicy(mas.Policy, runner.PolicyScope{
+			BaseSHA:      opts.BaseSHA,
+			SpecPath:     opts.SpecPath,
+			SpecFromBase: opts.SpecFromBase,
+		})
+	}
 
 	report.ComputeVerdict()
 	return report, nil
+}
+
+// enabled treats an unset profile switch as on.
+func enabled(flag *bool) bool {
+	return flag == nil || *flag
 }
