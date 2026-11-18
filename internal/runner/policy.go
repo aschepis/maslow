@@ -74,7 +74,13 @@ func checkSpecUnchanged(scope PolicyScope) evidence.PolicyResult {
 		return result
 	}
 
-	specPath := filepath.ToSlash(filepath.Clean(scope.SpecPath))
+	prefix, err := gitrepo.Prefix(scope.Dir)
+	if err != nil {
+		result.Status = "error"
+		result.Error = err.Error()
+		return result
+	}
+	specPath := prefix + filepath.ToSlash(filepath.Clean(scope.SpecPath))
 	for _, f := range changed {
 		if f == specPath {
 			result.Status = "fail"

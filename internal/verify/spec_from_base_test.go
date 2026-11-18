@@ -147,6 +147,37 @@ func TestLoadSpec_InvalidSpecAtBase(t *testing.T) {
 	}
 }
 
+func TestSpecFromBase_DetectsSpecChangeFromASubdirectory(t *testing.T) {
+	dir := t.TempDir()
+	git(t, dir, "init", "-q", "-b", "main")
+	git(t, dir, "config", "user.email", "test@test.com")
+	git(t, dir, "config", "user.name", "Test")
+	git(t, dir, "config", "commit.gpgsign", "false")
+	write(t, dir, "svc/maslow.yaml", weakenedSpec)
+	git(t, dir, "add", ".")
+	git(t, dir, "commit", "-qm", "base")
+	git(t, dir, "checkout", "-qb", "feature")
+	write(t, dir, "svc/maslow.yaml", weakenedSpec+"# edited\n")
+	git(t, dir, "commit", "-qam", "edit spec")
+	t.Chdir(filepath.Join(dir, "svc"))
+
+	baseSHA, err := ResolveBase("main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mas, err := LoadSpec("maslow.yaml", baseSHA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := Run(mas, Options{Profile: "full", BaseSHA: baseSHA, SpecPath: "maslow.yaml", SpecFromBase: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f := findPolicy(report.Policy, "spec"); f == nil || f.Status == "pass" {
+		t.Errorf("expected the edited svc/maslow.yaml to be reported, got %+v", f)
+	}
+}
+
 func findPolicy(results []evidence.PolicyResult, kind string) *evidence.PolicyResult {
 	for i := range results {
 		if results[i].Kind == kind {
