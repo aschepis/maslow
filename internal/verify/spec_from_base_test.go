@@ -166,11 +166,11 @@ func TestSpecFromBase_DetectsSpecChangeFromASubdirectory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	mas, err := LoadSpec("maslow.yaml", baseSHA)
+	loaded, err := spec.Read("maslow.yaml", baseSHA)
 	if err != nil {
 		t.Fatal(err)
 	}
-	report, err := Run(mas, Options{Profile: "full", BaseSHA: baseSHA, SpecPath: "maslow.yaml", SpecFromBase: true})
+	report, err := Run(loaded.MAS, Options{Profile: "full", BaseSHA: baseSHA, SpecPath: "maslow.yaml", SpecFromBase: true})
 	if err != nil {
 		t.Fatal(err)
 	}
