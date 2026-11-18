@@ -3,7 +3,7 @@ package verify
 import (
 	"testing"
 
-	"github.com/aschepis/maslow-agentic/internal/spec"
+	"github.com/aschepis/maslow/internal/spec"
 )
 
 func TestRun_QuickProfile(t *testing.T) {

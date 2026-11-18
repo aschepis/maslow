@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/aschepis/maslow-agentic/internal/spec"
+	"github.com/aschepis/maslow/internal/spec"
 )
 
 func TestRunRefs_Empty(t *testing.T) {

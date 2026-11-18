@@ -7,14 +7,14 @@ Maslow takes a declarative `maslow.yaml` spec, validates it against a schema, ru
 ## Install
 
 ```bash
-go install github.com/aschepis/maslow-agentic/cmd/maslow@latest
+go install github.com/aschepis/maslow/cmd/maslow@latest
 ```
 
 Or build from source:
 
 ```bash
-git clone https://github.com/aschepis/maslow-agentic.git
-cd maslow-agentic
+git clone https://github.com/aschepis/maslow.git
+cd maslow
 make build
 ```
 

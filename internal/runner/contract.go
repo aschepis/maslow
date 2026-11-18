@@ -14,8 +14,8 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/aschepis/maslow-agentic/internal/evidence"
-	"github.com/aschepis/maslow-agentic/internal/spec"
+	"github.com/aschepis/maslow/internal/evidence"
+	"github.com/aschepis/maslow/internal/spec"
 )
 
 // stepState tracks the result of the last executed step for use by assertions.

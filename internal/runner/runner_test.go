@@ -3,7 +3,7 @@ package runner
 import (
 	"testing"
 
-	"github.com/aschepis/maslow-agentic/internal/spec"
+	"github.com/aschepis/maslow/internal/spec"
 )
 
 func TestRunChecks_PassingCommand(t *testing.T) {

@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/aschepis/maslow-agentic/internal/evidence"
-	"github.com/aschepis/maslow-agentic/internal/spec"
+	"github.com/aschepis/maslow/internal/evidence"
+	"github.com/aschepis/maslow/internal/spec"
 )
 
 // RunRefs verifies all declared refs and returns results.

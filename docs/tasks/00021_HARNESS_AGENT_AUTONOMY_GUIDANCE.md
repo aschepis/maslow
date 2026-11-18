@@ -44,7 +44,7 @@ This is the foundational convention that makes the entire generative workflow fu
 - [ ] Generated task convention includes agent draft task tag conventions
 - [ ] Scaffold tests pass with updated content
 - [ ] Harness install/update propagates the new content
-- [ ] Self-hosting: update maslow-agentic's own CLAUDE.md to match the new template
+- [ ] Self-hosting: update maslow's own CLAUDE.md to match the new template
 
 ## Notes
 

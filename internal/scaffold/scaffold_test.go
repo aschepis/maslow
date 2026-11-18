@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aschepis/maslow-agentic/internal/schema"
+	"github.com/aschepis/maslow/internal/schema"
 )
 
 func TestRun_BasicScaffold(t *testing.T) {

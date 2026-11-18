@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/aschepis/maslow-agentic/internal/evidence"
-	"github.com/aschepis/maslow-agentic/internal/spec"
+	"github.com/aschepis/maslow/internal/evidence"
+	"github.com/aschepis/maslow/internal/spec"
 )
 
 // RunPolicy evaluates policy rules and returns results.

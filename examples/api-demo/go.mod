@@ -1,3 +1,3 @@
-module github.com/aschepis/maslow-agentic/examples/api-demo
+module github.com/aschepis/maslow/examples/api-demo
 
 go 1.25

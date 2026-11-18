@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aschepis/maslow-agentic/internal/evidence"
-	"github.com/aschepis/maslow-agentic/internal/spec"
+	"github.com/aschepis/maslow/internal/evidence"
+	"github.com/aschepis/maslow/internal/spec"
 )
 
 // RunChecks executes the given check runners and returns results.

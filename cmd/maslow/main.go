@@ -6,13 +6,13 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/aschepis/maslow-agentic/internal/audit"
-	"github.com/aschepis/maslow-agentic/internal/evidence"
-	"github.com/aschepis/maslow-agentic/internal/harness"
-	"github.com/aschepis/maslow-agentic/internal/scaffold"
-	"github.com/aschepis/maslow-agentic/internal/schema"
-	"github.com/aschepis/maslow-agentic/internal/spec"
-	"github.com/aschepis/maslow-agentic/internal/verify"
+	"github.com/aschepis/maslow/internal/audit"
+	"github.com/aschepis/maslow/internal/evidence"
+	"github.com/aschepis/maslow/internal/harness"
+	"github.com/aschepis/maslow/internal/scaffold"
+	"github.com/aschepis/maslow/internal/schema"
+	"github.com/aschepis/maslow/internal/spec"
+	"github.com/aschepis/maslow/internal/verify"
 )
 
 var (

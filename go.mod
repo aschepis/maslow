@@ -1,4 +1,4 @@
-module github.com/aschepis/maslow-agentic
+module github.com/aschepis/maslow
 
 go 1.25.3
 

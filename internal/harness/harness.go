@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/aschepis/maslow-agentic/internal/scaffold"
+	"github.com/aschepis/maslow/internal/scaffold"
 	"gopkg.in/yaml.v3"
 )
 

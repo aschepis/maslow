@@ -4,9 +4,9 @@ package verify
 import (
 	"fmt"
 
-	"github.com/aschepis/maslow-agentic/internal/evidence"
-	"github.com/aschepis/maslow-agentic/internal/runner"
-	"github.com/aschepis/maslow-agentic/internal/spec"
+	"github.com/aschepis/maslow/internal/evidence"
+	"github.com/aschepis/maslow/internal/runner"
+	"github.com/aschepis/maslow/internal/spec"
 )
 
 const DefaultReportPath = "reports/verify.json"
