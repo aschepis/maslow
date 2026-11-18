@@ -89,7 +89,7 @@ A valid `maslow.yaml` defines:
 - `toolchain` - required tools and version managers (asdf, mise, nix, custom)
 - `refs` - external references (repos, modules, APIs)
 - `policy` - path allow/deny lists; protected files; gated directories
-- `contracts` - scenario-based behavioral contracts (HTTP and CLI calls)
+- `contracts` - scenario-based behavioral contracts (HTTP and CLI calls); each scenario keeps its own cookie jar (ADR 0027)
 - `budgets` - performance, availability, artifact size, complexity limits
 - `checks` - named check definitions and runner configuration
 - `profiles` - named subsets of checks, contracts and budgets (`quick`, `full`, custom); refs and policy run unless a profile turns them off

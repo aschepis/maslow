@@ -97,6 +97,8 @@ contracts:
             expect: { status: 200 }
 ```
 
+Each scenario keeps its own cookie jar across its setup, steps and teardown, so a scenario that signs in stays signed in without hand-built `Cookie` headers.
+
 ## Development
 
 ```bash

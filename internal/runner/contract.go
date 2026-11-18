@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -71,15 +72,18 @@ func stepTarget(step spec.Step) string {
 	return ""
 }
 
-// scope is what a step's templates can read.
+// scope is what the steps of one scenario share.
 type scope struct {
 	// env holds only the environment variables the contract allow-lists.
 	env  map[string]string
 	vars map[string]string
+	// client keeps cookies between HTTP steps, so a scenario can sign in once.
+	client *http.Client
 }
 
 func newScope(env map[string]string) *scope {
-	return &scope{env: env, vars: map[string]string{}}
+	jar, _ := cookiejar.New(nil) // New never fails without options.
+	return &scope{env: env, vars: map[string]string{}, client: &http.Client{Jar: jar}}
 }
 
 // RunContracts executes all contract scenarios and returns results.
@@ -181,7 +185,7 @@ func runStep(step spec.Step, state *stepState, sc *scope) error {
 		state.output = output
 
 	case "http":
-		statusCode, headers, body, err := runHTTPStep(step)
+		statusCode, headers, body, err := runHTTPStep(step, sc.client)
 		if err != nil {
 			return fmt.Errorf("step http %s %s: %v", step.Method, step.URL, err)
 		}
@@ -222,7 +226,7 @@ func runStep(step spec.Step, state *stepState, sc *scope) error {
 		sc.vars[step.As] = val
 
 	case "poll":
-		statusCode, headers, body, err := runPollStep(step)
+		statusCode, headers, body, err := runPollStep(step, sc.client)
 		if err != nil {
 			return fmt.Errorf("step poll %s: %v", step.URL, err)
 		}
@@ -403,7 +407,7 @@ func runCLIStep(step spec.Step) (exitCode int, output string, err error) {
 	return 0, output, nil
 }
 
-func runHTTPStep(step spec.Step) (statusCode int, headers http.Header, body string, err error) {
+func runHTTPStep(step spec.Step, client *http.Client) (statusCode int, headers http.Header, body string, err error) {
 	method := step.Method
 	if method == "" {
 		method = "GET"
@@ -426,7 +430,7 @@ func runHTTPStep(step spec.Step) (statusCode int, headers http.Header, body stri
 		req.Header.Set(k, v)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return 0, nil, "", fmt.Errorf("request failed: %w", err)
 	}
@@ -440,7 +444,7 @@ func runHTTPStep(step spec.Step) (statusCode int, headers http.Header, body stri
 	return resp.StatusCode, resp.Header, string(respBody), nil
 }
 
-func runPollStep(step spec.Step) (statusCode int, headers http.Header, body string, err error) {
+func runPollStep(step spec.Step, client *http.Client) (statusCode int, headers http.Header, body string, err error) {
 	interval := 1 * time.Second
 	timeout := 30 * time.Second
 
@@ -464,7 +468,7 @@ func runPollStep(step spec.Step) (statusCode int, headers http.Header, body stri
 			return 0, nil, "", err
 		}
 
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := client.Do(req)
 		if err != nil {
 			cancel()
 			time.Sleep(interval)
