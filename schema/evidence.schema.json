@@ -63,7 +63,23 @@
       "properties": {
         "name": { "type": "string" },
         "status": { "$ref": "#/$defs/status" },
-        "error": { "type": "string" }
+        "error": { "type": "string" },
+        "failed_step": { "$ref": "#/$defs/failedStep" },
+        "output": { "type": "string" },
+        "output_bytes": { "type": "integer", "minimum": 0 },
+        "output_truncated": { "type": "boolean" },
+        "artifacts": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "failedStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "index", "action"],
+      "properties": {
+        "phase": { "enum": ["contract_setup", "setup", "steps"] },
+        "index": { "type": "integer", "minimum": 0 },
+        "action": { "type": "string" },
+        "target": { "type": "string" }
       }
     },
     "budget": {

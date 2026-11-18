@@ -135,6 +135,8 @@ package maslow
 	setup?: [...#Step]
 	teardown?: [...#Step]
 	steps: [...#Step]
+	// Repository-relative patterns for files to list in the evidence, such as screenshots.
+	artifacts?: [...string]
 }
 
 #Step: {

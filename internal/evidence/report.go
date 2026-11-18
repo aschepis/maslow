@@ -65,9 +65,24 @@ type CheckResult struct {
 
 // ContractResult records the outcome of a contract scenario.
 type ContractResult struct {
-	Name   string `json:"name"`
-	Status string `json:"status"`
-	Error  string `json:"error,omitempty"`
+	Name       string      `json:"name"`
+	Status     string      `json:"status"`
+	Error      string      `json:"error,omitempty"`
+	FailedStep *FailedStep `json:"failed_step,omitempty"`
+	// Output is what the step before the failure printed or returned.
+	Output          string `json:"output,omitempty"`
+	OutputBytes     int    `json:"output_bytes,omitempty"`
+	OutputTruncated bool   `json:"output_truncated,omitempty"`
+	// Artifacts are files matching the scenario's artifact patterns, such as screenshots.
+	Artifacts []string `json:"artifacts,omitempty"`
+}
+
+// FailedStep identifies the step that failed a contract scenario.
+type FailedStep struct {
+	Phase  string `json:"phase"` // contract_setup, setup, steps
+	Index  int    `json:"index"` // zero-based position within the phase
+	Action string `json:"action"`
+	Target string `json:"target,omitempty"` // command line or "METHOD url", after substitution
 }
 
 // BudgetResult records the outcome of a budget check.
@@ -117,21 +132,29 @@ func NewReport(meta Meta) *Report {
 	}
 }
 
-// CapOutput keeps at most limit bytes of each check's output, keeping the
-// tail where failures are usually reported. A limit <= 0 keeps everything.
+// CapOutput keeps at most limit bytes of each check's and contract's output,
+// keeping the tail where failures are usually reported. A limit <= 0 keeps everything.
 func (r *Report) CapOutput(limit int) {
 	if limit <= 0 {
 		return
 	}
 	for i := range r.CheckResults {
 		c := &r.CheckResults[i]
-		if len(c.Output) <= limit {
-			continue
-		}
-		c.OutputBytes = len(c.Output)
-		c.OutputTruncated = true
-		c.Output = tail(c.Output, limit)
+		capOutput(&c.Output, &c.OutputBytes, &c.OutputTruncated, limit)
 	}
+	for i := range r.Contracts {
+		c := &r.Contracts[i]
+		capOutput(&c.Output, &c.OutputBytes, &c.OutputTruncated, limit)
+	}
+}
+
+func capOutput(output *string, fullBytes *int, truncated *bool, limit int) {
+	if len(*output) <= limit {
+		return
+	}
+	*fullBytes = len(*output)
+	*truncated = true
+	*output = tail(*output, limit)
 }
 
 // tail returns the last n bytes of s, starting on a rune boundary.

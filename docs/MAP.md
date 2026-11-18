@@ -112,6 +112,8 @@ A valid `maslow.yaml` defines:
 - `verdict` - `fail`, `needs_review`, `inconclusive` or `pass` (in that precedence)
 
 Check output keeps the last `--output-limit` bytes and records `output_truncated` when cut.
+A failing contract records its `failed_step` and that step's `output` under the same cap, and
+lists files matching the scenario's `artifacts` patterns (ADR 0025).
 
 ---
 

@@ -111,6 +111,8 @@ contracts:
           - action: assert
             expect:
               exit_code: 0
+        artifacts:
+          - "reports/**/*.png"
       - name: invalid-file-fails
         steps:
           - action: cli

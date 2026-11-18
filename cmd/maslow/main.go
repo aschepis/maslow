@@ -312,8 +312,14 @@ func printReport(report *evidence.Report, path string) {
 	}
 	for _, c := range report.Contracts {
 		fmt.Printf("  [%s] contract: %s\n", c.Status, c.Name)
+		if f := c.FailedStep; f != nil {
+			fmt.Printf("         step: %s[%d] %s %s\n", f.Phase, f.Index, f.Action, f.Target)
+		}
 		if c.Error != "" {
 			fmt.Printf("         error: %s\n", c.Error)
+		}
+		for _, a := range c.Artifacts {
+			fmt.Printf("         artifact: %s\n", a)
 		}
 	}
 	for _, b := range report.Budgets {

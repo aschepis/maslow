@@ -107,6 +107,8 @@ type Scenario struct {
 	Setup    []Step `yaml:"setup,omitempty"`
 	Teardown []Step `yaml:"teardown,omitempty"`
 	Steps    []Step `yaml:"steps"`
+	// Artifacts are repository-relative patterns for files the scenario leaves behind.
+	Artifacts []string `yaml:"artifacts,omitempty"`
 }
 
 type Step struct {

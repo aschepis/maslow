@@ -26,6 +26,52 @@ type stepState struct {
 	httpHeaders http.Header
 }
 
+// Phases name the step list a failing step belongs to in the evidence.
+const (
+	phaseContractSetup = "contract_setup"
+	phaseSetup         = "setup"
+	phaseSteps         = "steps"
+)
+
+// stepFailure says which step failed and keeps the output it produced.
+type stepFailure struct {
+	phase  string
+	index  int
+	step   spec.Step
+	output string
+	err    error
+}
+
+func (f *stepFailure) Error() string { return f.err.Error() }
+
+func (f *stepFailure) evidence() *evidence.FailedStep {
+	return &evidence.FailedStep{
+		Phase:  f.phase,
+		Index:  f.index,
+		Action: f.step.Action,
+		Target: stepTarget(f.step),
+	}
+}
+
+// stepTarget names what a step acted on, after variable substitution.
+func stepTarget(step spec.Step) string {
+	switch step.Action {
+	case "cli":
+		return strings.Join(append([]string{step.Command}, step.Args...), " ")
+	case "http":
+		method := step.Method
+		if method == "" {
+			method = "GET"
+		}
+		return method + " " + step.URL
+	case "poll":
+		return "GET " + step.URL
+	case "capture":
+		return step.From
+	}
+	return ""
+}
+
 // RunContracts executes all contract scenarios and returns results.
 func RunContracts(contracts []spec.Contract) []evidence.ContractResult {
 	var results []evidence.ContractResult
@@ -34,14 +80,12 @@ func RunContracts(contracts []spec.Contract) []evidence.ContractResult {
 		if len(contract.Setup) > 0 {
 			state := &stepState{}
 			vars := make(map[string]string)
-			if err := runSteps(contract.Setup, state, vars); err != nil {
+			if err := runSteps(phaseContractSetup, contract.Setup, state, vars); err != nil {
 				// Contract setup failed — mark all scenarios as failed, run teardown.
 				for _, scenario := range contract.Scenarios {
-					results = append(results, evidence.ContractResult{
-						Name:   fmt.Sprintf("%s/%s", contract.Name, scenario.Name),
-						Status: "fail",
-						Error:  fmt.Sprintf("contract setup failed: %v", err),
-					})
+					result := failedResult(fmt.Sprintf("%s/%s", contract.Name, scenario.Name), "contract setup failed: ", err)
+					attachArtifacts(&result, scenario.Artifacts)
+					results = append(results, result)
 				}
 				runStepsIgnoreError(contract.Teardown, state, vars)
 				continue
@@ -68,122 +112,123 @@ func runScenario(contractName string, scenario spec.Scenario) evidence.ContractR
 	state := &stepState{}
 	vars := make(map[string]string)
 
-	// Run scenario-level setup.
-	if len(scenario.Setup) > 0 {
-		if err := runSteps(scenario.Setup, state, vars); err != nil {
-			runStepsIgnoreError(scenario.Teardown, state, vars)
-			return evidence.ContractResult{
-				Name:   name,
-				Status: "fail",
-				Error:  fmt.Sprintf("setup failed: %v", err),
-			}
-		}
+	var result evidence.ContractResult
+	if err := runSteps(phaseSetup, scenario.Setup, state, vars); err != nil {
+		result = failedResult(name, "setup failed: ", err)
+	} else if err := runSteps(phaseSteps, scenario.Steps, state, vars); err != nil {
+		result = failedResult(name, "", err)
+	} else {
+		result = evidence.ContractResult{Name: name, Status: "pass"}
 	}
 
-	// Run scenario steps.
-	stepErr := runSteps(scenario.Steps, state, vars)
-
-	// Run scenario-level teardown (always, even on failure).
-	if len(scenario.Teardown) > 0 {
-		runStepsIgnoreError(scenario.Teardown, state, vars)
-	}
-
-	if stepErr != nil {
-		return evidence.ContractResult{
-			Name:   name,
-			Status: "fail",
-			Error:  stepErr.Error(),
-		}
-	}
-
-	return evidence.ContractResult{
-		Name:   name,
-		Status: "pass",
-	}
+	// Collected before teardown, which may clean the artifacts up.
+	attachArtifacts(&result, scenario.Artifacts)
+	runStepsIgnoreError(scenario.Teardown, state, vars)
+	return result
 }
 
-// runSteps executes a sequence of steps, returning the first error encountered.
-func runSteps(steps []spec.Step, state *stepState, vars map[string]string) error {
-	for _, step := range steps {
-		var err error
-		step, err = substituteStep(step, vars)
-		if err != nil {
-			return fmt.Errorf("variable substitution: %w", err)
+func failedResult(name, prefix string, err error) evidence.ContractResult {
+	result := evidence.ContractResult{Name: name, Status: "fail", Error: prefix + err.Error()}
+	if f, ok := err.(*stepFailure); ok {
+		result.FailedStep = f.evidence()
+		result.Output = f.output
+	}
+	return result
+}
+
+// runSteps executes a sequence of steps, returning a *stepFailure for the first one that fails.
+func runSteps(phase string, steps []spec.Step, state *stepState, vars map[string]string) error {
+	for i, step := range steps {
+		if err := runStep(step, state, vars); err != nil {
+			return &stepFailure{phase: phase, index: i, step: substitutedOrRaw(step, vars), output: state.output, err: err}
 		}
+	}
+	return nil
+}
 
-		switch step.Action {
-		case "cli":
-			exitCode, output, err := runCLIStep(step)
-			if err != nil {
-				return fmt.Errorf("step cli %q: %v", step.Command, err)
-			}
-			state.exitCode = exitCode
-			state.output = output
+// substitutedOrRaw shows the step as it ran, or as written if substitution failed.
+func substitutedOrRaw(step spec.Step, vars map[string]string) spec.Step {
+	if s, err := substituteStep(step, vars); err == nil {
+		return s
+	}
+	return step
+}
 
-		case "http":
-			statusCode, headers, body, err := runHTTPStep(step)
-			if err != nil {
+func runStep(step spec.Step, state *stepState, vars map[string]string) error {
+	step, err := substituteStep(step, vars)
+	if err != nil {
+		return fmt.Errorf("variable substitution: %w", err)
+	}
+
+	switch step.Action {
+	case "cli":
+		exitCode, output, err := runCLIStep(step)
+		if err != nil {
+			return fmt.Errorf("step cli %q: %v", step.Command, err)
+		}
+		state.exitCode = exitCode
+		state.output = output
+
+	case "http":
+		statusCode, headers, body, err := runHTTPStep(step)
+		if err != nil {
+			return fmt.Errorf("step http %s %s: %v", step.Method, step.URL, err)
+		}
+		state.httpStatus = statusCode
+		state.httpHeaders = headers
+		state.exitCode = 0
+		state.output = body
+
+		if step.Expect != nil {
+			if err := checkExpectation(step.Expect, state); err != nil {
 				return fmt.Errorf("step http %s %s: %v", step.Method, step.URL, err)
 			}
-			state.httpStatus = statusCode
-			state.httpHeaders = headers
-			state.exitCode = 0
-			state.output = body
-
-			if step.Expect != nil {
-				if err := checkExpectation(step.Expect, state); err != nil {
-					return fmt.Errorf("step http %s %s: %v", step.Method, step.URL, err)
-				}
-			}
-
-		case "assert":
-			if step.Expect == nil {
-				return fmt.Errorf("assert step missing expect")
-			}
-			if err := checkExpectation(step.Expect, state); err != nil {
-				return err
-			}
-
-		case "wait":
-			if step.Duration != "" {
-				if d, err := parseDuration(step.Duration); err == nil {
-					time.Sleep(d)
-				}
-			}
-
-		case "capture":
-			val, err := captureValue(step, state)
-			if err != nil {
-				return fmt.Errorf("capture %q as %q: %v", step.From, step.As, err)
-			}
-			if step.As == "" {
-				return fmt.Errorf("capture step missing 'as' field")
-			}
-			vars[step.As] = val
-
-		case "poll":
-			statusCode, headers, body, err := runPollStep(step)
-			if err != nil {
-				return fmt.Errorf("step poll %s: %v", step.URL, err)
-			}
-			state.httpStatus = statusCode
-			state.httpHeaders = headers
-			state.exitCode = 0
-			state.output = body
-
-		default:
-			return fmt.Errorf("unknown step action: %s", step.Action)
 		}
+
+	case "assert":
+		if step.Expect == nil {
+			return fmt.Errorf("assert step missing expect")
+		}
+		if err := checkExpectation(step.Expect, state); err != nil {
+			return err
+		}
+
+	case "wait":
+		if step.Duration != "" {
+			if d, err := parseDuration(step.Duration); err == nil {
+				time.Sleep(d)
+			}
+		}
+
+	case "capture":
+		val, err := captureValue(step, state)
+		if err != nil {
+			return fmt.Errorf("capture %q as %q: %v", step.From, step.As, err)
+		}
+		if step.As == "" {
+			return fmt.Errorf("capture step missing 'as' field")
+		}
+		vars[step.As] = val
+
+	case "poll":
+		statusCode, headers, body, err := runPollStep(step)
+		if err != nil {
+			return fmt.Errorf("step poll %s: %v", step.URL, err)
+		}
+		state.httpStatus = statusCode
+		state.httpHeaders = headers
+		state.exitCode = 0
+		state.output = body
+
+	default:
+		return fmt.Errorf("unknown step action: %s", step.Action)
 	}
 	return nil
 }
 
 // runStepsIgnoreError runs steps but does not propagate errors (for teardown).
 func runStepsIgnoreError(steps []spec.Step, state *stepState, vars map[string]string) {
-	if len(steps) == 0 {
-		return
-	}
-	_ = runSteps(steps, state, vars)
+	_ = runSteps("teardown", steps, state, vars)
 }
 
 // captureValue extracts a value from the current step state based on the capture's "from" field.
