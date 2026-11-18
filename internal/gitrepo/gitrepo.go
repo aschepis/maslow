@@ -77,6 +77,16 @@ func Show(dir, commit, path string) ([]byte, error) {
 	return run(dir, "show", commit+":"+path)
 }
 
+// ExistsAt reports whether path, relative to dir, is a file at commit. It
+// separates a missing file from a git failure, which Show cannot.
+func ExistsAt(dir, commit, path string) (bool, error) {
+	out, err := run(dir, "ls-tree", "--name-only", commit, "--", path)
+	if err != nil {
+		return false, err
+	}
+	return len(bytes.TrimSpace(out)) > 0, nil
+}
+
 // Prefix returns dir's path below the repository root, with a trailing
 // slash, or "" at the root.
 func Prefix(dir string) (string, error) {

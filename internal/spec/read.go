@@ -3,6 +3,7 @@ package spec
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +12,9 @@ import (
 	"github.com/aschepis/maslow/internal/gitrepo"
 	"github.com/aschepis/maslow/internal/schema"
 )
+
+// ErrNotAtCommit means the spec file does not exist at the requested commit.
+var ErrNotAtCommit = errors.New("spec does not exist at that commit")
 
 // Loaded is a validated spec together with where it came from.
 type Loaded struct {
@@ -63,7 +67,15 @@ func readBytes(path, atCommit string) ([]byte, string, error) {
 		return nil, path, fmt.Errorf("--spec must be a relative path when reading the spec from a commit, got %s", path)
 	}
 	source := fmt.Sprintf("%s at %s", path, shortSHA(atCommit))
-	data, err := gitrepo.Show("", atCommit, "./"+filepath.ToSlash(path))
+	rel := "./" + filepath.ToSlash(path)
+	exists, err := gitrepo.ExistsAt("", atCommit, rel)
+	if err != nil {
+		return nil, source, fmt.Errorf("failed to read %s: %w", source, err)
+	}
+	if !exists {
+		return nil, source, fmt.Errorf("%s: %w", source, ErrNotAtCommit)
+	}
+	data, err := gitrepo.Show("", atCommit, rel)
 	if err != nil {
 		return nil, source, fmt.Errorf("failed to read %s: %w", source, err)
 	}
