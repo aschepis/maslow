@@ -1,10 +1,10 @@
 ---
 id: 35
 title: Produce evidence outside the job that runs the code under test
-status: draft
+status: todo
 priority: medium
 created: 2026-11-18
-updated: 2026-11-18
+updated: 2026-11-19
 assigned_to: ""
 assigned_at: ""
 depends_on: [32]
@@ -35,6 +35,29 @@ own evidence file. A consumer cannot tell a real pass from a forged one.
 
 Source: Damocles reconciler design note (18 Nov 2026), feature V4. This is the known limit noted in
 the Maslow adoption plan.
+
+## Decisions (human review, 2026-11-19)
+
+These override the Requirements, Acceptance Criteria and proposal below where they differ.
+
+1. Trigger: `pull_request_target`, workflow definition always from `main`.
+2. `evidence check` does not verify provenance. Building incrementally.
+3. The remaining risk (code under test rewriting the report inside `verify`) is accepted; file a
+   `kind:gap` draft task for running checks in isolation.
+4. Fork PRs never get trusted evidence. The trusted workflow's jobs run only when the PR's head
+   repository is this repository; forks get ordinary `ci.yml` feedback.
+5. Provenance comes from the GitHub API, not artifact attestations or Sigstore: the consumer looks
+   up the run itself and checks its workflow path, `pull_request_target` event, `main` workflow ref
+   and head SHA, then downloads the evidence artifact from that run. This works on every GitHub
+   plan, including private repos. The ADR and `action/README.md` document the consumer's steps;
+   attestations are out of scope and may be added later as an optional stronger signal.
+6. Workflow linting uses zizmor as an ordinary `maslow.yaml` check (pinned version, `zizmor.yml`
+   config, with a recorded suppression of `dangerous-triggers` for this one workflow). Our own
+   invariants (the PR code never runs with write scope or secrets, no cache in `verify`) stay in a
+   small script check like `check-action-pins.sh`. Another CI system swaps the check command; no
+   Maslow code change.
+7. The "Maslow's own `ci.yml` uses it" criterion becomes: Maslow's own repository runs the trusted
+   workflow as its own file beside `ci.yml`.
 
 ## Proposed implementation
 

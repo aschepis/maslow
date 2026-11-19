@@ -1,10 +1,10 @@
 ---
 id: 38
 title: Rerun failed checks and contracts and report flakes distinctly
-status: draft
+status: todo
 priority: medium
 created: 2026-11-18
-updated: 2026-11-18
+updated: 2026-11-19
 assigned_to: ""
 assigned_at: ""
 depends_on: []
@@ -33,6 +33,17 @@ automated loop with a fixed number of fix rounds wastes one on it.
 ## Notes
 
 Source: Damocles reconciler design note (18 Nov 2026), feature V7.
+
+## Decisions (human review, 2026-11-19)
+
+These override the proposal below where they differ.
+
+1. Verdict: a `flaky` check or spec contract counts as `pass`. A `flaky` overlay contract counts as
+   `needs_review`, because acceptance contracts are where a flaky fix would hide.
+2. `evidence check --require-red-green` declines an overlay contract that was flaky on the head.
+3. `retries` defaults to 0 per check and contract. The upper bound is a spec-level setting that
+   defaults to 5, not a fixed cap; a `retries` above it is a validation error.
+4. Contract setup is retried with the rest of the attempt.
 
 ## Proposed implementation
 
