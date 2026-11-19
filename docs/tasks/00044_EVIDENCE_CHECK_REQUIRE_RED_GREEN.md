@@ -1,7 +1,7 @@
 ---
 id: 44
 title: Let evidence check require that overlay contracts were proven red first
-status: in_progress
+status: done
 priority: high
 created: 2026-11-18
 updated: 2026-11-18
@@ -29,13 +29,13 @@ require that a run used `--red-green`").
 
 ## Acceptance Criteria
 
-- [ ] `--require-red-green` and `--base <sha>` on `maslow evidence check`, with usage errors (exit 2)
+- [x] `--require-red-green` and `--base <sha>` on `maslow evidence check`, with usage errors (exit 2)
       for bad combinations.
-- [ ] Table tests in `internal/evidence/check_test.go` cover every case listed below.
-- [ ] CLI tests in `cmd/maslow/evidence_test.go`: a real `--red-green` evidence file passes, the same
+- [x] Table tests in `internal/evidence/check_test.go` cover every case listed below.
+- [x] CLI tests in `cmd/maslow/evidence_test.go`: a real `--red-green` evidence file passes, the same
       run without `--red-green` declines.
-- [ ] `maslow.yaml` gets CLI contracts for the new flag (one pass, one decline).
-- [ ] ADR written; README, MAP.md and the `main.go` usage text updated.
+- [x] `maslow.yaml` gets CLI contracts for the new flag (one pass, one decline).
+- [x] ADR written; README, MAP.md and the `main.go` usage text updated.
 
 ## Notes
 
