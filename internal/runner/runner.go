@@ -17,11 +17,22 @@ func RunChecks(checks []spec.CheckRunner) []evidence.CheckResult {
 	results := make([]evidence.CheckResult, 0, len(checks))
 
 	for _, check := range checks {
-		result := runCheck(check)
-		results = append(results, result)
+		results = append(results, runCheckWithRetries(check))
 	}
 
 	return results
+}
+
+func runCheckWithRetries(check spec.CheckRunner) evidence.CheckResult {
+	var attempts []evidence.CheckResult
+	for range 1 + check.Retries {
+		result := runCheck(check)
+		attempts = append(attempts, result)
+		if !shouldRetry(result.Status) {
+			break
+		}
+	}
+	return foldCheckAttempts(attempts)
 }
 
 // RunProfileChecks executes only the checks matching the given profile.

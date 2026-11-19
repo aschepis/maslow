@@ -1,0 +1,11 @@
+mas: "1.0"
+project:
+  name: retries
+contracts:
+  - name: api
+    retries: 6
+    scenarios:
+      - name: health
+        steps:
+          - action: cli
+            command: "true"

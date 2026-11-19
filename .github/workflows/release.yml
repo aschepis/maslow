@@ -12,13 +12,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
+      # A restored cache could carry a poisoned build into the published archives.
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          cache: false
 
       - name: Install CUE
         run: go install cuelang.org/go/cmd/cue@v0.15.4
+
+      - name: Install zizmor
+        run: pipx install zizmor==1.32.0
 
       - name: Test before publishing
         run: |

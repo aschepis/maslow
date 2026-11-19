@@ -1,12 +1,12 @@
 ---
 id: 35
 title: Produce evidence outside the job that runs the code under test
-status: todo
+status: done
 priority: medium
 created: 2026-11-18
 updated: 2026-11-19
-assigned_to: ""
-assigned_at: ""
+assigned_to: "claude-subagent"
+assigned_at: "2026-11-19T16:55:02Z"
 depends_on: [32]
 tags: [kind:gap, action, evidence, security]
 ---
@@ -27,9 +27,15 @@ own evidence file. A consumer cannot tell a real pass from a forged one.
 
 ## Acceptance Criteria
 
-- [ ] `action/README.md` documents the pattern with a working example workflow.
-- [ ] Maslow's own `ci.yml` uses it.
-- [ ] ADR records the trust model and what the attestation does and does not prove.
+- [ ] `action/README.md` documents the pattern with a working example workflow. *Documented. The
+  example passes `scripts/check-trusted-workflow.sh` and zizmor, but "working" needs a real
+  `pull_request_target` run on GitHub, which cannot happen until `maslow-evidence.yml` is on `main`.*
+- [x] Maslow's own repository runs the trusted workflow as its own file beside `ci.yml` (Decision 7):
+  `.github/workflows/maslow-evidence.yml`. *The first real run happens on the first pull request
+  after merge. Check then that the run's `head_branch` is `main` and the artifact lookup in ADR 0040
+  finds it, and that a fork pull request skips both jobs.*
+- [x] ADR records the trust model and what the provenance does and does not prove (ADR 0040; no
+  attestations, per Decision 5).
 
 ## Notes
 

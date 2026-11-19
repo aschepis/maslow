@@ -1,0 +1,71 @@
+{
+  "evidence_version": "2",
+  "maslow_version": "0.9.0",
+  "command": "verify",
+  "timestamp": "2026-11-19T00:00:00Z",
+  "spec_path": "testdata/valid/retries.yaml",
+  "spec_sha256": "3d4a2223f6b10f34ea4333505a0b7e61f327e2820984927936272cfaa931cfcd",
+  "spec_source": "head",
+  "git_sha": "1111111111111111111111111111111111111111",
+  "profile": "quick",
+  "verdict": "pass",
+  "check_results": [
+    {
+      "name": "unit",
+      "kind": "command",
+      "status": "pass",
+      "duration_seconds": 0.1
+    },
+    {
+      "name": "integration",
+      "kind": "command",
+      "status": "flaky",
+      "duration_seconds": 0.5,
+      "output": "ok\n",
+      "attempts": [
+        {
+          "status": "fail",
+          "duration_seconds": 0.2,
+          "output": "connection refused\n",
+          "error": "exit status 1"
+        },
+        {
+          "status": "pass",
+          "duration_seconds": 0.3,
+          "output": "ok\n"
+        }
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "name": "api/health",
+      "status": "flaky",
+      "attempts": [
+        {
+          "status": "fail",
+          "error": "expected exit code 0, got 1",
+          "failed_step": {
+            "phase": "steps",
+            "index": 1,
+            "action": "assert"
+          },
+          "output": "503\n"
+        },
+        {
+          "status": "fail",
+          "error": "expected exit code 0, got 1",
+          "failed_step": {
+            "phase": "steps",
+            "index": 1,
+            "action": "assert"
+          },
+          "output": "503\n"
+        },
+        {
+          "status": "pass"
+        }
+      ]
+    }
+  ]
+}

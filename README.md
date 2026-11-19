@@ -83,7 +83,25 @@ maslow version                   # Print version info
            skips: ["@tag :skip"]
    ```
 
-The verdict is `fail`, `needs_review`, `inconclusive` or `pass`, in that order of precedence. `needs_review` means everything passed but the change touched a `gated` path, and names its owner. It exits 0 unless `--strict` is passed.
+The verdict is `fail`, `needs_review`, `inconclusive` or `pass`, in that order of precedence. `needs_review` means everything passed but the change touched a `gated` path, and names its owner, or an overlay contract was flaky. It exits 0 unless `--strict` is passed.
+
+A check or contract can be rerun when it fails, so a flake is reported as one instead of as a failure (ADR 0039):
+
+```yaml
+max_retries: 3          # cap for every retries below; defaults to 5
+checks:
+  runner:
+    - name: integration
+      kind: command
+      run: "go test ./integration/..."
+      retries: 2        # default 0
+contracts:
+  - name: api
+    retries: 1          # each failing scenario reruns with the contract's setup and teardown
+    scenarios: [...]
+```
+
+Only `fail` is retried, never `error`, and there is no delay between attempts. A result that fails and then passes has status `flaky` and lists every run in `attempts`. A flaky check or spec contract counts as a pass; a flaky overlay contract makes the verdict `needs_review`, and under `--red-green` a base run that fails and then passes is `not_red`. `maslow evidence summary` lists flaky results in their own section.
 
 Results are written to `reports/verify.json` (or `--report <path>`) as structured evidence. `schema/evidence.schema.json` describes the format. `maslow audit` writes `reports/audit.json`; an `endpoint` audit target runs the contracts it selects against a deployed base URL, resolving step URLs that start with `/`, so the same scenarios work as a post-deploy smoke test.
 
@@ -101,7 +119,7 @@ maslow evidence check reports/verify.json \
 
 It declines when `evidence_version` is unknown, `git_sha` is not `--head`, `spec_sha256` is not the hash of `--spec`, the run's `overlays` are not exactly the trusted ones, `profile` differs from `--profile` (when given), the verdict is `fail`, `inconclusive` or anything else unknown, or the file cannot be read. With every input matching, a `needs_review` verdict gives `needs_review` and a `pass` verdict gives `pass`. Every reason is printed; `--json` prints the decision and reasons as `{"evidence", "decision", "reasons": [{"field", "message"}]}`. It exits 0 on `pass`, 1 on `needs_review` or `decline`, and 2 on a usage error such as a missing flag or an unreadable trusted file.
 
-To require that the run proved its acceptance contracts red first, add `--require-red-green --base "$(git merge-base origin/main HEAD)"`. It then declines unless every overlay contract ran on exactly that base SHA with status `fail` and passed on the head, so evidence from a plain `--overlay` run without `--red-green` is declined with a reason per contract. `--require-red-green` needs `--base` (a full SHA) and `--overlay` or `--overlay-sha256`, or it exits 2. `--base` on its own only checks that `base_sha` matches (ADR 0037).
+To require that the run proved its acceptance contracts red first, add `--require-red-green --base "$(git merge-base origin/main HEAD)"`. It then declines unless every overlay contract ran on exactly that base SHA with status `fail` and passed on the head (a `flaky` head is not green), so evidence from a plain `--overlay` run without `--red-green` is declined with a reason per contract. `--require-red-green` needs `--base` (a full SHA) and `--overlay` or `--overlay-sha256`, or it exits 2. `--base` on its own only checks that `base_sha` matches (ADR 0037).
 
 ## In CI
 

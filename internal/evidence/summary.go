@@ -7,14 +7,61 @@ import (
 
 // Summary renders a report as the Markdown the GitHub Action writes to its
 // job summary: the verdict, the enforced results that failed or need review,
-// and the observe-mode policy findings, which never affect the verdict.
+// the flaky results, and the observe-mode policy findings, which never affect the verdict.
 func Summary(r *Report) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "## Maslow: `%s`\n", r.Verdict)
 	fmt.Fprintf(&b, "%s\n\n", metadataLine(r))
 	writeEnforced(&b, r)
+	writeFlaky(&b, r)
 	writeObserved(&b, r)
 	return b.String()
+}
+
+func writeFlaky(b *strings.Builder, r *Report) {
+	var rows [][]string
+	for _, c := range r.CheckResults {
+		if c.Status == StatusFlaky {
+			rows = append(rows, []string{"check", c.Name, fmt.Sprint(len(c.Attempts)), firstCheckFailure(c.Attempts)})
+		}
+	}
+	for _, c := range r.Contracts {
+		if c.Status == StatusFlaky || c.HeadStatus == StatusFlaky {
+			section := "contract"
+			if c.Overlay != "" {
+				section = "overlay contract"
+			}
+			rows = append(rows, []string{section, c.Name, fmt.Sprint(len(c.Attempts)), firstContractFailure(c.Attempts)})
+		}
+		if c.Base != nil && c.Base.Status == StatusFlaky {
+			rows = append(rows, []string{"base run", c.Name, fmt.Sprint(len(c.Base.Attempts)), firstContractFailure(c.Base.Attempts)})
+		}
+	}
+	if len(rows) == 0 {
+		return
+	}
+
+	b.WriteString("\n### Flaky results\n\n")
+	b.WriteString("These failed and then passed on a retry. A flaky check or spec contract counts as a pass; a flaky overlay contract needs review, and a flaky base run is not red.\n\n")
+	writeTable(b, []string{"Section", "Item", "Attempts", "First failure"}, rows)
+}
+
+func firstCheckFailure(attempts []CheckAttempt) string {
+	for _, a := range attempts {
+		if a.Status == "fail" {
+			return a.Error
+		}
+	}
+	return ""
+}
+
+func firstContractFailure(attempts []ContractAttempt) string {
+	for _, a := range attempts {
+		if a.Status == "fail" {
+			return a.Error
+		}
+	}
+	return ""
 }
 
 func metadataLine(r *Report) string {

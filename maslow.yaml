@@ -44,6 +44,15 @@ refs:
     path: .github/workflows/release.yml
     description: Tag-triggered release that publishes binaries and checksums
   - kind: file
+    path: .github/workflows/maslow-evidence.yml
+    description: pull_request_target workflow that produces trusted evidence for same-repository pull requests
+  - kind: file
+    path: scripts/check-trusted-workflow.sh
+    description: Fails when the trusted evidence workflow gives the change's code write scope, secrets, a persisted token or a cache
+  - kind: file
+    path: zizmor.yml
+    description: zizmor configuration with recorded suppressions
+  - kind: file
     path: action/action.yml
     description: Composite GitHub Action that installs a pinned release and runs maslow verify
   - kind: file
@@ -72,6 +81,10 @@ policy:
     - path: internal/schema/maslow.cue
       owner: "@aschepis"
     - path: README.md
+      owner: "@aschepis"
+    - path: .github/workflows/**
+      owner: "@aschepis"
+    - path: zizmor.yml
       owner: "@aschepis"
   observe:
     test_integrity: {}
@@ -114,6 +127,19 @@ checks:
       timeout: 10s
       tags:
         - lint
+    - name: trusted-workflow
+      kind: script
+      run: "scripts/check-trusted-workflow.sh .github/workflows/maslow-evidence.yml"
+      timeout: 10s
+      tags:
+        - lint
+    # CI installs zizmor 1.32.0 with pipx; the quick profile leaves it out so it runs without zizmor.
+    - name: zizmor
+      kind: command
+      run: "zizmor --offline --config zizmor.yml .github/workflows action/action.yml"
+      timeout: 60s
+      tags:
+        - lint
 
 profiles:
   quick:
@@ -124,6 +150,7 @@ profiles:
       - cue-vet
       - self-validate
       - action-pins
+      - trusted-workflow
     contracts:
       - smoke
     budgets: []
@@ -136,6 +163,8 @@ profiles:
       - cue-vet
       - self-validate
       - action-pins
+      - trusted-workflow
+      - zizmor
 
 contracts:
   - name: validate-command
@@ -197,6 +226,28 @@ contracts:
           - action: assert
             expect:
               exit_code: 1
+      - name: retries-are-valid
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - validate
+              - testdata/valid/retries.yaml
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "is valid"
+      - name: retries-above-max-retries-fail
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - validate
+              - testdata/invalid/retries_above_max_retries.yaml
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: "retries: invalid value 2 (out of bound <=1)"
       - name: missing-argument
         steps:
           - action: cli
@@ -366,6 +417,72 @@ contracts:
             expect:
               exit_code: 2
               body_contains: "--red-green requires --base"
+
+  - name: verify-retries
+    description: A check that fails and then passes on a retry is flaky, keeps every attempt, and still passes
+    tags:
+      - smoke
+    scenarios:
+      - name: flaky-check-passes-with-attempts
+        setup:
+          - action: cli
+            command: rm
+            args:
+              - -f
+              - reports/flaky-marker
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - verify
+              - --spec
+              - testdata/flaky/maslow.yaml
+              - --profile
+              - quick
+              - --report
+              - reports/flaky-evidence.json
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "[flaky] fail-once"
+          - action: cli
+            command: cat
+            args:
+              - reports/flaky-evidence.json
+          - action: assert
+            expect:
+              body_contains: '"status": "flaky"'
+          - action: assert
+            expect:
+              body_contains: '"attempts": ['
+          - action: cli
+            command: bin/maslow
+            args:
+              - evidence
+              - summary
+              - reports/flaky-evidence.json
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "| check | fail-once | 2 | exit status 1 |"
+      - name: overlay-retries-above-max-retries-refused
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - verify
+              - --spec
+              - testdata/flaky/maslow.yaml
+              - --profile
+              - quick
+              - --report
+              - reports/flaky-overlay-evidence.json
+              - --overlay
+              - testdata/overlays/too-many-retries.yaml
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: "above the spec's max_retries of 5"
 
   - name: audit-command
     description: Audit writes its own evidence file so it never overwrites verify's
@@ -584,6 +701,109 @@ contracts:
             expect:
               exit_code: 1
               body_contains: "actions/upload-artifact@v4"
+
+  - name: trusted-workflow-check
+    description: The trusted evidence workflow never gives the change's code write scope, secrets, a token on disk or a cache
+    scenarios:
+      - name: good-workflow-passes
+        steps:
+          - action: cli
+            command: scripts/check-trusted-workflow.sh
+            args:
+              - testdata/trusted-workflow/good.yml
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "trusted workflow invariants hold"
+      - name: pull-request-trigger-fails
+        steps:
+          - action: cli
+            command: scripts/check-trusted-workflow.sh
+            args:
+              - testdata/trusted-workflow/pull-request-trigger.yml
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: "the only trigger must be pull_request_target"
+      - name: top-level-permissions-fails
+        steps:
+          - action: cli
+            command: scripts/check-trusted-workflow.sh
+            args:
+              - testdata/trusted-workflow/top-level-permissions.yml
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: "top-level permissions must be {}"
+      - name: write-permission-fails
+        steps:
+          - action: cli
+            command: scripts/check-trusted-workflow.sh
+            args:
+              - testdata/trusted-workflow/write-permission.yml
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: "grants a write permission"
+      - name: secrets-fail
+        steps:
+          - action: cli
+            command: scripts/check-trusted-workflow.sh
+            args:
+              - testdata/trusted-workflow/secrets.yml
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: "references secrets or github.token"
+      - name: missing-fork-guard-fails
+        steps:
+          - action: cli
+            command: scripts/check-trusted-workflow.sh
+            args:
+              - testdata/trusted-workflow/missing-fork-guard.yml
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: "job record must run only when head.repo.full_name == github.repository"
+      - name: head-checkout-keeping-token-fails
+        steps:
+          - action: cli
+            command: scripts/check-trusted-workflow.sh
+            args:
+              - testdata/trusted-workflow/head-checkout-token.yml
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: "job verify: actions/checkout must set persist-credentials: false"
+      - name: setup-go-cache-fails
+        steps:
+          - action: cli
+            command: scripts/check-trusted-workflow.sh
+            args:
+              - testdata/trusted-workflow/setup-go-cache.yml
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: "job verify: actions/setup-go must set cache: false"
+      - name: actions-cache-fails
+        steps:
+          - action: cli
+            command: scripts/check-trusted-workflow.sh
+            args:
+              - testdata/trusted-workflow/actions-cache.yml
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: "job verify: actions/cache is not allowed"
+      - name: missing-file-is-usage-error
+        steps:
+          - action: cli
+            command: scripts/check-trusted-workflow.sh
+            args:
+              - testdata/trusted-workflow/no-such-file.yml
+          - action: assert
+            expect:
+              exit_code: 2
 
   - name: browser-steps
     description: Browser steps drive Chrome through the built binary, without a server

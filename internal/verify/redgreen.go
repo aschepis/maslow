@@ -66,7 +66,7 @@ func judgeRedGreen(contracts []spec.Contract, head []evidence.ContractResult, ba
 			run.Error = fmt.Sprintf("checking out base %s: %v", base.sha, base.err)
 		} else {
 			b := baseResults[i]
-			run.Status, run.Error, run.FailedStep = b.Status, b.Error, b.FailedStep
+			run.Status, run.Error, run.FailedStep, run.Attempts = b.Status, b.Error, b.FailedStep, b.Attempts
 		}
 		head[i].HeadStatus = head[i].Status
 		head[i].Base = run
@@ -75,16 +75,20 @@ func judgeRedGreen(contracts []spec.Contract, head []evidence.ContractResult, ba
 }
 
 // redGreenStatus passes a contract only if it fails on the base and passes on
-// the head. A base run that could not be judged cannot prove the contract red.
+// the head. A base that passed on any attempt, or could not be judged, is not red.
 func redGreenStatus(head, base string) string {
 	switch {
-	case head != "pass":
+	case !passed(head):
 		return head
-	case base == "pass":
+	case passed(base):
 		return evidence.StatusNotRed
 	case base == "fail":
-		return "pass"
+		return head
 	default:
 		return "error"
 	}
+}
+
+func passed(status string) bool {
+	return status == "pass" || status == evidence.StatusFlaky
 }

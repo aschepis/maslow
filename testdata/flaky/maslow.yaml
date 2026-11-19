@@ -1,0 +1,14 @@
+mas: "1.0"
+project:
+  name: flaky-fixture
+  description: A check that fails on its first run, for the verify-retries contract
+checks:
+  runner:
+    - name: fail-once
+      kind: script
+      run: "sh testdata/flaky/fail-once.sh reports/flaky-marker"
+      retries: 2
+profiles:
+  quick:
+    checks:
+      - fail-once

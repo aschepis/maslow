@@ -1,0 +1,10 @@
+mas: "1.0"
+project:
+  name: retries
+max_retries: 1
+checks:
+  runner:
+    - name: unit
+      kind: command
+      run: "go test ./..."
+      retries: 2

@@ -52,12 +52,15 @@ reports/verify.json         <- verify evidence (reports/audit.json for audit)
 | `internal/spec/` | Parses `maslow.yaml`; exposes typed MAS struct |
 | `internal/schema/` | Loads `schema/maslow.cue`; validates spec using CUE Go library |
 | `internal/verify/` | Executes verification: profile selection, check sequencing, result collection; `--red-green` reruns overlay contracts in a base worktree (ADR 0034) |
-| `internal/runner/` | Runs individual checks (shell, HTTP, CLI); abstracts runner kinds |
+| `internal/runner/` | Runs individual checks (shell, HTTP, CLI); abstracts runner kinds; `retry.go` reruns failing checks and scenarios and folds the attempts into `pass`, `flaky`, `fail` or `error` (ADR 0039) |
 | `internal/audit/` | Black-box audit mode; binary targets, endpoint targets that run contracts against a base URL (ADR 0028), container stub |
-| `internal/evidence/` | Builds the evidence report, computes the verdict, caps output, writes JSON; `Check` decides pass, needs_review or decline for a report against trusted inputs (ADR 0033); `Summary` (`summary.go`) renders the job summary, observed policy findings in their own section (ADR 0036) |
+| `internal/evidence/` | Builds the evidence report, computes the verdict, caps output, writes JSON; `Check` decides pass, needs_review or decline for a report against trusted inputs (ADR 0033); `Summary` (`summary.go`) renders the job summary, flaky results and observed policy findings in their own sections (ADR 0036, ADR 0039) |
 | `internal/gitrepo/` | Git queries shared by policy and spec loading, including line-level diffs against a base and temporary worktrees |
 | `schema/maslow.cue` | CUE schema defining the MAS format |
-| `action/action.yml` | Composite GitHub Action wrapping `maslow verify`; its job summary comes from `maslow evidence summary` |
+| `action/action.yml` | Composite GitHub Action wrapping `maslow verify`; its job summary comes from `maslow evidence summary`; `action/README.md` documents the trusted-evidence pattern (ADR 0040) |
+| `.github/workflows/maslow-evidence.yml` | Trusted evidence: a `pull_request_target` workflow, defined by `main`, for same-repository pull requests. `verify` runs a maslow built from the base with `contents: read`, no secrets and no cache. `record` never runs the change and records the evidence's sha256. Consumers find the run through the GitHub API (ADR 0040) |
+| `scripts/check-trusted-workflow.sh` | Check `trusted-workflow`: fails if the trusted workflow gains another trigger, a write permission, secrets, a persisted token, a cache or a job without the same-repository guard |
+| `zizmor.yml` | Config for the `zizmor` check (full profile only), with each suppression's reason |
 | `scripts/build-release.sh` | Builds release archives and checksums |
 
 ---
@@ -71,6 +74,8 @@ reports/verify.json         <- verify evidence (reports/audit.json for audit)
 | Evidence | `reports/verify.json`, `reports/audit.json` | Default paths; `--report` overrides |
 | Evidence schema | `schema/evidence.schema.json` | JSON Schema for evidence version 2 |
 | Test fixtures | `testdata/valid/` | Valid maslow.yaml examples for schema and verify tests |
+| Test fixtures | `testdata/flaky/` | A spec whose check fails once and then passes, for the `verify-retries` contract |
+| Test fixtures | `testdata/trusted-workflow/` | One good and several broken trusted-evidence workflows for the `trusted-workflow-check` contract |
 | Test fixtures | `testdata/invalid/` | Invalid maslow.yaml examples that must fail validation |
 | Test fixtures | `testdata/evidence/` | Evidence files for `maslow evidence check` and `evidence summary` tests and contracts; `*.summary.md` are the summary goldens |
 | README | `README.md` | Install, usage, commands, dev instructions |
@@ -94,7 +99,8 @@ A valid `maslow.yaml` defines:
 - `policy` - path allow/deny lists; protected files; gated directories; shrink-only files and test-integrity checks judged on changed lines (ADR 0032); an `observe` block of the same rules reported without enforcement (ADR 0031)
 - `contracts` - scenario-based behavioral contracts (HTTP, CLI and headless-browser steps); each scenario keeps its own cookie jar (ADR 0027), shared with its browser, which `internal/runner/browser.go` drives through chromedp (ADR 0035)
 - `budgets` - performance, availability, artifact size, complexity limits
-- `checks` - named check definitions and runner configuration
+- `checks` - named check definitions and runner configuration; checks and contracts take `retries`,
+  capped by the top-level `max_retries` (default 5) (ADR 0039)
 - `profiles` - named subsets of checks, contracts and budgets (`quick`, `full`, custom); refs and policy run unless a profile turns them off
 - `audit` - black-box audit targets; an `endpoint` target runs selected contracts against its base URL
 - `extensions` - domain overlays (web, game, cli, service)
@@ -113,7 +119,8 @@ A valid `maslow.yaml` defines:
   under `--red-green` they also carry `head_status` and `base` (`sha`, `status`, `error`, `failed_step`),
   and a contract already passing on the base has status `not_red`, which fails the verdict (ADR 0034);
   `evidence check --require-red-green --base <sha>` declines unless every overlay contract has a
-  `base` with that `sha` and status `fail`, and passed on the head (ADR 0037)
+  `base` with that `sha` and status `fail`, and passed on the head (ADR 0037); a `flaky` base is
+  `not_red` and a `flaky` head is not green (ADR 0039)
 - `git_sha`, `base_sha` - the commit verified and the merge base policy was judged against
 - `profile`, `timestamp`
 - `check_results`, `contracts`, `budgets`, `refs`, `policy` - one entry per item with a `status`;
@@ -125,7 +132,9 @@ Check output keeps the last `--output-limit` bytes and records `output_truncated
 A failing contract records its `failed_step` and that step's `output` under the same cap, and
 lists files matching the scenario's `artifacts` patterns (ADR 0025). A failing browser step adds
 `page_url` and `console` to `failed_step` and its screenshot to `artifacts` (ADR 0035). Values of the variables a
-contract allow-lists in `env` are redacted from its result (ADR 0026).
+contract allow-lists in `env` are redacted from its result (ADR 0026). A check or scenario that
+ran more than once lists every run in `attempts`; one that failed and then passed has status
+`flaky`, which counts as `pass` except on an overlay contract, where it needs review (ADR 0039).
 
 ---
 

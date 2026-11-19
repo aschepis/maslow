@@ -74,3 +74,17 @@ func CheckOverlayNames(mas *MAS, overlays []*LoadedOverlay) error {
 	}
 	return nil
 }
+
+// CheckOverlayRetries holds overlay contracts to the spec's max_retries, which
+// the overlay schema cannot see.
+func CheckOverlayRetries(mas *MAS, overlays []*LoadedOverlay) error {
+	limit := mas.RetryLimit()
+	for _, o := range overlays {
+		for _, c := range o.Overlay.Contracts {
+			if c.Retries > limit {
+				return fmt.Errorf("overlay %s: contracts.%s.retries is %d, above the spec's max_retries of %d", o.Path, c.Name, c.Retries, limit)
+			}
+		}
+	}
+	return nil
+}

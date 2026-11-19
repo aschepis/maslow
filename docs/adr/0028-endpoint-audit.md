@@ -18,3 +18,4 @@ A contract may set `base_url`, and HTTP and poll step URLs that start with `/` r
 - The target `path` may read `{{.env.NAME}}` from the whole environment, because it is the operator's audit configuration rather than a contract. Results are named by the path as written, so the expanded URL does not reach the evidence.
 - A relative URL with no base URL fails the step with an error naming `base_url`, and a selector that matches no contract is an error, as in profiles.
 - `timeout` and `retries` do not yet apply to endpoint targets; each HTTP step keeps its 30-second limit. The `container` target is still a stub.
+- A contract's own `retries` now apply in audit, through the shared contract runner, while `#AuditTarget.retries` still does nothing (ADR 0039).

@@ -1,0 +1,44 @@
+name: Maslow evidence
+
+on:
+  pull_request_target:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  verify:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.25"
+          cache: false
+      - uses: aschepis/maslow/action@0123456789abcdef0123456789abcdef01234567
+        with:
+          version: 0.8.0
+          base: ${{ github.event.pull_request.base.sha }}
+          spec-from: base
+
+  record:
+    needs: verify
+    if: ${{ !cancelled() && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: maslow-evidence
+          path: ${{ runner.temp }}/evidence
+      - name: Record the evidence
+        env:
+          EVIDENCE: ${{ runner.temp }}/evidence/verify.json
+        run: sha256sum "$EVIDENCE" >> "$GITHUB_STEP_SUMMARY"

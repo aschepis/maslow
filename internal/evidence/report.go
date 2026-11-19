@@ -68,6 +68,33 @@ type CheckResult struct {
 	OutputBytes     int    `json:"output_bytes,omitempty"`
 	OutputTruncated bool   `json:"output_truncated,omitempty"`
 	Error           string `json:"error,omitempty"`
+	// Attempts is set only when the check ran more than once; the fields
+	// above then describe the last attempt, and Duration is the total.
+	Attempts []CheckAttempt `json:"attempts,omitempty"`
+}
+
+// StatusFlaky marks a check or contract that failed and then passed on a retry.
+const StatusFlaky = "flaky"
+
+// CheckAttempt is one run of a retried check.
+type CheckAttempt struct {
+	Status          string  `json:"status"`
+	Duration        float64 `json:"duration_seconds"`
+	Output          string  `json:"output,omitempty"`
+	OutputBytes     int     `json:"output_bytes,omitempty"`
+	OutputTruncated bool    `json:"output_truncated,omitempty"`
+	Error           string  `json:"error,omitempty"`
+}
+
+// ContractAttempt is one run of a retried contract scenario.
+type ContractAttempt struct {
+	Status          string      `json:"status"`
+	Error           string      `json:"error,omitempty"`
+	FailedStep      *FailedStep `json:"failed_step,omitempty"`
+	Output          string      `json:"output,omitempty"`
+	OutputBytes     int         `json:"output_bytes,omitempty"`
+	OutputTruncated bool        `json:"output_truncated,omitempty"`
+	Artifacts       []string    `json:"artifacts,omitempty"`
 }
 
 // ContractResult records the outcome of a contract scenario.
@@ -88,6 +115,9 @@ type ContractResult struct {
 	// combines the two runs.
 	HeadStatus string   `json:"head_status,omitempty"`
 	Base       *BaseRun `json:"base,omitempty"`
+	// Attempts is set only when the scenario ran more than once; the fields
+	// above then describe the last attempt.
+	Attempts []ContractAttempt `json:"attempts,omitempty"`
 }
 
 // StatusNotRed marks an overlay contract that already passed on the base
@@ -96,10 +126,11 @@ const StatusNotRed = "not_red"
 
 // BaseRun is the outcome of an overlay contract run against the base commit.
 type BaseRun struct {
-	SHA        string      `json:"sha"`
-	Status     string      `json:"status"`
-	Error      string      `json:"error,omitempty"`
-	FailedStep *FailedStep `json:"failed_step,omitempty"`
+	SHA        string            `json:"sha"`
+	Status     string            `json:"status"`
+	Error      string            `json:"error,omitempty"`
+	FailedStep *FailedStep       `json:"failed_step,omitempty"`
+	Attempts   []ContractAttempt `json:"attempts,omitempty"`
 }
 
 // FailedStep identifies the step that failed a contract scenario.
@@ -177,10 +208,25 @@ func (r *Report) CapOutput(limit int) {
 	for i := range r.CheckResults {
 		c := &r.CheckResults[i]
 		capOutput(&c.Output, &c.OutputBytes, &c.OutputTruncated, limit)
+		for j := range c.Attempts {
+			a := &c.Attempts[j]
+			capOutput(&a.Output, &a.OutputBytes, &a.OutputTruncated, limit)
+		}
 	}
 	for i := range r.Contracts {
 		c := &r.Contracts[i]
 		capOutput(&c.Output, &c.OutputBytes, &c.OutputTruncated, limit)
+		capContractAttempts(c.Attempts, limit)
+		if c.Base != nil {
+			capContractAttempts(c.Base.Attempts, limit)
+		}
+	}
+}
+
+func capContractAttempts(attempts []ContractAttempt, limit int) {
+	for i := range attempts {
+		a := &attempts[i]
+		capOutput(&a.Output, &a.OutputBytes, &a.OutputTruncated, limit)
 	}
 }
 
@@ -204,7 +250,8 @@ func tail(s string, n int) string {
 
 // ComputeVerdict sets the verdict from every section of the report, with
 // precedence fail, needs_review, inconclusive, pass. Any fail, error or
-// not_red gives "fail"; "inconclusive" means nothing ran at all. Observed policy rules never count.
+// not_red gives "fail"; "inconclusive" means nothing ran at all. Observed policy rules never count,
+// and a flaky result counts as a pass unless it is an overlay contract (ADR 0039).
 func (r *Report) ComputeVerdict() {
 	ran, review := false, false
 	for _, s := range r.allStatuses() {
@@ -214,7 +261,7 @@ func (r *Report) ComputeVerdict() {
 			return
 		case "needs_review":
 			review = true
-		case "pass":
+		case "pass", StatusFlaky:
 			ran = true
 		}
 	}
@@ -235,7 +282,7 @@ func (r *Report) allStatuses() []string {
 		statuses = append(statuses, c.Status)
 	}
 	for _, c := range r.Contracts {
-		statuses = append(statuses, c.Status)
+		statuses = append(statuses, contractVerdictStatus(c))
 	}
 	for _, b := range r.Budgets {
 		statuses = append(statuses, b.Status)
@@ -250,6 +297,15 @@ func (r *Report) allStatuses() []string {
 		statuses = append(statuses, p.Status)
 	}
 	return statuses
+}
+
+// contractVerdictStatus asks for review of a flaky overlay contract, because
+// an acceptance contract is where a flaky fix would hide.
+func contractVerdictStatus(c ContractResult) string {
+	if c.Status == StatusFlaky && c.Overlay != "" {
+		return "needs_review"
+	}
+	return c.Status
 }
 
 // Write emits the report as JSON to the given path.

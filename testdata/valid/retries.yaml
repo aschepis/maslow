@@ -1,0 +1,21 @@
+mas: "1.0"
+project:
+  name: retries
+max_retries: 3
+checks:
+  runner:
+    - name: integration
+      kind: command
+      run: "go test ./integration/..."
+      retries: 3
+    - name: unit
+      kind: command
+      run: "go test ./..."
+contracts:
+  - name: api
+    retries: 2
+    scenarios:
+      - name: health
+        steps:
+          - action: cli
+            command: "true"
