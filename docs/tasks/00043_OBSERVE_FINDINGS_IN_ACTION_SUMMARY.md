@@ -1,7 +1,7 @@
 ---
 id: 43
 title: Show observe-mode policy findings in the Action's job summary
-status: in_progress
+status: done
 priority: medium
 created: 2026-11-18
 updated: 2026-11-18
@@ -31,12 +31,12 @@ artifact or read the step log. Maslow's own CI hits this: `maslow.yaml` observes
 
 ## Acceptance Criteria
 
-- [ ] `maslow evidence summary <file>` prints the Markdown summary; wired in `cmd/maslow/evidence.go`.
-- [ ] Golden-file tests for pass, needs_review, fail-with-observe and observe-only evidence.
-- [ ] The Action's "Write job summary" step calls the command, falling back to the old jq when the
+- [x] `maslow evidence summary <file>` prints the Markdown summary; wired in `cmd/maslow/evidence.go`.
+- [x] Golden-file tests for pass, needs_review, fail-with-observe and observe-only evidence.
+- [x] The Action's "Write job summary" step calls the command, falling back to the old jq when the
       binary exits 2.
-- [ ] CLI contract scenario in `maslow.yaml` for the observe case.
-- [ ] `action/README.md`, `docs/MAP.md` and the CHANGELOG gap note (CHANGELOG.md:13) updated; ADR written.
+- [x] CLI contract scenario in `maslow.yaml` for the observe case.
+- [x] `action/README.md`, `docs/MAP.md` and the CHANGELOG gap note (CHANGELOG.md:13) updated; ADR written.
 
 ## Notes
 
