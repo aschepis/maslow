@@ -48,7 +48,7 @@ refs:
     description: Composite GitHub Action that installs a pinned release and runs maslow verify
   - kind: file
     path: scripts/check-action-pins.sh
-    description: Fails when action/action.yml uses another action by anything but a commit SHA
+    description: Fails when action/action.yml, or a workflow using a third-party action, pins by anything but a commit SHA
   - kind: file
     path: scripts/build-release.sh
     description: Builds release archives for linux and darwin on amd64 and arm64, plus checksums.txt
@@ -110,7 +110,7 @@ checks:
         - self-host
     - name: action-pins
       kind: script
-      run: "scripts/check-action-pins.sh action/action.yml"
+      run: "scripts/check-action-pins.sh --workflows .github/workflows action/action.yml"
       timeout: 10s
       tags:
         - lint
@@ -461,6 +461,79 @@ contracts:
           - action: assert
             expect:
               exit_code: 2
+      - name: red-green-evidence-passes-require-red-green
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - evidence
+              - check
+              - testdata/evidence/red-green.json
+              - --head
+              - "1111111111111111111111111111111111111111"
+              - --spec
+              - testdata/valid/minimal.yaml
+              - --overlay-sha256
+              - "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+              - --base
+              - "3333333333333333333333333333333333333333"
+              - --require-red-green
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "maslow evidence check: pass"
+      - name: overlay-run-without-red-green-declines
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - evidence
+              - check
+              - testdata/evidence/overlay-without-red-green.json
+              - --head
+              - "1111111111111111111111111111111111111111"
+              - --spec
+              - testdata/valid/minimal.yaml
+              - --overlay-sha256
+              - "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+              - --base
+              - "3333333333333333333333333333333333333333"
+              - --require-red-green
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: "was verify run with --red-green?"
+
+  - name: evidence-summary-command
+    description: Evidence summary lists observed policy findings apart from enforced results
+    tags:
+      - smoke
+    scenarios:
+      - name: observed-findings-listed
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - evidence
+              - summary
+              - testdata/evidence/observe-only.json
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "Observed policy rules"
+          - action: assert
+            expect:
+              body_contains: "would_fail"
+      - name: missing-file-is-usage-error
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - evidence
+              - summary
+          - action: assert
+            expect:
+              exit_code: 2
 
   - name: init-command
     description: The init command manages maslow.yaml in the current directory
@@ -475,6 +548,71 @@ contracts:
             expect:
               exit_code: 0
               body_contains: "already exists"
+
+  - name: action-pins-check
+    description: Action pins are full SHAs in the published Action and for third-party actions in workflows
+    scenarios:
+      - name: unpinned-third-party-in-workflow-fails
+        steps:
+          - action: cli
+            command: scripts/check-action-pins.sh
+            args:
+              - --workflows
+              - testdata/action-pins/unpinned-workflow
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: "browser-actions/setup-chrome@v2"
+      - name: first-party-tag-in-workflow-passes
+        steps:
+          - action: cli
+            command: scripts/check-action-pins.sh
+            args:
+              - --workflows
+              - testdata/action-pins/pinned-workflow
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "all actions pinned"
+      - name: first-party-tag-in-action-fails
+        steps:
+          - action: cli
+            command: scripts/check-action-pins.sh
+            args:
+              - testdata/action-pins/action-tag-pinned.yml
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: "actions/upload-artifact@v4"
+
+  - name: browser-steps
+    description: Browser steps drive Chrome through the built binary, without a server
+    scenarios:
+      - name: fill-click-wait-assert
+        steps:
+          - action: browser
+            do: navigate
+            url: >-
+              data:text/html,<title>steps</title><input id="name"><button id="go" onclick="document.getElementById('out').textContent='Hello, '+document.getElementById('name').value">Go</button><div id="out"></div><div id="late"></div><script>setTimeout(function(){document.getElementById('late').innerHTML='<span id=ready>ready</span>'},300)</script>
+          - action: browser
+            do: fill
+            selector: "#name"
+            text: maslow
+          - action: browser
+            do: click
+            selector: "#go"
+          - action: browser
+            do: wait
+            selector: "#ready"
+            timeout: 5s
+          - action: browser
+            do: assert
+            selector: "#out"
+            expect:
+              text_contains: "Hello, maslow"
+              visible: true
+        artifacts:
+          - "reports/browser/**"
 
 budgets:
   - name: binary-size

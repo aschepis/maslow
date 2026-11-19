@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -16,6 +18,11 @@ const (
 	fixtureSpec = "../../testdata/valid/minimal.yaml"
 	passFile    = "../../testdata/evidence/pass.json"
 	reviewFile  = "../../testdata/evidence/needs-review.json"
+
+	fixtureBase      = "3333333333333333333333333333333333333333"
+	fixtureOverlay   = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	redGreenFile     = "../../testdata/evidence/red-green.json"
+	plainOverlayFile = "../../testdata/evidence/overlay-without-red-green.json"
 )
 
 func TestCmdEvidence(t *testing.T) {
@@ -37,6 +44,15 @@ func TestCmdEvidence(t *testing.T) {
 		{"missing head", []string{"check", passFile, "--spec", fixtureSpec}, 2, ""},
 		{"missing spec", []string{"check", passFile, "--head", fixtureHead}, 2, ""},
 		{"unreadable trusted spec", []string{"check", passFile, "--head", fixtureHead, "--spec", "no-such.yaml"}, 2, ""},
+		{"require red-green without base", []string{"check", redGreenFile, "--head", fixtureHead, "--spec", fixtureSpec, "--overlay-sha256", fixtureOverlay, "--require-red-green"}, 2, ""},
+		{"require red-green without overlay", []string{"check", redGreenFile, "--head", fixtureHead, "--spec", fixtureSpec, "--base", fixtureBase, "--require-red-green"}, 2, ""},
+		{"red-green evidence passes", []string{"check", redGreenFile, "--head", fixtureHead, "--spec", fixtureSpec, "--overlay-sha256", fixtureOverlay, "--base", fixtureBase, "--require-red-green"}, 0, "pass"},
+		{"plain overlay evidence declines", []string{"check", plainOverlayFile, "--head", fixtureHead, "--spec", fixtureSpec, "--overlay-sha256", fixtureOverlay, "--base", fixtureBase, "--require-red-green"}, 1, "--red-green"},
+		{"base alone checks base_sha", []string{"check", plainOverlayFile, "--head", fixtureHead, "--spec", fixtureSpec, "--overlay-sha256", fixtureOverlay, "--base", fixtureHead}, 1, "base_sha"},
+		{"summary", []string{"summary", "../../testdata/evidence/observe-only.json"}, 0, "Observed policy rules"},
+		{"summary of missing evidence", []string{"summary", "no-such.json"}, 1, ""},
+		{"summary without file", []string{"summary"}, 2, ""},
+		{"summary with two files", []string{"summary", passFile, reviewFile}, 2, ""},
 		{"no subcommand", nil, 2, ""},
 		{"unknown subcommand", []string{"inspect"}, 2, ""},
 	}
@@ -116,6 +132,52 @@ func TestCmdEvidenceOverlays(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCmdEvidenceRequireRedGreenEndToEnd(t *testing.T) {
+	repoWithBranch(t,
+		map[string]string{"maslow.yaml": passingSpec, "feature.txt": "old\n"},
+		map[string]string{"feature.txt": "new\n"})
+	head := gitOutput(t, "rev-parse", "HEAD")
+	base := gitOutput(t, "merge-base", "main", "HEAD")
+	tmp := t.TempDir()
+	overlay := filepath.Join(tmp, "acceptance.yaml")
+	if err := os.WriteFile(overlay, []byte(fmt.Sprintf(grepOverlay, "new")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	check := func(report string) (int, string) {
+		var out bytes.Buffer
+		code := cmdEvidence([]string{"check", report, "--head", head, "--spec", "maslow.yaml",
+			"--overlay", overlay, "--base", base, "--require-red-green"}, &out)
+		return code, out.String()
+	}
+
+	redGreen := filepath.Join(tmp, "red-green.json")
+	if code := cmdVerify([]string{"--profile", "full", "--base", "main", "--red-green", "--overlay", overlay, "--report", redGreen}); code != 0 {
+		t.Fatalf("verify --red-green exit = %d", code)
+	}
+	if code, out := check(redGreen); code != 0 {
+		t.Errorf("red-green evidence: exit = %d, want 0; output:\n%s", code, out)
+	}
+
+	plain := filepath.Join(tmp, "plain.json")
+	if code := cmdVerify([]string{"--profile", "full", "--base", "main", "--overlay", overlay, "--report", plain}); code != 0 {
+		t.Fatalf("verify --overlay exit = %d", code)
+	}
+	code, out := check(plain)
+	if code != 1 || !strings.Contains(out, "--red-green") {
+		t.Errorf("plain overlay evidence: exit = %d, want 1 with a --red-green reason; output:\n%s", code, out)
+	}
+}
+
+func gitOutput(t *testing.T, args ...string) string {
+	t.Helper()
+	out, err := exec.Command("git", args...).Output()
+	if err != nil {
+		t.Fatalf("git %v: %v", args, err)
+	}
+	return strings.TrimSpace(string(out))
 }
 
 func fileHash(t *testing.T, path string) string {

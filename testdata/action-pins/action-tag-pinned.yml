@@ -1,0 +1,6 @@
+name: tag-pinned
+description: A published Action must pin even first-party actions by SHA
+runs:
+  using: composite
+  steps:
+    - uses: actions/upload-artifact@v4

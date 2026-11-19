@@ -4,14 +4,41 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
 const (
 	testHead     = "1111111111111111111111111111111111111111"
+	testBase     = "3333333333333333333333333333333333333333"
+	otherBase    = "4444444444444444444444444444444444444444"
 	testSpecHash = "aaaa"
 	testOverlay  = "bbbb"
+	overlayPath  = "acc.yaml"
 )
+
+func redGreenContract(name string) ContractResult {
+	return ContractResult{
+		Name:       name,
+		Status:     "pass",
+		Overlay:    overlayPath,
+		HeadStatus: "pass",
+		Base:       &BaseRun{SHA: testBase, Status: "fail"},
+	}
+}
+
+// withRedGreen makes the report look like a passing verify --red-green run.
+func withRedGreen(r *Report) {
+	r.BaseSHA = testBase
+	r.Overlays = []OverlayRef{{Path: overlayPath, SHA256: testOverlay}}
+	r.Contracts = []ContractResult{redGreenContract("acceptance/s")}
+}
+
+func requireRedGreen(tr *Trusted) {
+	tr.Base = testBase
+	tr.RequireRedGreen = true
+	tr.OverlaySHA256s = []string{testOverlay}
+}
 
 func goodReport() *Report {
 	return &Report{
@@ -123,6 +150,158 @@ func TestCheck(t *testing.T) {
 			decision: DecisionDecline,
 			fields:   []string{"git_sha", "profile"},
 		},
+		{
+			name:     "red-green satisfied",
+			report:   withRedGreen,
+			trusted:  requireRedGreen,
+			decision: DecisionPass,
+		},
+		{
+			name: "flag off accepts a plain overlay run",
+			report: func(r *Report) {
+				withRedGreen(r)
+				r.Contracts[0].Base, r.Contracts[0].HeadStatus = nil, ""
+			},
+			trusted:  func(tr *Trusted) { tr.OverlaySHA256s = []string{testOverlay} },
+			decision: DecisionPass,
+		},
+		{
+			name: "plain overlay run",
+			report: func(r *Report) {
+				withRedGreen(r)
+				r.Contracts[0].Base, r.Contracts[0].HeadStatus = nil, ""
+			},
+			trusted:  requireRedGreen,
+			decision: DecisionDecline,
+			fields:   []string{"contracts"},
+		},
+		{
+			name: "contract base ran on another sha",
+			report: func(r *Report) {
+				withRedGreen(r)
+				r.Contracts[0].Base.SHA = otherBase
+			},
+			trusted:  requireRedGreen,
+			decision: DecisionDecline,
+			fields:   []string{"contracts"},
+		},
+		{
+			name: "top-level base_sha differs",
+			report: func(r *Report) {
+				withRedGreen(r)
+				r.BaseSHA = otherBase
+			},
+			trusted: func(tr *Trusted) {
+				tr.Base = testBase
+				tr.OverlaySHA256s = []string{testOverlay}
+			},
+			decision: DecisionDecline,
+			fields:   []string{"base_sha"},
+		},
+		{
+			name: "base_sha missing",
+			trusted: func(tr *Trusted) {
+				tr.Base = testBase
+			},
+			decision: DecisionDecline,
+			fields:   []string{"base_sha"},
+		},
+		{
+			name: "not red",
+			report: func(r *Report) {
+				withRedGreen(r)
+				r.Contracts[0].Base.Status = "pass"
+				r.Contracts[0].Status = StatusNotRed
+				r.Verdict = "fail"
+			},
+			trusted:  requireRedGreen,
+			decision: DecisionDecline,
+			fields:   []string{"verdict", "contracts"},
+		},
+		{
+			name: "base errored",
+			report: func(r *Report) {
+				withRedGreen(r)
+				r.Contracts[0].Base.Status = "error"
+				r.Contracts[0].Status = "error"
+				r.Verdict = "fail"
+			},
+			trusted:  requireRedGreen,
+			decision: DecisionDecline,
+			fields:   []string{"verdict", "contracts"},
+		},
+		{
+			name: "head fails",
+			report: func(r *Report) {
+				withRedGreen(r)
+				r.Contracts[0].HeadStatus = "fail"
+				r.Contracts[0].Status = "fail"
+				r.Verdict = "fail"
+			},
+			trusted:  requireRedGreen,
+			decision: DecisionDecline,
+			fields:   []string{"verdict", "contracts"},
+		},
+		{
+			name: "edited fields claim pass without red",
+			report: func(r *Report) {
+				withRedGreen(r)
+				r.Contracts[0].Base.Status = "pass"
+			},
+			trusted:  requireRedGreen,
+			decision: DecisionDecline,
+			fields:   []string{"contracts"},
+		},
+		{
+			name: "one of two contracts lacks a base run",
+			report: func(r *Report) {
+				withRedGreen(r)
+				plain := redGreenContract("acceptance/t")
+				plain.Base, plain.HeadStatus = nil, ""
+				r.Contracts = append(r.Contracts, plain)
+			},
+			trusted:  requireRedGreen,
+			decision: DecisionDecline,
+			fields:   []string{"contracts"},
+		},
+		{
+			name: "overlay with no contract results",
+			report: func(r *Report) {
+				withRedGreen(r)
+				r.Contracts = nil
+			},
+			trusted:  requireRedGreen,
+			decision: DecisionDecline,
+			fields:   []string{"contracts"},
+		},
+		{
+			name: "run used no overlays",
+			report: func(r *Report) {
+				r.BaseSHA = testBase
+			},
+			trusted:  requireRedGreen,
+			decision: DecisionDecline,
+			fields:   []string{"overlays", "contracts"},
+		},
+		{
+			name: "spec contracts need no base run",
+			report: func(r *Report) {
+				withRedGreen(r)
+				r.Contracts = append(r.Contracts, ContractResult{Name: "spec/s", Status: "pass"})
+			},
+			trusted:  requireRedGreen,
+			decision: DecisionPass,
+		},
+		{
+			name: "needs review with red-green satisfied",
+			report: func(r *Report) {
+				withRedGreen(r)
+				r.Verdict = "needs_review"
+			},
+			trusted:  requireRedGreen,
+			decision: DecisionNeedsReview,
+			fields:   []string{"verdict"},
+		},
 	}
 
 	for _, c := range cases {
@@ -147,6 +326,25 @@ func TestCheck(t *testing.T) {
 				t.Errorf("reason fields = %v, want %v", fields, c.fields)
 			}
 		})
+	}
+}
+
+func TestCheck_RedGreenReasonsNameContractAndOverlay(t *testing.T) {
+	r := goodReport()
+	withRedGreen(r)
+	r.Contracts[0].Base, r.Contracts[0].HeadStatus = nil, ""
+	tr := goodTrusted()
+	requireRedGreen(&tr)
+
+	got := Check(r, tr)
+	if len(got.Reasons) != 1 {
+		t.Fatalf("expected one reason, got %+v", got.Reasons)
+	}
+	msg := got.Reasons[0].Message
+	for _, want := range []string{`"acceptance/s"`, overlayPath, "--red-green"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("reason %q does not mention %s", msg, want)
+		}
 	}
 }
 

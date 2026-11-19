@@ -1,6 +1,6 @@
 # ADR 0024: A Composite GitHub Action With No Logic of Its Own
 
-- **Status**: Accepted
+- **Status**: Accepted; amended by ADR 0036 (the job summary is rendered by `maslow evidence summary`)
 - **Date**: 2026-11-18
 
 ## Context

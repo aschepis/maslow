@@ -15,6 +15,9 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    # The browser tests fail instead of skipping when Chrome is missing (task 42).
+    env:
+      MASLOW_REQUIRE_BROWSER: "1"
     steps:
       - uses: actions/checkout@v5
         with:
@@ -42,8 +45,16 @@ jobs:
       - name: Check embedded schema matches schema/maslow.cue
         run: diff -u schema/maslow.cue internal/schema/maslow.cue
 
+      # Uses the runner image's preinstalled Chrome; no setup action, so nothing to pin.
+      - name: Show Chrome version
+        run: google-chrome --version
+
       - name: Test
         run: make test
+
+      # make test hides passes; this puts the browser tests' --- PASS lines in the log.
+      - name: Browser tests (verbose)
+        run: go test -v -run Browser ./internal/runner/
 
       - name: Lint
         run: make lint

@@ -64,8 +64,12 @@ Commands:
            [--profile <name>]  Profile the evidence must have run
            [--overlay <file>]  Trusted overlay the run must have used; repeatable
            [--overlay-sha256 <hex>]  Same, given as a hash; repeatable
-           [--json]            Print the decision and reasons as JSON
-  init     [--apply]           Add a starter maslow.yaml to the current directory
+           [--base <sha>]      Full merge-base SHA the evidence's base_sha must match
+           [--require-red-green]  Decline unless every overlay contract failed on --base
+                               and passed on --head (needs --base and an overlay flag)
+           [--json]          Print the decision and reasons as JSON
+  evidence summary <file>      Print an evidence file as the Markdown job summary
+  init    [--apply]           Add a starter maslow.yaml to the current directory
   version                      Print version information`)
 }
 

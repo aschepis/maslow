@@ -48,6 +48,7 @@ maslow validate <file>           # Validate a maslow.yaml against the schema
 maslow verify --profile <name>   # Run verification and write evidence
 maslow audit --profile <name>    # Run a black-box audit against built artifacts
 maslow evidence check <file> --head <sha> --spec <file>  # Decide whether evidence approves a change
+maslow evidence summary <file>   # Print evidence as the Markdown job summary
 maslow version                   # Print version info
 ```
 
@@ -99,6 +100,8 @@ maslow evidence check reports/verify.json \
 ```
 
 It declines when `evidence_version` is unknown, `git_sha` is not `--head`, `spec_sha256` is not the hash of `--spec`, the run's `overlays` are not exactly the trusted ones, `profile` differs from `--profile` (when given), the verdict is `fail`, `inconclusive` or anything else unknown, or the file cannot be read. With every input matching, a `needs_review` verdict gives `needs_review` and a `pass` verdict gives `pass`. Every reason is printed; `--json` prints the decision and reasons as `{"evidence", "decision", "reasons": [{"field", "message"}]}`. It exits 0 on `pass`, 1 on `needs_review` or `decline`, and 2 on a usage error such as a missing flag or an unreadable trusted file.
+
+To require that the run proved its acceptance contracts red first, add `--require-red-green --base "$(git merge-base origin/main HEAD)"`. It then declines unless every overlay contract ran on exactly that base SHA with status `fail` and passed on the head, so evidence from a plain `--overlay` run without `--red-green` is declined with a reason per contract. `--require-red-green` needs `--base` (a full SHA) and `--overlay` or `--overlay-sha256`, or it exits 2. `--base` on its own only checks that `base_sha` matches (ADR 0037).
 
 ## In CI
 

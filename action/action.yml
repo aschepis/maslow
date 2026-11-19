@@ -170,17 +170,26 @@ runs:
       if: always()
       shell: bash
       env:
+        MASLOW: ${{ steps.install.outputs.path }}
         REPORT: ${{ steps.paths.outputs.report }}
         VERDICT: ${{ steps.verify.outputs.verdict }}
       run: |
         set -uo pipefail
-        {
-          echo "## Maslow: \`${VERDICT:-error}\`"
-          if [ ! -f "$REPORT" ]; then
+        if [ ! -f "$REPORT" ]; then
+          {
+            echo "## Maslow: \`${VERDICT:-error}\`"
             echo
             echo "No evidence file was written. See the step log."
-            exit 0
-          fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+        fi
+        if "$MASLOW" evidence summary "$REPORT" >> "$GITHUB_STEP_SUMMARY" 2>/dev/null; then
+          exit 0
+        fi
+        # Releases without `evidence summary` exit 2 above. Remove this jq fallback
+        # one minor release after the command ships (ADR 0036).
+        {
+          echo "## Maslow: \`${VERDICT:-error}\`"
           jq -r '"Profile `\(.profile)` · spec `\(.spec_path)` from `\(.spec_source)` · maslow \(.maslow_version)" + (if .base_sha then " · base `\(.base_sha[0:12])`" else "" end)' "$REPORT"
           echo
           jq -r '
