@@ -11,12 +11,18 @@ import (
 	"github.com/aschepis/maslow/internal/spec"
 )
 
-// requireBrowser skips tests that drive a real browser on machines without one.
+// requireBrowser skips tests that drive a real browser on machines without one, unless
+// MASLOW_REQUIRE_BROWSER is set: CI sets it so a runner image without Chrome fails loudly.
 func requireBrowser(t *testing.T) {
 	t.Helper()
-	if _, err := findBrowser(); err != nil {
-		t.Skipf("no browser for browser steps: %v", err)
+	_, err := findBrowser()
+	if err == nil {
+		return
 	}
+	if os.Getenv("MASLOW_REQUIRE_BROWSER") != "" {
+		t.Fatalf("MASLOW_REQUIRE_BROWSER is set but no browser was found (%v); install Chrome or point MASLOW_BROWSER at one", err)
+	}
+	t.Skipf("no browser for browser steps: %v", err)
 }
 
 const greetPage = `<!doctype html>
