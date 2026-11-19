@@ -1,7 +1,7 @@
 ---
 id: 38
 title: Rerun failed checks and contracts and report flakes distinctly
-status: in_progress
+status: done
 priority: medium
 created: 2026-11-18
 updated: 2026-11-19
@@ -26,9 +26,9 @@ automated loop with a fixed number of fix rounds wastes one on it.
 
 ## Acceptance Criteria
 
-- [ ] Schema and fixtures for `retries`.
-- [ ] Tests: pass first time, fail then pass (`flaky`), fail every time.
-- [ ] Evidence schema updated; ADR records the verdict rule.
+- [x] Schema and fixtures for `retries`.
+- [x] Tests: pass first time, fail then pass (`flaky`), fail every time.
+- [x] Evidence schema updated; ADR records the verdict rule.
 
 ## Notes
 
