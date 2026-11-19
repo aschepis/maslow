@@ -1,0 +1,9 @@
+mas: "1.0"
+project:
+  name: policy-test-integrity-unknown-field
+policy:
+  test_integrity:
+    languages:
+      go:
+        markers:
+          - "t.Skip("

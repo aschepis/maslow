@@ -52,7 +52,7 @@
   },
   "$defs": {
     "status": { "enum": ["pass", "fail", "skip", "error"] },
-    "policyStatus": { "enum": ["pass", "fail", "skip", "error", "needs_review"] },
+    "policyStatus": { "enum": ["pass", "fail", "skip", "error", "needs_review", "would_fail", "would_need_review", "would_error"] },
     "check": {
       "type": "object",
       "additionalProperties": false,
@@ -74,14 +74,28 @@
       "required": ["name", "status"],
       "properties": {
         "name": { "type": "string" },
-        "status": { "$ref": "#/$defs/status" },
+        "status": { "enum": ["pass", "fail", "skip", "error", "not_red"] },
         "error": { "type": "string" },
         "overlay": { "type": "string" },
         "failed_step": { "$ref": "#/$defs/failedStep" },
         "output": { "type": "string" },
         "output_bytes": { "type": "integer", "minimum": 0 },
         "output_truncated": { "type": "boolean" },
-        "artifacts": { "type": "array", "items": { "type": "string" } }
+        "artifacts": { "type": "array", "items": { "type": "string" } },
+        "head_status": { "$ref": "#/$defs/status", "description": "red-green runs only: the contract's own result on the head" },
+        "base": { "$ref": "#/$defs/baseRun" }
+      }
+    },
+    "baseRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "red-green runs only: the same contract run against the base commit",
+      "required": ["sha", "status"],
+      "properties": {
+        "sha": { "type": "string" },
+        "status": { "$ref": "#/$defs/status" },
+        "error": { "type": "string" },
+        "failed_step": { "$ref": "#/$defs/failedStep" }
       }
     },
     "failedStep": {
@@ -92,7 +106,9 @@
         "phase": { "enum": ["contract_setup", "setup", "steps"] },
         "index": { "type": "integer", "minimum": 0 },
         "action": { "type": "string" },
-        "target": { "type": "string" }
+        "target": { "type": "string" },
+        "page_url": { "type": "string" },
+        "console": { "type": "array", "items": { "type": "string" } }
       }
     },
     "budget": {
@@ -125,10 +141,12 @@
       "required": ["rule", "kind", "status"],
       "properties": {
         "rule": { "type": "string" },
-        "kind": { "enum": ["deny", "protected", "gated", "allow", "spec"] },
+        "kind": { "enum": ["deny", "protected", "gated", "allow", "spec", "shrink_only", "test_integrity"] },
+        "mode": { "enum": ["observe"] },
         "status": { "$ref": "#/$defs/policyStatus" },
         "detail": { "type": "string" },
         "files": { "type": "array", "items": { "type": "string" } },
+        "lines": { "type": "array", "items": { "type": "string" }, "description": "path:line: text entries flagged by a line-level rule" },
         "owner": { "type": "string" },
         "error": { "type": "string" }
       }

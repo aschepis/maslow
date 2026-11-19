@@ -1,0 +1,16 @@
+mas: "1.0"
+project:
+  name: policy-observe
+policy:
+  protected:
+    - maslow.yaml
+  observe:
+    deny:
+      - "**/*.pem"
+    allow:
+      - "src/**"
+    protected:
+      - go.sum
+    gated:
+      - path: "infra/**"
+        owner: "@acme/platform"

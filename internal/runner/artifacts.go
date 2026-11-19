@@ -7,16 +7,23 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
 	"github.com/aschepis/maslow/internal/evidence"
 )
 
-// attachArtifacts records the files matching patterns on result. A bad
-// pattern is a spec mistake, so it turns a passing result into an error.
+// attachArtifacts adds the files matching patterns to result's artifacts. A
+// bad pattern is a spec mistake, so it turns a passing result into an error.
 func attachArtifacts(result *evidence.ContractResult, patterns []string) {
 	files, err := collectArtifacts(patterns)
+	for _, f := range result.Artifacts {
+		if !slices.Contains(files, f) {
+			files = append(files, f)
+		}
+	}
+	sort.Strings(files)
 	result.Artifacts = files
 	if err == nil {
 		return

@@ -28,6 +28,8 @@ func main() {
 		os.Exit(cmdVerify(os.Args[2:]))
 	case "audit":
 		os.Exit(cmdAudit(os.Args[2:]))
+	case "evidence":
+		os.Exit(cmdEvidence(os.Args[2:], os.Stdout))
 	case "init":
 		os.Exit(cmdInit(os.Args[2:]))
 	case "version":
@@ -51,10 +53,18 @@ Commands:
            [--base <ref>]      Judge policy on every change since the merge base with <ref>
            [--spec-from base]  Verify against the spec at the merge base, not the branch's
            [--overlay <file>]  Also run the contracts in <file>; repeatable
+           [--red-green]       Fail overlay contracts that already pass on the merge base (needs --base)
            [--report <path>]   Evidence file (default reports/verify.json)
            [--output-limit n]  Bytes of each check's output to keep (default 4096)
            [--strict]          Exit 1 on needs_review too (default: only fail and inconclusive)
   audit    --profile <name>    Run black-box audit (default report reports/audit.json)
+  evidence check <file>        Decide pass, needs_review or decline for an evidence file
+           --head <sha>        Commit the evidence must describe
+           --spec <file>       Trusted spec whose hash the evidence must carry
+           [--profile <name>]  Profile the evidence must have run
+           [--overlay <file>]  Trusted overlay the run must have used; repeatable
+           [--overlay-sha256 <hex>]  Same, given as a hash; repeatable
+           [--json]            Print the decision and reasons as JSON
   init     [--apply]           Add a starter maslow.yaml to the current directory
   version                      Print version information`)
 }
@@ -108,6 +118,7 @@ func cmdVerify(args []string) int {
 	reportPath := fs.String("report", verify.DefaultReportPath, "where to write the evidence file")
 	outputLimit := fs.Int("output-limit", evidence.DefaultOutputLimit, "bytes of each check's output to keep (0 keeps everything)")
 	strict := fs.Bool("strict", false, "exit non-zero on needs_review as well as fail and inconclusive")
+	redGreen := fs.Bool("red-green", false, "also run overlay contracts on the merge base; fail any that already pass there")
 	var overlayPaths stringList
 	fs.Var(&overlayPaths, "overlay", "file of extra contracts to run beside the spec's (repeatable)")
 	if err := fs.Parse(args); err != nil {
@@ -127,7 +138,12 @@ func cmdVerify(args []string) int {
 		return 2
 	}
 
-	opts := verify.Options{Profile: *profile, SpecPath: *specPath, SpecFromBase: *specFrom == "base"}
+	if *redGreen && (*base == "" || len(overlayPaths) == 0) {
+		fmt.Fprintln(os.Stderr, "maslow verify: --red-green requires --base <ref> and at least one --overlay <file>")
+		return 2
+	}
+
+	opts := verify.Options{Profile: *profile, SpecPath: *specPath, SpecFromBase: *specFrom == "base", RedGreen: *redGreen}
 	if *base != "" {
 		sha, err := verify.ResolveBase(*base)
 		if err != nil {
@@ -342,6 +358,12 @@ func printReport(report *evidence.Report, path string) {
 		if c.Error != "" {
 			fmt.Printf("         error: %s\n", c.Error)
 		}
+		if b := c.Base; b != nil {
+			fmt.Printf("         base %s: %s, head: %s\n", b.SHA, b.Status, c.HeadStatus)
+			if b.Error != "" {
+				fmt.Printf("         base error: %s\n", b.Error)
+			}
+		}
 		for _, a := range c.Artifacts {
 			fmt.Printf("         artifact: %s\n", a)
 		}
@@ -367,12 +389,19 @@ func printReport(report *evidence.Report, path string) {
 		}
 	}
 	for _, p := range report.Policy {
-		fmt.Printf("  [%s] policy/%s: %s\n", p.Status, p.Kind, p.Rule)
+		mode := ""
+		if p.Mode != "" {
+			mode = " (" + p.Mode + ")"
+		}
+		fmt.Printf("  [%s] policy/%s%s: %s\n", p.Status, p.Kind, mode, p.Rule)
 		if p.Owner != "" {
 			fmt.Printf("         owner: %s\n", p.Owner)
 		}
 		if p.Detail != "" {
 			fmt.Printf("         detail: %s\n", p.Detail)
+		}
+		for _, line := range p.Lines {
+			fmt.Printf("         line: %s\n", line)
 		}
 		if p.Error != "" {
 			fmt.Printf("         error: %s\n", p.Error)

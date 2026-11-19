@@ -84,6 +84,22 @@ type ContractResult struct {
 	OutputTruncated bool   `json:"output_truncated,omitempty"`
 	// Artifacts are files matching the scenario's artifact patterns, such as screenshots.
 	Artifacts []string `json:"artifacts,omitempty"`
+	// HeadStatus and Base are set only by a red-green run, where Status
+	// combines the two runs.
+	HeadStatus string   `json:"head_status,omitempty"`
+	Base       *BaseRun `json:"base,omitempty"`
+}
+
+// StatusNotRed marks an overlay contract that already passed on the base
+// commit, so its pass on the head says nothing about the change.
+const StatusNotRed = "not_red"
+
+// BaseRun is the outcome of an overlay contract run against the base commit.
+type BaseRun struct {
+	SHA        string      `json:"sha"`
+	Status     string      `json:"status"`
+	Error      string      `json:"error,omitempty"`
+	FailedStep *FailedStep `json:"failed_step,omitempty"`
 }
 
 // FailedStep identifies the step that failed a contract scenario.
@@ -92,6 +108,9 @@ type FailedStep struct {
 	Index  int    `json:"index"` // zero-based position within the phase
 	Action string `json:"action"`
 	Target string `json:"target,omitempty"` // command line or "METHOD url", after substitution
+	// PageURL and Console describe the page a failing browser step left behind.
+	PageURL string   `json:"page_url,omitempty"`
+	Console []string `json:"console,omitempty"`
 }
 
 // BudgetResult records the outcome of a budget check.
@@ -112,15 +131,23 @@ type RefResult struct {
 	Error  string `json:"error,omitempty"`
 }
 
+// ModeObserve marks a policy result that is reported but does not affect the verdict.
+const ModeObserve = "observe"
+
 // PolicyResult records the outcome of a policy rule check.
 type PolicyResult struct {
-	Rule   string   `json:"rule"`
-	Kind   string   `json:"kind"` // deny, protected, gated
+	Rule string `json:"rule"`
+	Kind string `json:"kind"` // deny, allow, protected, gated, spec, shrink_only, test_integrity
+	// Mode "observe" marks a rule that is reported but not enforced; its
+	// non-pass statuses are prefixed "would_".
+	Mode   string   `json:"mode,omitempty"`
 	Status string   `json:"status"`
 	Detail string   `json:"detail,omitempty"`
 	Files  []string `json:"files,omitempty"`
-	Owner  string   `json:"owner,omitempty"` // who reviews a gated change
-	Error  string   `json:"error,omitempty"`
+	// Lines are the "path:line: text" entries a line-level rule flagged.
+	Lines []string `json:"lines,omitempty"`
+	Owner string   `json:"owner,omitempty"` // who reviews a gated change
+	Error string   `json:"error,omitempty"`
 }
 
 // NewReport creates a report stamped with the format version, the Maslow
@@ -176,13 +203,13 @@ func tail(s string, n int) string {
 }
 
 // ComputeVerdict sets the verdict from every section of the report, with
-// precedence fail, needs_review, inconclusive, pass. Any fail or error gives
-// "fail"; "inconclusive" means nothing ran at all.
+// precedence fail, needs_review, inconclusive, pass. Any fail, error or
+// not_red gives "fail"; "inconclusive" means nothing ran at all. Observed policy rules never count.
 func (r *Report) ComputeVerdict() {
 	ran, review := false, false
 	for _, s := range r.allStatuses() {
 		switch s {
-		case "fail", "error":
+		case "fail", "error", StatusNotRed:
 			r.Verdict = "fail"
 			return
 		case "needs_review":
@@ -217,6 +244,9 @@ func (r *Report) allStatuses() []string {
 		statuses = append(statuses, ref.Status)
 	}
 	for _, p := range r.Policy {
+		if p.Mode == ModeObserve {
+			continue
+		}
 		statuses = append(statuses, p.Status)
 	}
 	return statuses

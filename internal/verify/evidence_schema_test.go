@@ -62,9 +62,12 @@ func TestEvidenceMatchesSchema(t *testing.T) {
 	mas.Budgets = []spec.Budget{{Name: "size", Kind: "artifact_size", Target: "maslow.yaml", Max: "1MB"}}
 	mas.Refs = []spec.Ref{{Kind: "file", Path: "maslow.yaml", Required: true}}
 	mas.Policy = &spec.Policy{
-		Deny:      []string{"**/.env"},
-		Protected: []string{"locked.txt"},
-		Gated:     []spec.GatedDir{{Path: "infra/**", Owner: "ops"}},
+		Deny:          []string{"**/.env"},
+		Protected:     []string{"locked.txt"},
+		Gated:         []spec.GatedDir{{Path: "infra/**", Owner: "ops"}},
+		ShrinkOnly:    []string{"locked.txt"},
+		TestIntegrity: &spec.TestIntegrity{Thresholds: []string{"*.txt"}},
+		Observe:       &spec.Policy{Protected: []string{"locked.txt"}, Gated: []spec.GatedDir{{Path: "*.txt", Owner: "ops"}}},
 	}
 
 	head := strings.TrimSpace(gitOut(t, dir, "rev-parse", "HEAD"))
@@ -72,7 +75,7 @@ func TestEvidenceMatchesSchema(t *testing.T) {
 		Name:      "acceptance",
 		Scenarios: []spec.Scenario{{Name: "s", Steps: []spec.Step{{Action: "cli", Command: "true"}}}},
 	}}}}
-	report, err := Run(mas, Options{Profile: "full", BaseSHA: head, SpecPath: "maslow.yaml", SpecSHA256: loaded.SHA256, SpecFromBase: true, Overlays: []*spec.LoadedOverlay{overlay}})
+	report, err := Run(mas, Options{Profile: "full", BaseSHA: head, SpecPath: "maslow.yaml", SpecSHA256: loaded.SHA256, SpecFromBase: true, RedGreen: true, Overlays: []*spec.LoadedOverlay{overlay}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,6 +100,9 @@ func TestEvidenceMatchesSchema(t *testing.T) {
 		if _, ok := fields[key]; !ok {
 			t.Errorf("expected the fixture to exercise %q", key)
 		}
+	}
+	if last := report.Contracts[len(report.Contracts)-1]; last.Base == nil || last.Status != evidence.StatusNotRed {
+		t.Errorf("expected the fixture to exercise a red-green base run, got %+v", last)
 	}
 
 	mutations := map[string]func(m map[string]any){

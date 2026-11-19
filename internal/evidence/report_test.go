@@ -104,6 +104,30 @@ func TestComputeVerdict_OnlySkipsIsInconclusive(t *testing.T) {
 	}
 }
 
+func TestComputeVerdict_IgnoresObservedPolicy(t *testing.T) {
+	observed := []PolicyResult{
+		{Rule: "locked.txt", Kind: "protected", Mode: "observe", Status: "would_fail"},
+		{Rule: "infra/**", Kind: "gated", Mode: "observe", Status: "would_need_review"},
+		{Rule: "[bad", Kind: "deny", Mode: "observe", Status: "would_error"},
+		{Rule: "ok", Kind: "deny", Mode: "observe", Status: "pass"},
+	}
+
+	r := NewReport(Meta{})
+	r.CheckResults = []CheckResult{{Name: "ok", Status: "pass"}}
+	r.Policy = observed
+	r.ComputeVerdict()
+	if r.Verdict != "pass" {
+		t.Errorf("expected observed findings to leave the verdict pass, got %s", r.Verdict)
+	}
+
+	r = NewReport(Meta{})
+	r.Policy = observed
+	r.ComputeVerdict()
+	if r.Verdict != "inconclusive" {
+		t.Errorf("expected a run with only observed rules to be inconclusive, got %s", r.Verdict)
+	}
+}
+
 func TestComputeVerdict_NeedsReviewPrecedence(t *testing.T) {
 	review := PolicyResult{Rule: "infra/**", Kind: "gated", Status: "needs_review"}
 

@@ -35,9 +35,9 @@ Exit codes: `0` pass or needs_review, `1` fail or inconclusive (and needs_review
 - `spec_source`, `spec_sha256`, `base_sha` — which spec was used and what the change was judged against.
 - `verdict` — `pass`, `fail`, `needs_review` or `inconclusive`. Act on this first. `needs_review` means everything passed but the change touched a `gated` path (or the spec itself) and a named `owner` must approve it; do not try to work around it.
 - `check_results` — one entry per check in the profile, with `status`, `output` and `error`. `output` holds the tail; `output_truncated` says it was cut.
-- `contracts`, `budgets`, `refs`, `policy` — one entry per item, each with a `status` and, on failure, an `error` or `detail`.
+- `contracts`, `budgets`, `refs`, `policy` — one entry per item, each with a `status` and, on failure, an `error` or `detail`. A `policy` entry with `mode: observe` and a `would_*` status is a rule on trial; it does not affect the verdict.
 
-To fix a failure, find entries whose `status` is `fail` or `error` and read their `error`, `detail` and `output`. A `policy` failure means the change touched a path the spec forbids; revert that part of the change rather than editing the policy.
+To fix a failure, find entries whose `status` is `fail` or `error` and read their `error`, `detail` and `output`. A `policy` failure means the change touched a path the spec forbids; revert that part of the change rather than editing the policy. A `shrink_only` or `test_integrity` entry lists the offending lines in `lines`: restore the deleted test or remove the added skip or line rather than working around the rule.
 
 ## Growing a Spec
 

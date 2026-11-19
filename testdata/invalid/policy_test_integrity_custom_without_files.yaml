@@ -1,0 +1,9 @@
+mas: "1.0"
+project:
+  name: policy-test-integrity-custom-without-files
+policy:
+  test_integrity:
+    languages:
+      elixir:
+        skips:
+          - "@tag :skip"

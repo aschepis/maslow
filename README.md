@@ -47,6 +47,7 @@ maslow init                      # Add a starter maslow.yaml to an existing proj
 maslow validate <file>           # Validate a maslow.yaml against the schema
 maslow verify --profile <name>   # Run verification and write evidence
 maslow audit --profile <name>    # Run a black-box audit against built artifacts
+maslow evidence check <file> --head <sha> --spec <file>  # Decide whether evidence approves a change
 maslow version                   # Print version info
 ```
 
@@ -55,14 +56,49 @@ maslow version                   # Print version info
 `maslow verify` runs the following in order:
 
 1. **Checks** — shell commands (build, test, lint) filtered by profile
-2. **Contracts** — scenario-based behavioural tests (CLI and HTTP); a profile's `contracts` list selects by name or tag, and `--overlay <file>` adds a file of extra contracts for one run, such as a change's acceptance scenarios
+2. **Contracts** — scenario-based behavioural tests (CLI, HTTP and headless browser); a profile's `contracts` list selects by name or tag, and `--overlay <file>` adds a file of extra contracts for one run, such as a change's acceptance scenarios. With `--red-green --base <ref>`, each overlay contract also runs in a temporary worktree of the merge base and passes only if it fails there; one that already passes on the base gets status `not_red` and fails the verdict, because it proves nothing about the change (ADR 0034). The base checkout is not built: put any build the scenario needs in the contract's `setup`, which runs in that checkout
 3. **Budgets** — artifact size, performance, and complexity limits; selected by a profile's `budgets` list
 4. **Refs** — verify declared files, binaries, and URLs exist
-5. **Policy** — `deny`, `protected`, `allow` and `gated` rules, judged on the change since `--base <ref>` when given
+5. **Policy** — `deny`, `protected`, `allow`, `gated`, `shrink_only` and `test_integrity` rules, judged on the change since `--base <ref>` when given. Rules under `policy.observe` are evaluated and reported with `mode: observe` and a `would_fail`, `would_need_review` or `would_error` status, but never change the verdict or exit code, so a new rule can be tried on real changes before it is enforced:
+
+   ```yaml
+   policy:
+     protected: [maslow.yaml]
+     observe:
+       protected: [go.sum]   # reported, not enforced
+   ```
+
+   Two rules read the changed lines, not just paths. `shrink_only` files may lose lines but never gain any, and fail otherwise. `test_integrity` asks for review when a change deletes a test file, removes a test, adds a skip marker, or lowers a number in a `thresholds` file such as a coverage floor; it has defaults for Go, Ruby, JavaScript/TypeScript and Python, and `languages` overrides or adds them (ADR 0032). Flagged lines appear in the evidence entry's `lines`:
+
+   ```yaml
+   policy:
+     shrink_only: [config/authz_baseline.txt]
+     test_integrity:
+       thresholds: [coverage.yml]
+       languages:
+         go: {}                     # built-in defaults
+         elixir:
+           files: ["test/**/*_test.exs"]
+           skips: ["@tag :skip"]
+   ```
 
 The verdict is `fail`, `needs_review`, `inconclusive` or `pass`, in that order of precedence. `needs_review` means everything passed but the change touched a `gated` path, and names its owner. It exits 0 unless `--strict` is passed.
 
 Results are written to `reports/verify.json` (or `--report <path>`) as structured evidence. `schema/evidence.schema.json` describes the format. `maslow audit` writes `reports/audit.json`; an `endpoint` audit target runs the contracts it selects against a deployed base URL, resolving step URLs that start with `/`, so the same scenarios work as a post-deploy smoke test.
+
+## Checking Evidence
+
+A merge gate should not trust an evidence file just because it says `pass`. `maslow evidence check` compares it with what the gate knows independently and answers `pass`, `needs_review` or `decline` (ADR 0033):
+
+```bash
+maslow evidence check reports/verify.json \
+  --head "$(git rev-parse HEAD)" \
+  --spec trusted/maslow.yaml \
+  --profile full \
+  --overlay trusted/acceptance.yaml   # or --overlay-sha256 <hex>; repeatable
+```
+
+It declines when `evidence_version` is unknown, `git_sha` is not `--head`, `spec_sha256` is not the hash of `--spec`, the run's `overlays` are not exactly the trusted ones, `profile` differs from `--profile` (when given), the verdict is `fail`, `inconclusive` or anything else unknown, or the file cannot be read. With every input matching, a `needs_review` verdict gives `needs_review` and a `pass` verdict gives `pass`. Every reason is printed; `--json` prints the decision and reasons as `{"evidence", "decision", "reasons": [{"field", "message"}]}`. It exits 0 on `pass`, 1 on `needs_review` or `decline`, and 2 on a usage error such as a missing flag or an unreadable trusted file.
 
 ## In CI
 
@@ -98,6 +134,30 @@ contracts:
 ```
 
 Each scenario keeps its own cookie jar across its setup, steps and teardown, so a scenario that signs in stays signed in without hand-built `Cookie` headers.
+
+### Browser steps
+
+A `browser` step drives a headless Chrome, one operation per step. It needs Chrome or Chromium installed: Maslow looks for the usual names and install paths, or uses the binary named by `MASLOW_BROWSER`. Nothing else (Node, Playwright, a driver) is required.
+
+```yaml
+contracts:
+  - name: web
+    base_url: "http://localhost:3000"   # an endpoint audit target replaces it
+    scenarios:
+      - name: sign-in
+        steps:
+          - { action: browser, do: navigate, url: /login }
+          - { action: browser, do: fill, selector: "#email", text: "ada@example.com" }
+          - { action: browser, do: click, selector: "button[type=submit]" }
+          - { action: browser, do: wait, selector: "#welcome", timeout: 5s }
+          - action: browser
+            do: assert
+            selector: "#welcome"
+            expect: { text_contains: "Welcome", visible: true }
+          - { action: browser, do: assert, expect: { url_contains: /home } }
+```
+
+`click`, `fill` and `assert` never wait: an element that appears later needs a `wait` step first. Browser and HTTP steps share the scenario's cookies. A failing browser step records the page URL and console errors on `failed_step`, and a screenshot at `reports/browser/<contract>/<scenario>.png` in the result's `artifacts` (ADR 0035).
 
 ## Development
 

@@ -1,0 +1,8 @@
+mas: "1.0"
+project:
+  name: policy-observe-nested
+policy:
+  observe:
+    observe:
+      protected:
+        - go.sum

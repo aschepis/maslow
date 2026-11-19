@@ -1,12 +1,12 @@
 ---
 id: 31
 title: Let a new policy rule observe before it enforces
-status: draft
+status: done
 priority: low
 created: 2026-11-18
 updated: 2026-11-18
-assigned_to: ""
-assigned_at: ""
+assigned_to: "claude-workflow"
+assigned_at: "2026-11-18T20:21:44Z"
 depends_on: []
 tags: [kind:gap, policy, evidence]
 ---
@@ -26,9 +26,9 @@ have flagged, on real changes, without affecting the verdict.
 
 ## Acceptance Criteria
 
-- [ ] Schema and fixtures for marking a rule observe-only.
-- [ ] Tests: an observed violation leaves the verdict `pass`; the same rule enforced fails.
-- [ ] Evidence schema updated; ADR records the design.
+- [x] Schema and fixtures for marking a rule observe-only.
+- [x] Tests: an observed violation leaves the verdict `pass`; the same rule enforced fails.
+- [x] Evidence schema updated; ADR records the design.
 
 ## Notes
 
