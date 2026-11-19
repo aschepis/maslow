@@ -20,14 +20,17 @@ package maslow
 	// Policy constraints.
 	policy?: #Policy
 
+	// The most retries any check or contract may ask for.
+	max_retries: *5 | int & >=0
+
 	// Check runners.
-	checks?: #Checks
+	checks?: #Checks & {runner: [...{retries?: <=max_retries}]}
 
 	// Profiles select subsets of checks.
 	profiles?: [string]: #Profile
 
 	// Scenario-based contracts.
-	contracts?: [...#Contract]
+	contracts?: [...#Contract & {retries?: <=max_retries}]
 
 	// Performance and resource budgets.
 	budgets?: [...#Budget]
@@ -147,8 +150,12 @@ package maslow
 	kind:    "command" | "script" | "builtin"
 	run:     string
 	timeout?: string & =~"^[0-9]+(s|m|h)$"
+	// Reruns of a failing check; one that fails and then passes is "flaky".
+	retries?: #Retries
 	tags?: [...string]
 }
+
+#Retries: int & >=0
 
 #Profile: {
 	description?: string
@@ -169,6 +176,8 @@ package maslow
 	env?: [...=~"^[A-Za-z_][A-Za-z0-9_]*$"]
 	// Base for step URLs starting with "/"; an endpoint audit target replaces it.
 	base_url?: string
+	// Reruns of each failing scenario, inside the contract's setup and teardown.
+	retries?: #Retries
 	setup?: [...#Step]
 	teardown?: [...#Step]
 	scenarios: [...#Scenario]

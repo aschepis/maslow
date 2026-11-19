@@ -22,6 +22,19 @@ type MAS struct {
 	Audit      *Audit             `yaml:"audit,omitempty"`
 	Extensions map[string]any     `yaml:"extensions,omitempty"`
 	Packages   []Package          `yaml:"packages,omitempty"`
+	// MaxRetries caps every check's and contract's retries; nil means DefaultMaxRetries.
+	MaxRetries *int `yaml:"max_retries,omitempty"`
+}
+
+// DefaultMaxRetries is the retries cap when a spec does not set max_retries.
+const DefaultMaxRetries = 5
+
+// RetryLimit is the most retries any check or contract in this spec may ask for.
+func (m *MAS) RetryLimit() int {
+	if m.MaxRetries == nil {
+		return DefaultMaxRetries
+	}
+	return *m.MaxRetries
 }
 
 type Project struct {
@@ -101,6 +114,7 @@ type CheckRunner struct {
 	Kind    string   `yaml:"kind"`
 	Run     string   `yaml:"run"`
 	Timeout string   `yaml:"timeout,omitempty"`
+	Retries int      `yaml:"retries,omitempty"`
 	Tags    []string `yaml:"tags,omitempty"`
 }
 
@@ -122,7 +136,9 @@ type Contract struct {
 	// Env lists the environment variables templates may read as {{.env.NAME}}.
 	Env []string `yaml:"env,omitempty"`
 	// BaseURL resolves step URLs that start with "/"; an endpoint audit replaces it.
-	BaseURL   string     `yaml:"base_url,omitempty"`
+	BaseURL string `yaml:"base_url,omitempty"`
+	// Retries reruns each failing scenario, with the contract's setup and teardown.
+	Retries   int        `yaml:"retries,omitempty"`
 	Setup     []Step     `yaml:"setup,omitempty"`
 	Teardown  []Step     `yaml:"teardown,omitempty"`
 	Scenarios []Scenario `yaml:"scenarios"`

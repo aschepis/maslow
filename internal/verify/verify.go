@@ -97,6 +97,9 @@ func Run(mas *spec.MAS, opts Options) (*evidence.Report, error) {
 	if err := spec.CheckOverlayNames(mas, opts.Overlays); err != nil {
 		return nil, err
 	}
+	if err := spec.CheckOverlayRetries(mas, opts.Overlays); err != nil {
+		return nil, err
+	}
 	if opts.RedGreen && opts.BaseSHA == "" {
 		return nil, errors.New("--red-green needs --base to know which commit the overlay contracts must fail on")
 	}
