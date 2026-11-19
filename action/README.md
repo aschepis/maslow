@@ -37,6 +37,8 @@ jobs:
 
 Outputs: `verdict` (`pass`, `fail`, `needs_review`, `inconclusive`) and `report`.
 
+The job summary is printed by `maslow evidence summary`. From the first release with that command, it also lists observe-mode policy findings (`would_fail`, `would_need_review`, `would_error`) in their own section, which does not affect the verdict. With an older `version`, the Action writes its previous summary, which omits them.
+
 A `needs_review` verdict passes the step unless `strict` is set. Read `steps.<id>.outputs.verdict` to request review from the owners named in the evidence.
 
 ## A limit to know about

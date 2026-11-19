@@ -49,6 +49,10 @@ func TestCmdEvidence(t *testing.T) {
 		{"red-green evidence passes", []string{"check", redGreenFile, "--head", fixtureHead, "--spec", fixtureSpec, "--overlay-sha256", fixtureOverlay, "--base", fixtureBase, "--require-red-green"}, 0, "pass"},
 		{"plain overlay evidence declines", []string{"check", plainOverlayFile, "--head", fixtureHead, "--spec", fixtureSpec, "--overlay-sha256", fixtureOverlay, "--base", fixtureBase, "--require-red-green"}, 1, "--red-green"},
 		{"base alone checks base_sha", []string{"check", plainOverlayFile, "--head", fixtureHead, "--spec", fixtureSpec, "--overlay-sha256", fixtureOverlay, "--base", fixtureHead}, 1, "base_sha"},
+		{"summary", []string{"summary", "../../testdata/evidence/observe-only.json"}, 0, "Observed policy rules"},
+		{"summary of missing evidence", []string{"summary", "no-such.json"}, 1, ""},
+		{"summary without file", []string{"summary"}, 2, ""},
+		{"summary with two files", []string{"summary", passFile, reviewFile}, 2, ""},
 		{"no subcommand", nil, 2, ""},
 		{"unknown subcommand", []string{"inspect"}, 2, ""},
 	}

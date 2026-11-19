@@ -7,6 +7,11 @@ Notable changes to Maslow, newest first. Versions follow [semantic versioning](h
 ### Added
 
 - **`evidence check --require-red-green`.** With `--base <sha>` and a trusted overlay, `maslow evidence check` declines unless every overlay contract failed on exactly that base and passed on the head, so evidence from a run without `--red-green` cannot pass the gate. Each failing contract gets its own reason. `--base` alone checks the evidence's `base_sha`. No evidence format change; v0.8.0 `--red-green` evidence already passes. (ADR 0037)
+- **`maslow evidence summary <file>`.** Prints an evidence file as Markdown: the verdict, run metadata, the enforced results that failed or need review, and observe-mode policy findings in a separate "Observed policy rules (not enforced)" section. Exit 0, 1 if the file cannot be read or parsed, 2 on wrong arguments. (ADR 0036)
+
+### Changed
+
+- **The Action's job summary now lists observe-mode policy findings** (`would_fail`, `would_need_review`, `would_error`), closing the gap noted under 0.8.0. The step runs `maslow evidence summary` and falls back to its old jq when the installed release lacks the command. It also lists `not_red` contracts, which the old summary omitted. (ADR 0036)
 
 ## [0.8.0] - 2026-11-18
 

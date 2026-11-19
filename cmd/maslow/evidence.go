@@ -11,11 +11,29 @@ import (
 )
 
 func cmdEvidence(args []string, stdout io.Writer) int {
-	if len(args) == 0 || args[0] != "check" {
-		fmt.Fprintln(os.Stderr, "Usage: maslow evidence check <file> --head <sha> --spec <file> [--profile <name>] [--overlay <file>] [--overlay-sha256 <hex>] [--base <sha>] [--require-red-green] [--json]")
+	if len(args) > 0 && args[0] == "check" {
+		return cmdEvidenceCheck(args[1:], stdout)
+	}
+	if len(args) > 0 && args[0] == "summary" {
+		return cmdEvidenceSummary(args[1:], stdout)
+	}
+	fmt.Fprintln(os.Stderr, "Usage: maslow evidence check <file> --head <sha> --spec <file> [--profile <name>] [--overlay <file>] [--overlay-sha256 <hex>] [--base <sha>] [--require-red-green] [--json]")
+	fmt.Fprintln(os.Stderr, "       maslow evidence summary <file>")
+	return 2
+}
+
+func cmdEvidenceSummary(args []string, stdout io.Writer) int {
+	if len(args) != 1 {
+		fmt.Fprintln(os.Stderr, "maslow evidence summary: expected exactly one evidence file argument")
 		return 2
 	}
-	return cmdEvidenceCheck(args[1:], stdout)
+	report, err := evidence.ReadReport(args[0])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "maslow evidence summary: %v\n", err)
+		return 1
+	}
+	fmt.Fprint(stdout, evidence.Summary(report))
+	return 0
 }
 
 func cmdEvidenceCheck(args []string, stdout io.Writer) int {

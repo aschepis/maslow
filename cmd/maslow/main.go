@@ -68,7 +68,8 @@ Commands:
            [--require-red-green]  Decline unless every overlay contract failed on --base
                                and passed on --head (needs --base and an overlay flag)
            [--json]          Print the decision and reasons as JSON
-  init     [--apply]           Add a starter maslow.yaml to the current directory
+  evidence summary <file>      Print an evidence file as the Markdown job summary
+  init    [--apply]           Add a starter maslow.yaml to the current directory
   version                      Print version information`)
 }
 

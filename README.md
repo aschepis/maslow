@@ -48,6 +48,7 @@ maslow validate <file>           # Validate a maslow.yaml against the schema
 maslow verify --profile <name>   # Run verification and write evidence
 maslow audit --profile <name>    # Run a black-box audit against built artifacts
 maslow evidence check <file> --head <sha> --spec <file>  # Decide whether evidence approves a change
+maslow evidence summary <file>   # Print evidence as the Markdown job summary
 maslow version                   # Print version info
 ```
 

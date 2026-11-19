@@ -504,6 +504,37 @@ contracts:
               exit_code: 1
               body_contains: "was verify run with --red-green?"
 
+  - name: evidence-summary-command
+    description: Evidence summary lists observed policy findings apart from enforced results
+    tags:
+      - smoke
+    scenarios:
+      - name: observed-findings-listed
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - evidence
+              - summary
+              - testdata/evidence/observe-only.json
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "Observed policy rules"
+          - action: assert
+            expect:
+              body_contains: "would_fail"
+      - name: missing-file-is-usage-error
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - evidence
+              - summary
+          - action: assert
+            expect:
+              exit_code: 2
+
   - name: init-command
     description: The init command manages maslow.yaml in the current directory
     scenarios:
