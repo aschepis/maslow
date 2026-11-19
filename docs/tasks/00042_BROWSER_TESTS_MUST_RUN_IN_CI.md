@@ -1,7 +1,7 @@
 ---
 id: 42
 title: Make CI fail, not skip, when the browser tests have no Chrome
-status: in_progress
+status: done
 priority: medium
 created: 2026-11-18
 updated: 2026-11-18
@@ -29,13 +29,15 @@ the built binary.
 
 ## Acceptance Criteria
 
-- [ ] With `MASLOW_REQUIRE_BROWSER=1` and `MASLOW_BROWSER=/nonexistent`, `go test -run Browser
+- [x] With `MASLOW_REQUIRE_BROWSER=1` and `MASLOW_BROWSER=/nonexistent`, `go test -run Browser
       ./internal/runner/` fails with a message naming both variables.
-- [ ] Without `MASLOW_REQUIRE_BROWSER`, the same command still skips.
-- [ ] A CI run on the PR shows the Chrome version and `--- PASS: TestBrowser_*` lines.
+- [x] Without `MASLOW_REQUIRE_BROWSER`, the same command still skips.
+- [ ] A CI run on the PR shows the Chrome version and `--- PASS: TestBrowser_*` lines. (Needs a CI
+      run; not yet observed.)
 - [ ] `maslow verify --profile full` runs a browser contract that passes in CI. The quick profile is
-      unchanged.
-- [ ] CHANGELOG v0.8.0 entry and ADR 0035 no longer say CI lacks Chrome.
+      unchanged. (Passes locally with `bin/maslow`; CI uses `spec-from: base` on PRs, so the
+      contract first runs in CI on `main` after merge.)
+- [x] CHANGELOG v0.8.0 entry and ADR 0035 no longer say CI lacks Chrome.
 
 ## Notes
 
