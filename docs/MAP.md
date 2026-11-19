@@ -57,7 +57,10 @@ reports/verify.json         <- verify evidence (reports/audit.json for audit)
 | `internal/evidence/` | Builds the evidence report, computes the verdict, caps output, writes JSON; `Check` decides pass, needs_review or decline for a report against trusted inputs (ADR 0033); `Summary` (`summary.go`) renders the job summary, flaky results and observed policy findings in their own sections (ADR 0036, ADR 0039) |
 | `internal/gitrepo/` | Git queries shared by policy and spec loading, including line-level diffs against a base and temporary worktrees |
 | `schema/maslow.cue` | CUE schema defining the MAS format |
-| `action/action.yml` | Composite GitHub Action wrapping `maslow verify`; its job summary comes from `maslow evidence summary` |
+| `action/action.yml` | Composite GitHub Action wrapping `maslow verify`; its job summary comes from `maslow evidence summary`; `action/README.md` documents the trusted-evidence pattern (ADR 0040) |
+| `.github/workflows/maslow-evidence.yml` | Trusted evidence: a `pull_request_target` workflow, defined by `main`, for same-repository pull requests. `verify` runs a maslow built from the base with `contents: read`, no secrets and no cache. `record` never runs the change and records the evidence's sha256. Consumers find the run through the GitHub API (ADR 0040) |
+| `scripts/check-trusted-workflow.sh` | Check `trusted-workflow`: fails if the trusted workflow gains another trigger, a write permission, secrets, a persisted token, a cache or a job without the same-repository guard |
+| `zizmor.yml` | Config for the `zizmor` check (full profile only), with each suppression's reason |
 | `scripts/build-release.sh` | Builds release archives and checksums |
 
 ---
@@ -72,6 +75,7 @@ reports/verify.json         <- verify evidence (reports/audit.json for audit)
 | Evidence schema | `schema/evidence.schema.json` | JSON Schema for evidence version 2 |
 | Test fixtures | `testdata/valid/` | Valid maslow.yaml examples for schema and verify tests |
 | Test fixtures | `testdata/flaky/` | A spec whose check fails once and then passes, for the `verify-retries` contract |
+| Test fixtures | `testdata/trusted-workflow/` | One good and several broken trusted-evidence workflows for the `trusted-workflow-check` contract |
 | Test fixtures | `testdata/invalid/` | Invalid maslow.yaml examples that must fail validation |
 | Test fixtures | `testdata/evidence/` | Evidence files for `maslow evidence check` and `evidence summary` tests and contracts; `*.summary.md` are the summary goldens |
 | README | `README.md` | Install, usage, commands, dev instructions |
