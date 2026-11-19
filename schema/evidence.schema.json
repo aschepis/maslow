@@ -52,6 +52,7 @@
   },
   "$defs": {
     "status": { "enum": ["pass", "fail", "skip", "error"] },
+    "resultStatus": { "enum": ["pass", "fail", "skip", "error", "flaky"], "description": "a check or contract result; flaky means it failed and then passed on a retry" },
     "policyStatus": { "enum": ["pass", "fail", "skip", "error", "needs_review", "would_fail", "would_need_review", "would_error"] },
     "check": {
       "type": "object",
@@ -60,6 +61,24 @@
       "properties": {
         "name": { "type": "string" },
         "kind": { "type": "string" },
+        "status": { "$ref": "#/$defs/resultStatus" },
+        "duration_seconds": { "type": "number", "minimum": 0 },
+        "output": { "type": "string" },
+        "output_bytes": { "type": "integer", "minimum": 0 },
+        "output_truncated": { "type": "boolean" },
+        "error": { "type": "string" },
+        "attempts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/checkAttempt" },
+          "description": "set only when the check ran more than once; the other fields describe the last attempt, and duration_seconds is the total"
+        }
+      }
+    },
+    "checkAttempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "duration_seconds"],
+      "properties": {
         "status": { "$ref": "#/$defs/status" },
         "duration_seconds": { "type": "number", "minimum": 0 },
         "output": { "type": "string" },
@@ -74,7 +93,7 @@
       "required": ["name", "status"],
       "properties": {
         "name": { "type": "string" },
-        "status": { "enum": ["pass", "fail", "skip", "error", "not_red"] },
+        "status": { "enum": ["pass", "fail", "skip", "error", "not_red", "flaky"] },
         "error": { "type": "string" },
         "overlay": { "type": "string" },
         "failed_step": { "$ref": "#/$defs/failedStep" },
@@ -82,8 +101,27 @@
         "output_bytes": { "type": "integer", "minimum": 0 },
         "output_truncated": { "type": "boolean" },
         "artifacts": { "type": "array", "items": { "type": "string" } },
-        "head_status": { "$ref": "#/$defs/status", "description": "red-green runs only: the contract's own result on the head" },
-        "base": { "$ref": "#/$defs/baseRun" }
+        "head_status": { "$ref": "#/$defs/resultStatus", "description": "red-green runs only: the contract's own result on the head" },
+        "base": { "$ref": "#/$defs/baseRun" },
+        "attempts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/contractAttempt" },
+          "description": "set only when the scenario ran more than once; the other fields describe the last attempt"
+        }
+      }
+    },
+    "contractAttempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": { "$ref": "#/$defs/status" },
+        "error": { "type": "string" },
+        "failed_step": { "$ref": "#/$defs/failedStep" },
+        "output": { "type": "string" },
+        "output_bytes": { "type": "integer", "minimum": 0 },
+        "output_truncated": { "type": "boolean" },
+        "artifacts": { "type": "array", "items": { "type": "string" } }
       }
     },
     "baseRun": {
@@ -93,9 +131,10 @@
       "required": ["sha", "status"],
       "properties": {
         "sha": { "type": "string" },
-        "status": { "$ref": "#/$defs/status" },
+        "status": { "$ref": "#/$defs/resultStatus" },
         "error": { "type": "string" },
-        "failed_step": { "$ref": "#/$defs/failedStep" }
+        "failed_step": { "$ref": "#/$defs/failedStep" },
+        "attempts": { "type": "array", "items": { "$ref": "#/$defs/contractAttempt" } }
       }
     },
     "failedStep": {

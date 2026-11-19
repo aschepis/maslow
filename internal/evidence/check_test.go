@@ -302,6 +302,37 @@ func TestCheck(t *testing.T) {
 			decision: DecisionNeedsReview,
 			fields:   []string{"verdict"},
 		},
+		{
+			name: "pass verdict with flaky results",
+			report: func(r *Report) {
+				r.CheckResults = []CheckResult{{Name: "unit", Status: StatusFlaky}}
+			},
+			decision: DecisionPass,
+		},
+		{
+			name: "red-green flaky on the head",
+			report: func(r *Report) {
+				withRedGreen(r)
+				r.Contracts[0].HeadStatus = StatusFlaky
+				r.Contracts[0].Status = StatusFlaky
+				r.Verdict = "needs_review"
+			},
+			trusted:  requireRedGreen,
+			decision: DecisionDecline,
+			fields:   []string{"contracts"},
+		},
+		{
+			name: "red-green flaky on the base",
+			report: func(r *Report) {
+				withRedGreen(r)
+				r.Contracts[0].Base.Status = StatusFlaky
+				r.Contracts[0].Status = StatusNotRed
+				r.Verdict = "fail"
+			},
+			trusted:  requireRedGreen,
+			decision: DecisionDecline,
+			fields:   []string{"verdict", "contracts"},
+		},
 	}
 
 	for _, c := range cases {
@@ -345,6 +376,19 @@ func TestCheck_RedGreenReasonsNameContractAndOverlay(t *testing.T) {
 		if !strings.Contains(msg, want) {
 			t.Errorf("reason %q does not mention %s", msg, want)
 		}
+	}
+}
+
+func TestCheck_FlakyHeadIsNotGreen(t *testing.T) {
+	r := goodReport()
+	withRedGreen(r)
+	r.Contracts[0].HeadStatus, r.Contracts[0].Status, r.Verdict = StatusFlaky, StatusFlaky, "needs_review"
+	tr := goodTrusted()
+	requireRedGreen(&tr)
+
+	got := Check(r, tr)
+	if len(got.Reasons) != 1 || !strings.Contains(got.Reasons[0].Message, `head status "flaky": not green`) {
+		t.Errorf("expected a not-green reason for the flaky head, got %+v", got.Reasons)
 	}
 }
 
