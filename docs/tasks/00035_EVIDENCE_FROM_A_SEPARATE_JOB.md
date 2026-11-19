@@ -1,12 +1,12 @@
 ---
 id: 35
 title: Produce evidence outside the job that runs the code under test
-status: todo
+status: in_progress
 priority: medium
 created: 2026-11-18
 updated: 2026-11-19
-assigned_to: ""
-assigned_at: ""
+assigned_to: "claude-subagent"
+assigned_at: "2026-11-19T16:55:02Z"
 depends_on: [32]
 tags: [kind:gap, action, evidence, security]
 ---
