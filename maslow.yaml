@@ -197,6 +197,28 @@ contracts:
           - action: assert
             expect:
               exit_code: 1
+      - name: retries-are-valid
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - validate
+              - testdata/valid/retries.yaml
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "is valid"
+      - name: retries-above-max-retries-fail
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - validate
+              - testdata/invalid/retries_above_max_retries.yaml
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: "retries: invalid value 2 (out of bound <=1)"
       - name: missing-argument
         steps:
           - action: cli
@@ -366,6 +388,72 @@ contracts:
             expect:
               exit_code: 2
               body_contains: "--red-green requires --base"
+
+  - name: verify-retries
+    description: A check that fails and then passes on a retry is flaky, keeps every attempt, and still passes
+    tags:
+      - smoke
+    scenarios:
+      - name: flaky-check-passes-with-attempts
+        setup:
+          - action: cli
+            command: rm
+            args:
+              - -f
+              - reports/flaky-marker
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - verify
+              - --spec
+              - testdata/flaky/maslow.yaml
+              - --profile
+              - quick
+              - --report
+              - reports/flaky-evidence.json
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "[flaky] fail-once"
+          - action: cli
+            command: cat
+            args:
+              - reports/flaky-evidence.json
+          - action: assert
+            expect:
+              body_contains: '"status": "flaky"'
+          - action: assert
+            expect:
+              body_contains: '"attempts": ['
+          - action: cli
+            command: bin/maslow
+            args:
+              - evidence
+              - summary
+              - reports/flaky-evidence.json
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "| check | fail-once | 2 | exit status 1 |"
+      - name: overlay-retries-above-max-retries-refused
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - verify
+              - --spec
+              - testdata/flaky/maslow.yaml
+              - --profile
+              - quick
+              - --report
+              - reports/flaky-overlay-evidence.json
+              - --overlay
+              - testdata/overlays/too-many-retries.yaml
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: "above the spec's max_retries of 5"
 
   - name: audit-command
     description: Audit writes its own evidence file so it never overwrites verify's

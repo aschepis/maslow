@@ -1,0 +1,9 @@
+description: Asks for more retries than the spec's max_retries allows
+contracts:
+  - name: acceptance
+    retries: 6
+    scenarios:
+      - name: s
+        steps:
+          - action: cli
+            command: "true"
