@@ -2,13 +2,19 @@
 
 Notable changes to Maslow, newest first. Versions follow [semantic versioning](https://semver.org/); until 1.0, a minor version may break specs.
 
-## [Unreleased]
+## [0.8.0] - 2026-11-18
 
 ### Added
 
-- **Browser contract steps.** A `browser` step drives a headless Chrome through chromedp: `navigate`, `click`, `fill`, `wait`, and `assert` on text, URL, visibility or enabled state. It shares the scenario's cookies with HTTP steps and resolves `/` URLs against `base_url`. A failing step records `page_url` and `console` on `failed_step`, both additive in evidence version 2, and a screenshot in `artifacts`. Needs Chrome or Chromium, found on the usual paths or named by `MASLOW_BROWSER`. (ADR 0035)
-- **Shrink-only files and test-integrity policy.** `policy.shrink_only` fails a change that adds a line to a matching file. `policy.test_integrity` reports deleted test files, removed tests, added skip markers and lowered numbers in `thresholds` files as `needs_review`, with defaults for Go, Ruby, JavaScript and Python. Policy evidence gains an optional `lines` field; the format stays version 2. (ADR 0032)
-- **Policy observe mode.** Rules under `policy.observe` (any of `deny`, `allow`, `protected`, `gated`) are evaluated and reported with `mode: observe` and a `would_fail`, `would_need_review` or `would_error` status, without changing the verdict or exit code. The evidence format stays version 2; `mode` and the `would_*` statuses are additive. (ADR 0031)
+- **Browser contract steps.** A `browser` step drives a headless Chrome through chromedp: `navigate`, `click`, `fill`, `wait`, and `assert` on text, URL, visibility or enabled state. It shares the scenario's cookies with HTTP steps and resolves `/` URLs against `base_url`. A failing step records `page_url` and `console` on `failed_step`, and a screenshot in `artifacts`. Needs Chrome or Chromium, found on the usual paths or named by `MASLOW_BROWSER`. Maslow's own CI has no Chrome, so these tests skip there. (#26, ADR 0035)
+- **Red-then-green overlay contracts.** `maslow verify --red-green --base <ref> --overlay <file>` runs each overlay contract on the head and again in a temporary checkout of the merge base. A contract that passes on both gets status `not_red`, which fails the verdict. Maslow does not build the base; a contract's `setup` must. (#25, ADR 0034)
+- **`maslow evidence check`.** Given an evidence file, `--head <sha>` and a trusted `--spec`, answers `pass`, `needs_review` or `decline`. It declines on any mismatch of evidence version, commit, spec hash, profile (with `--profile`) or overlay hashes (`--overlay`, `--overlay-sha256`), and on a `fail` or `inconclusive` verdict. `--json` prints the decision and reasons. Exit 0 for pass, 1 otherwise. (#24, ADR 0033)
+- **Shrink-only files and test-integrity policy.** `policy.shrink_only` fails a change that adds a line to a matching file. `policy.test_integrity` reports deleted test files, removed tests, added skip markers and lowered numbers in `thresholds` files as `needs_review`, with defaults for Go, Ruby, JavaScript and Python. A renamed test file is reported as deleted. (#23, ADR 0032)
+- **Policy observe mode.** Rules under `policy.observe` (any policy rule kind) are evaluated and reported with `mode: observe` and a `would_fail`, `would_need_review` or `would_error` status, without changing the verdict or exit code. The Action's job summary does not list them yet. (#22, ADR 0031)
+
+### Evidence format
+
+The format is still `evidence_version: "2"`, and every new field is optional: `mode` and `lines` on policy results; `head_status` and `base` on overlay contract results; `page_url` and `console` on `failed_step`. There are new status values: `not_red` on contracts, and `would_fail`, `would_need_review` and `would_error` on observed policy results. A consumer that rejects statuses it does not know must add these. `schema/evidence.schema.json` describes them all.
 
 ## [0.7.0] - 2026-11-18
 
@@ -36,5 +42,6 @@ The format is still `evidence_version: "2"`. All new fields are optional and add
 
 Maslow became a verifier. The agent harness was removed and the module moved to `github.com/aschepis/maslow`. The verdict and `**` policy glob bugs were fixed. This release added base-ref policy (`--base`), `--spec-from base`, evidence format 2, `gated` paths with a `needs_review` verdict, profile scoping of contracts and budgets, a release pipeline and the GitHub Action. See ADRs 0016 to 0024.
 
+[0.8.0]: https://github.com/aschepis/maslow/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/aschepis/maslow/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/aschepis/maslow/releases/tag/v0.6.0
