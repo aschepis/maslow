@@ -6,6 +6,7 @@ Notable changes to Maslow, newest first. Versions follow [semantic versioning](h
 
 ### Added
 
+- **Retries and the `flaky` status.** Checks and contracts take an optional `retries` (default 0), capped by a new top-level `max_retries` (default 5). A failing check or scenario reruns until it passes; a contract reruns its setup and teardown with each attempt. One that fails and then passes gets status `flaky`, which counts as `pass` for checks and spec contracts and as `needs_review` for overlay contracts. A red-green base that fails and then passes is `not_red`, and `evidence check --require-red-green` declines a flaky head. `maslow evidence summary` lists flaky results in a new "Flaky results" section. An overlay asking for more than `max_retries` is refused. (ADR 0039)
 - **`evidence check --require-red-green`.** With `--base <sha>` and a trusted overlay, `maslow evidence check` declines unless every overlay contract failed on exactly that base and passed on the head, so evidence from a run without `--red-green` cannot pass the gate. Each failing contract gets its own reason. `--base` alone checks the evidence's `base_sha`. No evidence format change; v0.8.0 `--red-green` evidence already passes. (ADR 0037)
 - **`maslow evidence summary <file>`.** Prints an evidence file as Markdown: the verdict, run metadata, the enforced results that failed or need review, and observe-mode policy findings in a separate "Observed policy rules (not enforced)" section. Exit 0, 1 if the file cannot be read or parsed, 2 on wrong arguments. (ADR 0036)
 
@@ -14,6 +15,10 @@ Notable changes to Maslow, newest first. Versions follow [semantic versioning](h
 - **The Action's job summary now lists observe-mode policy findings** (`would_fail`, `would_need_review`, `would_error`), closing the gap noted under 0.8.0. The step runs `maslow evidence summary` and falls back to its old jq when the installed release lacks the command. It also lists `not_red` contracts, which the old summary omitted. (ADR 0036)
 - **The `action-pins` check also covers `.github/workflows/`.** Third-party actions there must be pinned to a full commit SHA; first-party `actions/*` may keep a tag. `scripts/check-action-pins.sh` takes `--workflows DIR` and exits 2 on a missing file or directory instead of passing. (ADR 0038)
 - **Maslow's CI requires Chrome for its browser tests.** With `MASLOW_REQUIRE_BROWSER` set, the browser tests fail instead of skipping when no browser is found; CI sets it, logs the Chrome version and the tests' `--- PASS` lines, and the full profile runs a new `browser-steps` contract through `bin/maslow`. Without Chrome, `maslow verify --profile full` now fails locally.
+
+### Evidence format
+
+The format is still `evidence_version: "2"`. `flaky` is a new status on check results, contract results, `head_status` and `base.status`. `attempts` is a new optional field on check results, contract results and `base`, written only when more than one attempt ran; the other fields then describe the last attempt, and a check's `duration_seconds` is the total. A consumer that rejects statuses it does not know must add `flaky`. Verdict values are unchanged.
 
 ## [0.8.0] - 2026-11-18
 
