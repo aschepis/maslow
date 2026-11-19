@@ -461,6 +461,48 @@ contracts:
           - action: assert
             expect:
               exit_code: 2
+      - name: red-green-evidence-passes-require-red-green
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - evidence
+              - check
+              - testdata/evidence/red-green.json
+              - --head
+              - "1111111111111111111111111111111111111111"
+              - --spec
+              - testdata/valid/minimal.yaml
+              - --overlay-sha256
+              - "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+              - --base
+              - "3333333333333333333333333333333333333333"
+              - --require-red-green
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "maslow evidence check: pass"
+      - name: overlay-run-without-red-green-declines
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - evidence
+              - check
+              - testdata/evidence/overlay-without-red-green.json
+              - --head
+              - "1111111111111111111111111111111111111111"
+              - --spec
+              - testdata/valid/minimal.yaml
+              - --overlay-sha256
+              - "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+              - --base
+              - "3333333333333333333333333333333333333333"
+              - --require-red-green
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: "was verify run with --red-green?"
 
   - name: init-command
     description: The init command manages maslow.yaml in the current directory

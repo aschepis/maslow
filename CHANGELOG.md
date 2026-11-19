@@ -2,6 +2,12 @@
 
 Notable changes to Maslow, newest first. Versions follow [semantic versioning](https://semver.org/); until 1.0, a minor version may break specs.
 
+## [Unreleased]
+
+### Added
+
+- **`evidence check --require-red-green`.** With `--base <sha>` and a trusted overlay, `maslow evidence check` declines unless every overlay contract failed on exactly that base and passed on the head, so evidence from a run without `--red-green` cannot pass the gate. Each failing contract gets its own reason. `--base` alone checks the evidence's `base_sha`. No evidence format change; v0.8.0 `--red-green` evidence already passes. (ADR 0037)
+
 ## [0.8.0] - 2026-11-18
 
 ### Added

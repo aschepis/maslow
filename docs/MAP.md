@@ -110,7 +110,9 @@ A valid `maslow.yaml` defines:
 - `spec_path`, `spec_sha256`, `spec_source` - which spec bytes were verified (`head` or `base`)
 - `overlays` - path and SHA-256 of each `--overlay` file; its contract results carry `overlay` (ADR 0029);
   under `--red-green` they also carry `head_status` and `base` (`sha`, `status`, `error`, `failed_step`),
-  and a contract already passing on the base has status `not_red`, which fails the verdict (ADR 0034)
+  and a contract already passing on the base has status `not_red`, which fails the verdict (ADR 0034);
+  `evidence check --require-red-green --base <sha>` declines unless every overlay contract has a
+  `base` with that `sha` and status `fail`, and passed on the head (ADR 0037)
 - `git_sha`, `base_sha` - the commit verified and the merge base policy was judged against
 - `profile`, `timestamp`
 - `check_results`, `contracts`, `budgets`, `refs`, `policy` - one entry per item with a `status`;

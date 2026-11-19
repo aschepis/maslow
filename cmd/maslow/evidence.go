@@ -12,7 +12,7 @@ import (
 
 func cmdEvidence(args []string, stdout io.Writer) int {
 	if len(args) == 0 || args[0] != "check" {
-		fmt.Fprintln(os.Stderr, "Usage: maslow evidence check <file> --head <sha> --spec <file> [--profile <name>] [--overlay <file>] [--overlay-sha256 <hex>] [--json]")
+		fmt.Fprintln(os.Stderr, "Usage: maslow evidence check <file> --head <sha> --spec <file> [--profile <name>] [--overlay <file>] [--overlay-sha256 <hex>] [--base <sha>] [--require-red-green] [--json]")
 		return 2
 	}
 	return cmdEvidenceCheck(args[1:], stdout)
@@ -23,6 +23,8 @@ func cmdEvidenceCheck(args []string, stdout io.Writer) int {
 	head := fs.String("head", "", "commit the evidence must describe")
 	specPath := fs.String("spec", "", "trusted spec the evidence must have been produced from")
 	profile := fs.String("profile", "", "profile the evidence must have run (default: any)")
+	base := fs.String("base", "", "full merge-base SHA the evidence's base_sha must match")
+	requireRedGreen := fs.Bool("require-red-green", false, "decline unless every overlay contract failed on --base and passed on --head")
 	asJSON := fs.Bool("json", false, "print the decision and reasons as JSON")
 	var overlayPaths, overlayHashes stringList
 	fs.Var(&overlayPaths, "overlay", "trusted overlay file the run must have used (repeatable)")
@@ -40,8 +42,22 @@ func cmdEvidenceCheck(args []string, stdout io.Writer) int {
 		fmt.Fprintln(os.Stderr, "maslow evidence check: --head and --spec are required")
 		return 2
 	}
+	if *requireRedGreen && *base == "" {
+		fmt.Fprintln(os.Stderr, "maslow evidence check: --require-red-green requires --base <sha>")
+		return 2
+	}
+	if *requireRedGreen && len(overlayPaths) == 0 && len(overlayHashes) == 0 {
+		fmt.Fprintln(os.Stderr, "maslow evidence check: --require-red-green requires --overlay or --overlay-sha256")
+		return 2
+	}
 
-	trusted := evidence.Trusted{Head: *head, Profile: *profile, OverlaySHA256s: overlayHashes}
+	trusted := evidence.Trusted{
+		Head:            *head,
+		Profile:         *profile,
+		OverlaySHA256s:  overlayHashes,
+		Base:            *base,
+		RequireRedGreen: *requireRedGreen,
+	}
 	var err error
 	if trusted.SpecSHA256, err = evidence.FileSHA256(*specPath); err != nil {
 		fmt.Fprintf(os.Stderr, "maslow evidence check: trusted spec: %v\n", err)

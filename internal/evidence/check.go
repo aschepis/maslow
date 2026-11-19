@@ -21,6 +21,9 @@ type Trusted struct {
 	SpecSHA256     string   // hash of the trusted spec
 	OverlaySHA256s []string // hashes of the overlays the run must have used, and no others
 	Profile        string   // empty accepts any profile
+	Base           string   // full merge-base SHA; empty skips the base_sha check
+	// RequireRedGreen declines unless every overlay contract failed on Base and passed on Head.
+	RequireRedGreen bool
 }
 
 // Decision is the outcome of checking an evidence file against trusted inputs.
@@ -81,9 +84,17 @@ func Check(r *Report, t Trusted) Decision {
 	if t.Profile != "" && r.Profile != t.Profile {
 		add("profile", "profile %q does not match --profile %q", r.Profile, t.Profile)
 	}
+	if t.Base != "" && r.BaseSHA != t.Base {
+		add("base_sha", "base_sha %q does not match --base %q", r.BaseSHA, t.Base)
+	}
 
 	if r.Verdict != "pass" && r.Verdict != "needs_review" {
 		add("verdict", "verdict %q does not approve the change", r.Verdict)
+	}
+	if t.RequireRedGreen {
+		for _, msg := range redGreenMismatches(r, t.Base) {
+			add("contracts", "%s", msg)
+		}
 	}
 
 	if len(reasons) > 0 {
@@ -93,6 +104,55 @@ func Check(r *Report, t Trusted) Decision {
 		return Decision{Decision: DecisionNeedsReview, Reasons: []Reason{{Field: "verdict", Message: "verdict is needs_review"}}}
 	}
 	return Decision{Decision: DecisionPass, Reasons: []Reason{}}
+}
+
+// redGreenMismatches returns one message per overlay contract that does not
+// show red on base and green on the head, and per overlay with no results.
+func redGreenMismatches(r *Report, base string) []string {
+	if len(r.Overlays) == 0 {
+		return []string{"--require-red-green but the run used no overlays"}
+	}
+	var msgs []string
+	for _, o := range r.Overlays {
+		if !hasOverlayContract(r.Contracts, o.Path) {
+			msgs = append(msgs, fmt.Sprintf("overlay %s has no contract results", o.Path))
+		}
+	}
+	for _, c := range r.Contracts {
+		if c.Overlay == "" {
+			continue
+		}
+		if problem := redGreenProblem(c, base); problem != "" {
+			msgs = append(msgs, fmt.Sprintf("overlay contract %q (overlay %s) %s", c.Name, c.Overlay, problem))
+		}
+	}
+	return msgs
+}
+
+func hasOverlayContract(contracts []ContractResult, overlay string) bool {
+	for _, c := range contracts {
+		if c.Overlay == overlay {
+			return true
+		}
+	}
+	return false
+}
+
+// Only the first problem is reported, so each contract yields at most one reason.
+func redGreenProblem(c ContractResult, base string) string {
+	switch {
+	case c.Base == nil:
+		return "has no base run; was verify run with --red-green?"
+	case c.Base.SHA != base:
+		return fmt.Sprintf("base ran on %q, not --base %q", c.Base.SHA, base)
+	case c.Base.Status != "fail":
+		return fmt.Sprintf("base status %q on %s: not red", c.Base.Status, c.Base.SHA)
+	case c.HeadStatus != "pass":
+		return fmt.Sprintf("head status %q: not green", c.HeadStatus)
+	case c.Status != "pass":
+		return fmt.Sprintf("status %q is not pass", c.Status)
+	}
+	return ""
 }
 
 func overlayMismatches(used []OverlayRef, trusted []string) []string {
