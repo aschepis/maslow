@@ -1,12 +1,12 @@
 ---
 id: 38
 title: Rerun failed checks and contracts and report flakes distinctly
-status: todo
+status: in_progress
 priority: medium
 created: 2026-11-18
 updated: 2026-11-19
-assigned_to: ""
-assigned_at: ""
+assigned_to: "claude-subagent"
+assigned_at: "2026-11-19T16:44:46Z"
 depends_on: []
 tags: [kind:gap, checks, contracts, evidence]
 ---
