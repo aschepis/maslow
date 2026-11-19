@@ -22,13 +22,19 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          persist-credentials: false
 
+      # Pull request code in maslow-evidence.yml can write main's cache scope, so nothing restores it.
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          cache: false
 
       - name: Install CUE
         run: go install cuelang.org/go/cmd/cue@v0.15.4
+
+      - name: Install zizmor
+        run: pipx install zizmor==1.32.0
 
       - name: Check formatting
         run: |

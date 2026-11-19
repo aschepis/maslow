@@ -1,0 +1,123 @@
+name: Maslow evidence
+
+# pull_request_target runs main's copy of this file, so a change cannot rewrite how its own
+# evidence is produced. scripts/check-trusted-workflow.sh holds the rules this file must keep (ADR 0040).
+on:
+  pull_request_target:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: maslow-evidence-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    # Fork pull requests never get trusted evidence; ci.yml gives them feedback instead.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      MASLOW_REQUIRE_BROWSER: "1"
+    steps:
+      - name: Check out the change
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      # The verifier is main's code, so the change does not judge itself.
+      - name: Check out the base into a worktree
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: git worktree add --detach "$RUNNER_TEMP/maslow-base" "$BASE_SHA"
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: ${{ runner.temp }}/maslow-base/go.mod
+          cache: false
+
+      - name: Build maslow from the base
+        working-directory: ${{ runner.temp }}/maslow-base
+        run: go build -o "$RUNNER_TEMP/maslow-bin/maslow" ./cmd/maslow
+
+      - name: Install CUE
+        working-directory: ${{ runner.temp }}/maslow-base
+        run: go install cuelang.org/go/cmd/cue@v0.15.4
+
+      - name: Install zizmor
+        run: pipx install zizmor==1.32.0
+
+      - name: Verify (full profile)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          MASLOW: ${{ runner.temp }}/maslow-bin/maslow
+          REPORT: ${{ runner.temp }}/maslow/verify.json
+        run: |
+          mkdir -p "$(dirname "$REPORT")"
+          "$MASLOW" version
+          "$MASLOW" verify --profile full --spec-from base --base "$BASE_SHA" --report "$REPORT"
+
+      - name: Write job summary
+        if: always()
+        env:
+          MASLOW: ${{ runner.temp }}/maslow-bin/maslow
+          REPORT: ${{ runner.temp }}/maslow/verify.json
+        run: |
+          if [ -f "$REPORT" ]; then
+            "$MASLOW" evidence summary "$REPORT" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No evidence file was written. See the step log." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # The head SHA in the name lets a consumer find the artifact through the API (ADR 0040).
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: maslow-evidence-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/maslow/verify.json
+          if-no-files-found: error
+
+  # Never checks out or runs the change. It fails when the evidence is missing or names another
+  # commit, and records the hash a consumer compares with the artifact it downloads.
+  record:
+    needs: verify
+    if: ${{ !cancelled() && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    outputs:
+      sha256: ${{ steps.record.outputs.sha256 }}
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: maslow-evidence-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/evidence
+
+      - name: Record the evidence
+        id: record
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EVIDENCE: ${{ runner.temp }}/evidence/verify.json
+        run: |
+          set -euo pipefail
+          sha256=$(sha256sum "$EVIDENCE" | cut -d' ' -f1)
+          git_sha=$(jq -r '.git_sha // ""' "$EVIDENCE")
+          verdict=$(jq -r '.verdict // ""' "$EVIDENCE")
+          case "$verdict" in pass|fail|needs_review|inconclusive) ;; *) verdict="unknown" ;; esac
+          echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Maslow evidence"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Pull request head | \`$HEAD_SHA\` |"
+            echo "| Verdict claimed | \`$verdict\` |"
+            echo "| verify.json sha256 | \`$sha256\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$git_sha" != "$HEAD_SHA" ]; then
+            echo "::error::the evidence names commit ${git_sha:0:40}, not the pull request head $HEAD_SHA"
+            exit 1
+          fi

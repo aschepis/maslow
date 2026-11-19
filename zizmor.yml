@@ -1,0 +1,18 @@
+# Configuration for the zizmor check in maslow.yaml. Every suppression names its reason.
+rules:
+  dangerous-triggers:
+    ignore:
+      # Runs main's definition on same-repository pull requests only, so the change cannot edit it.
+      # scripts/check-trusted-workflow.sh keeps write scope, secrets and caches out of it (ADR 0040).
+      - maslow-evidence.yml
+  self-repository:
+    ignore:
+      # ci.yml dogfoods the change's own ./action. Move to $/action once
+      # scripts/check-action-pins.sh understands that syntax.
+      - ci.yml
+  unpinned-uses:
+    config:
+      policies:
+        # GitHub owns the actions/* tags; ADR 0038 lets workflows pin them by tag.
+        "actions/*": ref-pin
+        "*": hash-pin
