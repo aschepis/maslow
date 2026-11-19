@@ -32,20 +32,35 @@ func redact(result evidence.ContractResult, env map[string]string) evidence.Cont
 	}
 	result.Error = r.Replace(result.Error)
 	result.Output = r.Replace(result.Output)
-	if result.FailedStep != nil {
-		step := *result.FailedStep
-		step.Target = r.Replace(step.Target)
-		step.PageURL = r.Replace(step.PageURL)
-		if step.Console != nil {
-			console := make([]string, len(step.Console))
-			for i, m := range step.Console {
-				console[i] = r.Replace(m)
-			}
-			step.Console = console
+	result.FailedStep = redactStep(result.FailedStep, r)
+	if result.Attempts != nil {
+		attempts := make([]evidence.ContractAttempt, len(result.Attempts))
+		for i, a := range result.Attempts {
+			a.Error = r.Replace(a.Error)
+			a.Output = r.Replace(a.Output)
+			a.FailedStep = redactStep(a.FailedStep, r)
+			attempts[i] = a
 		}
-		result.FailedStep = &step
+		result.Attempts = attempts
 	}
 	return result
+}
+
+func redactStep(failed *evidence.FailedStep, r *strings.Replacer) *evidence.FailedStep {
+	if failed == nil {
+		return nil
+	}
+	step := *failed
+	step.Target = r.Replace(step.Target)
+	step.PageURL = r.Replace(step.PageURL)
+	if step.Console != nil {
+		console := make([]string, len(step.Console))
+		for i, m := range step.Console {
+			console[i] = r.Replace(m)
+		}
+		step.Console = console
+	}
+	return &step
 }
 
 // redactor replaces longer values first, so a value containing another is

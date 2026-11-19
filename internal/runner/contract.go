@@ -159,32 +159,64 @@ func RunContractsWith(contracts []spec.Contract, opts ContractOptions) []evidenc
 	return results
 }
 
+// runContract runs every scenario, then reruns the failing ones, each time
+// inside the contract's setup and teardown, until they pass or run out of retries.
 func runContract(contract spec.Contract, cfg contractConfig) []evidence.ContractResult {
 	if cfg.baseURL == "" {
 		base, err := applyTemplate(contract.BaseURL, newScope(cfg))
 		if err != nil {
-			return failAll(contract, "base_url: ", err)
+			return failAll(contract.Name, contract.Scenarios, "base_url: ", err)
 		}
 		cfg.baseURL = base
 	}
 
-	// Contract-level setup runs once before all scenarios.
+	attempts := make([][]evidence.ContractResult, len(contract.Scenarios))
+	pending := make([]int, len(contract.Scenarios))
+	for i := range pending {
+		pending[i] = i
+	}
+	for attempt := 0; attempt <= contract.Retries && len(pending) > 0; attempt++ {
+		var scenarios []spec.Scenario
+		for _, i := range pending {
+			scenarios = append(scenarios, contract.Scenarios[i])
+		}
+		results := runContractAttempt(contract, scenarios, cfg, attempt)
+
+		var failed []int
+		for j, i := range pending {
+			attempts[i] = append(attempts[i], results[j])
+			if shouldRetry(results[j].Status) {
+				failed = append(failed, i)
+			}
+		}
+		pending = failed
+	}
+
+	results := make([]evidence.ContractResult, len(attempts))
+	for i := range attempts {
+		results[i] = foldContractAttempts(attempts[i])
+	}
+	return results
+}
+
+// runContractAttempt runs scenarios once between the contract's setup and teardown.
+func runContractAttempt(contract spec.Contract, scenarios []spec.Scenario, cfg contractConfig, attempt int) []evidence.ContractResult {
 	if len(contract.Setup) > 0 {
 		state := &stepState{}
-		sc := newScope(cfg).withScreenshot(screenshotPath(contract.Name, "_contract_setup"))
+		sc := newScope(cfg).withScreenshot(attemptScreenshotPath(screenshotPath(contract.Name, "_contract_setup"), attempt))
 		err := runSteps(phaseContractSetup, contract.Setup, state, sc)
 		if err != nil {
 			runStepsIgnoreError(contract.Teardown, state, sc)
 		}
 		sc.close()
 		if err != nil {
-			return failAll(contract, "contract setup failed: ", err)
+			return failAll(contract.Name, scenarios, "contract setup failed: ", err)
 		}
 	}
 
 	var results []evidence.ContractResult
-	for _, scenario := range contract.Scenarios {
-		results = append(results, runScenario(contract.Name, scenario, cfg))
+	for _, scenario := range scenarios {
+		results = append(results, runScenario(contract.Name, scenario, cfg, attempt))
 	}
 
 	teardown := newScope(cfg)
@@ -194,19 +226,20 @@ func runContract(contract spec.Contract, cfg contractConfig) []evidence.Contract
 }
 
 // failAll fails every scenario of a contract that could not start.
-func failAll(contract spec.Contract, prefix string, err error) []evidence.ContractResult {
+func failAll(contractName string, scenarios []spec.Scenario, prefix string, err error) []evidence.ContractResult {
 	var results []evidence.ContractResult
-	for _, scenario := range contract.Scenarios {
-		result := failedResult(fmt.Sprintf("%s/%s", contract.Name, scenario.Name), prefix, err)
+	for _, scenario := range scenarios {
+		result := failedResult(fmt.Sprintf("%s/%s", contractName, scenario.Name), prefix, err)
 		attachArtifacts(&result, scenario.Artifacts)
 		results = append(results, result)
 	}
 	return results
 }
 
-func runScenario(contractName string, scenario spec.Scenario, cfg contractConfig) evidence.ContractResult {
+func runScenario(contractName string, scenario spec.Scenario, cfg contractConfig, attempt int) evidence.ContractResult {
 	name := fmt.Sprintf("%s/%s", contractName, scenario.Name)
-	state, sc := &stepState{}, newScope(cfg).withScreenshot(screenshotPath(contractName, scenario.Name))
+	screenshot := attemptScreenshotPath(screenshotPath(contractName, scenario.Name), attempt)
+	state, sc := &stepState{}, newScope(cfg).withScreenshot(screenshot)
 	defer sc.close()
 
 	var result evidence.ContractResult

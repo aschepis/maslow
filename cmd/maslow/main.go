@@ -346,6 +346,9 @@ func printReport(report *evidence.Report, path string) {
 	}
 	for _, r := range report.CheckResults {
 		fmt.Printf("  [%s] %s (%.2fs)\n", r.Status, r.Name, r.Duration)
+		if len(r.Attempts) > 0 {
+			fmt.Printf("         attempts: %d\n", len(r.Attempts))
+		}
 		if r.Error != "" {
 			fmt.Printf("         error: %s\n", r.Error)
 		}
@@ -355,6 +358,9 @@ func printReport(report *evidence.Report, path string) {
 			fmt.Printf("  [%s] contract: %s (overlay %s)\n", c.Status, c.Name, c.Overlay)
 		} else {
 			fmt.Printf("  [%s] contract: %s\n", c.Status, c.Name)
+		}
+		if len(c.Attempts) > 0 {
+			fmt.Printf("         attempts: %d\n", len(c.Attempts))
 		}
 		if f := c.FailedStep; f != nil {
 			fmt.Printf("         step: %s\n", strings.TrimSpace(fmt.Sprintf("%s[%d] %s %s", f.Phase, f.Index, f.Action, f.Target)))
