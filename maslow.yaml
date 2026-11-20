@@ -216,6 +216,28 @@ contracts:
             expect:
               exit_code: 1
               body_contains: "languages.elixir.files: field is required"
+      - name: multipart-http-step-is-valid
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - validate
+              - testdata/valid/http_multipart.yaml
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "is valid"
+      - name: multipart-file-outside-the-checkout-fails
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - validate
+              - testdata/invalid/multipart_parent_segment.yaml
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: 'multipart.0.file: invalid value "../secret"'
       - name: invalid-file-fails
         steps:
           - action: cli
