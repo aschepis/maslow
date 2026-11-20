@@ -216,6 +216,50 @@ contracts:
             expect:
               exit_code: 1
               body_contains: "languages.elixir.files: field is required"
+      - name: multipart-http-step-is-valid
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - validate
+              - testdata/valid/http_multipart.yaml
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "is valid"
+      - name: multipart-file-outside-the-checkout-fails
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - validate
+              - testdata/invalid/multipart_parent_segment.yaml
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: 'multipart.0.file: invalid value "../secret"'
+      - name: observability-steps-are-valid
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - validate
+              - testdata/valid/observability_steps.yaml
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "is valid"
+      - name: observability-hold-over-1000-polls-fails
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - validate
+              - testdata/invalid/metric_too_many_polls.yaml
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: "_polls: invalid value 1200 (out of bound <=1000)"
       - name: invalid-file-fails
         steps:
           - action: cli
@@ -248,6 +292,32 @@ contracts:
             expect:
               exit_code: 1
               body_contains: "retries: invalid value 2 (out of bound <=1)"
+      - name: covers-are-valid
+        covers:
+          - docs/tasks/00037_REQUIREMENT_LINKS.md
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - validate
+              - testdata/valid/covers.yaml
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "is valid"
+      - name: covers-with-whitespace-fail
+        covers:
+          - docs/tasks/00037_REQUIREMENT_LINKS.md
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - validate
+              - testdata/invalid/covers_whitespace.yaml
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: 'covers.0: invalid value "users can log in"'
       - name: missing-argument
         steps:
           - action: cli
@@ -621,6 +691,97 @@ contracts:
               exit_code: 1
               body_contains: "was verify run with --red-green?"
 
+  - name: evidence-check-covers
+    description: Evidence check requires each --require-covered ID to be covered by passing results
+    tags:
+      - smoke
+    covers:
+      - docs/tasks/00037_REQUIREMENT_LINKS.md
+    scenarios:
+      - name: covered-requirement-passes
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - evidence
+              - check
+              - testdata/evidence/red-green-covers.json
+              - --head
+              - "1111111111111111111111111111111111111111"
+              - --spec
+              - testdata/valid/minimal.yaml
+              - --overlay-sha256
+              - "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+              - --base
+              - "3333333333333333333333333333333333333333"
+              - --require-red-green
+              - --require-covered
+              - acme/app#7
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "maslow evidence check: pass"
+      - name: uncovered-requirement-declines
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - evidence
+              - check
+              - testdata/evidence/red-green-covers.json
+              - --head
+              - "1111111111111111111111111111111111111111"
+              - --spec
+              - testdata/valid/minimal.yaml
+              - --overlay-sha256
+              - "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+              - --require-covered
+              - acme/app#8
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: 'requirement "acme/app#8" is not covered by any check or contract in the run'
+      - name: red-green-ignores-spec-check-coverage
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - evidence
+              - check
+              - testdata/evidence/red-green-covers.json
+              - --head
+              - "1111111111111111111111111111111111111111"
+              - --spec
+              - testdata/valid/minimal.yaml
+              - --overlay-sha256
+              - "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+              - --base
+              - "3333333333333333333333333333333333333333"
+              - --require-red-green
+              - --require-covered
+              - REQ-1
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: "covered by no overlay contract; --require-red-green needs one"
+      - name: empty-id-is-usage-error
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - evidence
+              - check
+              - testdata/evidence/red-green-covers.json
+              - --head
+              - "1111111111111111111111111111111111111111"
+              - --spec
+              - testdata/valid/minimal.yaml
+              - --require-covered
+              - ""
+          - action: assert
+            expect:
+              exit_code: 2
+
   - name: evidence-summary-command
     description: Evidence summary lists observed policy findings apart from enforced results
     tags:
@@ -641,6 +802,20 @@ contracts:
           - action: assert
             expect:
               body_contains: "would_fail"
+      - name: requirements-listed
+        covers:
+          - docs/tasks/00037_REQUIREMENT_LINKS.md
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - evidence
+              - summary
+              - testdata/evidence/covers.json
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "| acme/app#7 | fail | contract:acceptance/fixed, contract:login/rejects-bad-password |"
       - name: missing-file-is-usage-error
         steps:
           - action: cli

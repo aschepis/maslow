@@ -39,6 +39,16 @@ type Report struct {
 	Budgets         []BudgetResult   `json:"budgets,omitempty"`
 	Refs            []RefResult      `json:"refs,omitempty"`
 	Policy          []PolicyResult   `json:"policy,omitempty"`
+	// Coverage is derived from each result's Covers; evidence check ignores it.
+	Coverage []CoverageEntry `json:"coverage,omitempty"`
+}
+
+// CoverageEntry is one requirement ID and the results that cover it, named
+// "check:<name>" or "contract:<name>".
+type CoverageEntry struct {
+	ID      string   `json:"id"`
+	Status  string   `json:"status"`
+	Results []string `json:"results"`
 }
 
 // Meta describes what a report is about.
@@ -71,6 +81,7 @@ type CheckResult struct {
 	// Attempts is set only when the check ran more than once; the fields
 	// above then describe the last attempt, and Duration is the total.
 	Attempts []CheckAttempt `json:"attempts,omitempty"`
+	Covers   []string       `json:"covers,omitempty"`
 }
 
 // StatusFlaky marks a check or contract that failed and then passed on a retry.
@@ -88,13 +99,57 @@ type CheckAttempt struct {
 
 // ContractAttempt is one run of a retried contract scenario.
 type ContractAttempt struct {
-	Status          string      `json:"status"`
-	Error           string      `json:"error,omitempty"`
-	FailedStep      *FailedStep `json:"failed_step,omitempty"`
-	Output          string      `json:"output,omitempty"`
-	OutputBytes     int         `json:"output_bytes,omitempty"`
-	OutputTruncated bool        `json:"output_truncated,omitempty"`
-	Artifacts       []string    `json:"artifacts,omitempty"`
+	Status          string        `json:"status"`
+	Error           string        `json:"error,omitempty"`
+	FailedStep      *FailedStep   `json:"failed_step,omitempty"`
+	Output          string        `json:"output,omitempty"`
+	OutputBytes     int           `json:"output_bytes,omitempty"`
+	OutputTruncated bool          `json:"output_truncated,omitempty"`
+	Artifacts       []string      `json:"artifacts,omitempty"`
+	Observations    []Observation `json:"observations,omitempty"`
+}
+
+// Observation records what one metric, log or alerts step asked and saw, so
+// a reviewer can replay each query at its recorded time.
+type Observation struct {
+	Phase    string `json:"phase"`
+	Index    int    `json:"index"`
+	Action   string `json:"action"`
+	Provider string `json:"provider"`
+	// URL is as written in the spec, before templating.
+	URL               string            `json:"url"`
+	Query             string            `json:"query,omitempty"`
+	Matchers          []string          `json:"matchers,omitempty"`
+	IgnorePreexisting bool              `json:"ignore_preexisting,omitempty"`
+	For               string            `json:"for,omitempty"`
+	Interval          string            `json:"interval,omitempty"`
+	Settle            string            `json:"settle,omitempty"`
+	Expect            ObservationBounds `json:"expect"`
+	Samples           []Sample          `json:"samples"`
+	// Breach says why the step failed, naming the first offending series or alert.
+	Breach string `json:"breach,omitempty"`
+}
+
+// ObservationBounds are the inclusive bounds a step judged its samples by.
+type ObservationBounds struct {
+	Min       *float64 `json:"min,omitempty"`
+	Max       *float64 `json:"max,omitempty"`
+	MinSeries *int     `json:"min_series,omitempty"`
+	MaxSeries *int     `json:"max_series,omitempty"`
+	IfNoData  string   `json:"if_no_data,omitempty"`
+}
+
+// Sample is one query at one evaluation time. Min and Max span every series
+// and are strings so that +Inf and -Inf survive JSON.
+type Sample struct {
+	At     string `json:"at"`
+	Series *int   `json:"series,omitempty"`
+	Alerts *int   `json:"alerts,omitempty"`
+	Min    string `json:"min,omitempty"`
+	Max    string `json:"max,omitempty"`
+	NoData bool   `json:"no_data,omitempty"`
+	OK     bool   `json:"ok"`
+	Error  string `json:"error,omitempty"`
 }
 
 // ContractResult records the outcome of a contract scenario.
@@ -111,6 +166,11 @@ type ContractResult struct {
 	OutputTruncated bool   `json:"output_truncated,omitempty"`
 	// Artifacts are files matching the scenario's artifact patterns, such as screenshots.
 	Artifacts []string `json:"artifacts,omitempty"`
+	// Observations has one entry per metric, log or alerts step that ran.
+	Observations []Observation `json:"observations,omitempty"`
+	// Breached marks a failure on what the system reported. Rerunning would
+	// cost another hold and could relabel a real breach as flaky.
+	Breached bool `json:"-"`
 	// HeadStatus and Base are set only by a red-green run, where Status
 	// combines the two runs.
 	HeadStatus string   `json:"head_status,omitempty"`
@@ -118,6 +178,8 @@ type ContractResult struct {
 	// Attempts is set only when the scenario ran more than once; the fields
 	// above then describe the last attempt.
 	Attempts []ContractAttempt `json:"attempts,omitempty"`
+	// Covers joins the contract's and the scenario's requirement IDs.
+	Covers []string `json:"covers,omitempty"`
 }
 
 // StatusNotRed marks an overlay contract that already passed on the base

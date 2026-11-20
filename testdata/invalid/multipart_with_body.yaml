@@ -1,0 +1,15 @@
+mas: "1.0"
+project:
+  name: multipart-with-body
+contracts:
+  - name: uploads
+    scenarios:
+      - name: upload
+        steps:
+          - action: http
+            method: POST
+            url: http://localhost:8080/upload
+            body: "raw"
+            multipart:
+              - field: title
+                value: "a title"

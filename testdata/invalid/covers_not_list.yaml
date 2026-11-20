@@ -1,0 +1,11 @@
+mas: "1.0"
+project:
+  name: covers-not-list
+contracts:
+  - name: login
+    scenarios:
+      - name: s
+        covers: acme/app#7
+        steps:
+          - action: cli
+            command: "true"

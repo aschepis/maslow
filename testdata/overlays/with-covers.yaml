@@ -1,0 +1,10 @@
+description: Acceptance contract linked to the issue it fixes
+contracts:
+  - name: acceptance
+    covers: [acme/app#7]
+    scenarios:
+      - name: fixed
+        covers: [acme/app#7/ac-1]
+        steps:
+          - action: cli
+            command: "true"

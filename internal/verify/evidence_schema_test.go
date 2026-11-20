@@ -3,6 +3,8 @@ package verify
 import (
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -40,11 +42,12 @@ func TestEvidenceMatchesSchema(t *testing.T) {
 		t.Fatal(err)
 	}
 	mas := loaded.MAS
-	mas.Checks.Runner = append(mas.Checks.Runner, spec.CheckRunner{Name: "noisy", Kind: "command", Run: "seq 1 5000"})
+	mas.Checks.Runner = append(mas.Checks.Runner, spec.CheckRunner{Name: "noisy", Kind: "command", Run: "seq 1 5000", Covers: []string{"REQ-1"}})
 	mas.Profiles["full"] = spec.Profile{Checks: []string{"gate", "ok", "noisy"}}
-	mas.Contracts = []spec.Contract{{Name: "c", Scenarios: []spec.Scenario{
+	mas.Contracts = []spec.Contract{{Name: "c", Covers: []string{"acme/app#7"}, Scenarios: []spec.Scenario{
 		{
-			Name: "s",
+			Name:   "s",
+			Covers: []string{"acme/app#7/ac-1"},
 			Steps: []spec.Step{
 				{Action: "cli", Command: "true"},
 				{Action: "assert", Expect: &spec.Expectation{ExitCode: &exitZero}},
@@ -59,6 +62,19 @@ func TestEvidenceMatchesSchema(t *testing.T) {
 			Artifacts: []string{"locked.txt"},
 		},
 	}}}
+	prom := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v2/alerts" {
+			w.Write([]byte(`[]`))
+			return
+		}
+		w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"code":"500"},"value":[0,"+Inf"]}]}}`))
+	}))
+	defer prom.Close()
+	maxRatio, noAlerts := 0.01, 0.0
+	mas.Contracts = append(mas.Contracts, spec.Contract{Name: "observe", Scenarios: []spec.Scenario{
+		{Name: "alerts", Steps: []spec.Step{{Action: "alerts", Provider: "alertmanager", URL: prom.URL, Matchers: []string{`service="x"`}, Expect: &spec.Expectation{Max: &noAlerts}}}},
+		{Name: "breach", Steps: []spec.Step{{Action: "metric", Provider: "prometheus", URL: prom.URL, Query: "error_ratio", Expect: &spec.Expectation{Max: &maxRatio}}}},
+	}})
 	mas.Budgets = []spec.Budget{{Name: "size", Kind: "artifact_size", Target: "maslow.yaml", Max: "1MB"}}
 	mas.Refs = []spec.Ref{{Kind: "file", Path: "maslow.yaml", Required: true}}
 	mas.Policy = &spec.Policy{
@@ -96,10 +112,17 @@ func TestEvidenceMatchesSchema(t *testing.T) {
 	if err := json.Unmarshal(data, &fields); err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"contracts", "budgets", "refs", "policy", "base_sha", "git_sha", "overlays"} {
+	for _, key := range []string{"contracts", "budgets", "refs", "policy", "base_sha", "git_sha", "overlays", "coverage"} {
 		if _, ok := fields[key]; !ok {
 			t.Errorf("expected the fixture to exercise %q", key)
 		}
+	}
+	observed := 0
+	for _, c := range report.Contracts {
+		observed += len(c.Observations)
+	}
+	if observed != 2 {
+		t.Errorf("expected the fixture to exercise two observations, got %d", observed)
 	}
 	if last := report.Contracts[len(report.Contracts)-1]; last.Base == nil || last.Status != evidence.StatusNotRed {
 		t.Errorf("expected the fixture to exercise a red-green base run, got %+v", last)
@@ -108,6 +131,12 @@ func TestEvidenceMatchesSchema(t *testing.T) {
 	mutations := map[string]func(m map[string]any){
 		"unknown field": func(m map[string]any) { m["surprise"] = true },
 		"bad verdict":   func(m map[string]any) { m["verdict"] = "maybe" },
+		"covers with whitespace": func(m map[string]any) {
+			m["check_results"].([]any)[0].(map[string]any)["covers"] = []string{"two words"}
+		},
+		"coverage without results": func(m map[string]any) {
+			m["coverage"] = []map[string]any{{"id": "X", "status": "pass"}}
+		},
 	}
 	for name, mutate := range mutations {
 		var m map[string]any

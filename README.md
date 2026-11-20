@@ -103,6 +103,20 @@ contracts:
 
 Only `fail` is retried, never `error`, and there is no delay between attempts. A result that fails and then passes has status `flaky` and lists every run in `attempts`. A flaky check or spec contract counts as a pass; a flaky overlay contract makes the verdict `needs_review`, and under `--red-green` a base run that fails and then passes is `not_red`. `maslow evidence summary` lists flaky results in their own section.
 
+Checks, contracts and scenarios can name the requirements they prove with `covers`, a list of IDs with no whitespace such as `acme/app#7`, `REQ-12` or a URL:
+
+```yaml
+contracts:
+  - name: login
+    covers: [acme/app#7]                 # every scenario covers it
+    scenarios:
+      - name: rejects-bad-password
+        covers: [acme/app#7/ac-2]        # added to the contract's list
+        steps: [...]
+```
+
+Each result in the evidence lists what it covers, and a top-level `coverage` lists every ID with the combined status of the results covering it. `covers` never changes the verdict; `maslow evidence check --require-covered` is how a gate requires coverage (ADR 0043).
+
 Results are written to `reports/verify.json` (or `--report <path>`) as structured evidence. `schema/evidence.schema.json` describes the format. `maslow audit` writes `reports/audit.json`; an `endpoint` audit target runs the contracts it selects against a deployed base URL, resolving step URLs that start with `/`, so the same scenarios work as a post-deploy smoke test.
 
 ## Checking Evidence
@@ -120,6 +134,8 @@ maslow evidence check reports/verify.json \
 It declines when `evidence_version` is unknown, `git_sha` is not `--head`, `spec_sha256` is not the hash of `--spec`, the run's `overlays` are not exactly the trusted ones, `profile` differs from `--profile` (when given), the verdict is `fail`, `inconclusive` or anything else unknown, or the file cannot be read. With every input matching, a `needs_review` verdict gives `needs_review` and a `pass` verdict gives `pass`. Every reason is printed; `--json` prints the decision and reasons as `{"evidence", "decision", "reasons": [{"field", "message"}]}`. It exits 0 on `pass`, 1 on `needs_review` or `decline`, and 2 on a usage error such as a missing flag or an unreadable trusted file.
 
 To require that the run proved its acceptance contracts red first, add `--require-red-green --base "$(git merge-base origin/main HEAD)"`. It then declines unless every overlay contract ran on exactly that base SHA with status `fail` and passed on the head (a `flaky` head is not green), so evidence from a plain `--overlay` run without `--red-green` is declined with a reason per contract. `--require-red-green` needs `--base` (a full SHA) and `--overlay` or `--overlay-sha256`, or it exits 2. `--base` on its own only checks that `base_sha` matches (ADR 0037).
+
+To require that the run covered specific requirements, add `--require-covered <id>` once per ID. It declines, with one reason per ID, unless at least one check or contract lists the ID in `covers` and every result that does passed (`flaky` counts as passing). IDs match exactly, so `#7` and `acme/app#7` differ. With `--require-red-green`, only overlay contracts count and each must be `pass`, so a requirement covered only by a spec check declines. The check recomputes coverage from each result's `covers` and ignores the evidence's top-level `coverage` (ADR 0043). An empty ID or one containing whitespace exits 2.
 
 ## In CI
 
@@ -156,6 +172,28 @@ contracts:
 
 Each scenario keeps its own cookie jar across its setup, steps and teardown, so a scenario that signs in stays signed in without hand-built `Cookie` headers.
 
+### Multipart uploads
+
+An `http` step can send a `multipart/form-data` body with `multipart` instead of `body`. Each part has a `field` and exactly one of `value` (a text field), `file` (a fixture's bytes) or `content` (inline text sent as a file, which needs a `filename`):
+
+```yaml
+- action: http
+  method: POST
+  url: /v1/videos
+  headers: { Authorization: "Bearer {{.cap.access_token}}" }
+  multipart:
+    - { field: title, value: "Test Video" }
+    - { field: video, file: testdata/sample.mp4, content_type: video/mp4 }
+    - { field: notes, content: "made by {{.cap.user}}", filename: notes.txt }
+  expect: { status: 201, json_path: "$.id" }
+```
+
+- `file` is a slash-separated path relative to the directory Maslow runs in, with no `.`, `..` or empty segment. Symlinks may not lead outside that directory. Fixtures are always read from the head checkout, even in a red-green base run or with `--spec-from base`, so list fixture directories in `policy.protected` if a change must not edit them.
+- A file part's `filename` defaults to the file's base name, and `content_type` to `application/octet-stream`. Maslow does not guess types from extensions.
+- `value`, `content` and `filename` are templated. `field`, `file` and `content_type` are not.
+- Maslow sets `Content-Type` with a boundary derived from the parts, so the same parts send the same bytes. A step that also sets a `Content-Type` header fails.
+- A missing or escaping fixture, or a body over 10 MiB, gives the scenario status `error`, which is not retried (ADR 0041).
+
 ### Browser steps
 
 A `browser` step drives a headless Chrome, one operation per step. It needs Chrome or Chromium installed: Maslow looks for the usual names and install paths, or uses the binary named by `MASLOW_BROWSER`. Nothing else (Node, Playwright, a driver) is required.
@@ -179,6 +217,55 @@ contracts:
 ```
 
 `click`, `fill` and `assert` never wait: an element that appears later needs a `wait` step first. Browser and HTTP steps share the scenario's cookies. A failing browser step records the page URL and console errors on `failed_step`, and a screenshot at `reports/browser/<contract>/<scenario>.png` in the result's `artifacts` (ADR 0035).
+
+### Metric, log and alerts steps
+
+`metric`, `log` and `alerts` steps judge what a running system reports, so a post-deploy audit can check live behaviour without generating load. Each names a `provider`:
+
+| Action | Query | Providers |
+|--------|-------|-----------|
+| `metric` | PromQL returning a vector or scalar | `prometheus` (any Prometheus-compatible query API), `datadog` (not implemented yet) |
+| `log` | Metric LogQL, such as `sum(count_over_time(...))` | `loki`, `datadog` (not implemented yet) |
+| `alerts` | Alertmanager label `matchers` | `alertmanager`, `datadog` (not implemented yet) |
+
+```yaml
+contracts:
+  - name: checkout-after-deploy
+    tags: [post-deploy]
+    env: [PROM_URL, PROM_TOKEN, LOKI_URL, ALERTMANAGER_URL]
+    scenarios:
+      - name: error-rate-holds
+        steps:
+          - action: metric
+            provider: prometheus
+            url: "{{.env.PROM_URL}}"
+            headers: { Authorization: "Bearer {{.env.PROM_TOKEN}}" }
+            query: sum(rate(http_requests_total{code=~"5.."}[1m])) / sum(rate(http_requests_total[1m]))
+            for: 10m          # optional; omitted queries once
+            interval: 30s     # required with for
+            expect: { max: 0.01 }
+          - action: log
+            provider: loki
+            url: "{{.env.LOKI_URL}}"
+            query: sum(count_over_time({app="checkout"} |= "panic" [5m]))
+            expect: { max: 0, if_no_data: pass }
+          - action: alerts
+            provider: alertmanager
+            url: "{{.env.ALERTMANAGER_URL}}"
+            matchers: ['service="checkout"']
+            ignore_preexisting: true
+            for: 10m
+            settle: 5m        # keep polling while slow alert rules catch up
+            interval: 1m
+            expect: { max: 0 }
+```
+
+- `url` is the provider's base URL and must be absolute. It is never joined to `base_url`, so an endpoint audit target does not redirect it.
+- `metric` and `log` take `min`, `max`, `min_series`, `max_series` and `if_no_data`. Every series must be within `min` and `max`, inclusive. An empty result, or only NaN, is no data and fails unless `if_no_data: pass`. A `count_over_time` with no matching lines returns nothing, so a "no panics" step needs `if_no_data: pass`.
+- `alerts` counts active alerts that are not silenced or inhibited, bounded by `min` and `max`.
+- With `for`, the step queries every `interval` until `for` (plus `settle`) has passed and fails at the first breach. At most 1000 polls are allowed. "Over the last 10 minutes" is a single query with `max_over_time(...[10m])`.
+- A breach is never retried. A failed query is, and fails the step at once mid-hold. `provider: datadog` validates but gives status `error`.
+- Each step adds an entry to the result's `observations`: the query, its exact evaluation times, and the values judged, so any query can be replayed (ADR 0042).
 
 ## Development
 

@@ -48,9 +48,30 @@
     "contracts": { "type": "array", "items": { "$ref": "#/$defs/contract" } },
     "budgets": { "type": "array", "items": { "$ref": "#/$defs/budget" } },
     "refs": { "type": "array", "items": { "$ref": "#/$defs/ref" } },
-    "policy": { "type": "array", "items": { "$ref": "#/$defs/policy" } }
+    "policy": { "type": "array", "items": { "$ref": "#/$defs/policy" } },
+    "coverage": {
+      "type": "array",
+      "description": "derived from each check's and contract's covers, sorted by id; maslow evidence check recomputes it and ignores this field",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "status", "results"],
+        "properties": {
+          "id": { "$ref": "#/$defs/requirementId" },
+          "status": { "enum": ["pass", "fail", "needs_review", "skip"] },
+          "results": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "pattern": "^(check|contract):" },
+            "description": "the covering results, as check:<name> or contract:<name>"
+          }
+        }
+      }
+    }
   },
   "$defs": {
+    "requirementId": { "type": "string", "pattern": "^\\S+$", "description": "an opaque requirement reference with no whitespace, compared exactly (ADR 0043)" },
+    "covers": { "type": "array", "items": { "$ref": "#/$defs/requirementId" }, "description": "requirement IDs this result covers; never affects the verdict" },
     "status": { "enum": ["pass", "fail", "skip", "error"] },
     "resultStatus": { "enum": ["pass", "fail", "skip", "error", "flaky"], "description": "a check or contract result; flaky means it failed and then passed on a retry" },
     "policyStatus": { "enum": ["pass", "fail", "skip", "error", "needs_review", "would_fail", "would_need_review", "would_error"] },
@@ -71,7 +92,8 @@
           "type": "array",
           "items": { "$ref": "#/$defs/checkAttempt" },
           "description": "set only when the check ran more than once; the other fields describe the last attempt, and duration_seconds is the total"
-        }
+        },
+        "covers": { "$ref": "#/$defs/covers" }
       }
     },
     "checkAttempt": {
@@ -103,11 +125,61 @@
         "artifacts": { "type": "array", "items": { "type": "string" } },
         "head_status": { "$ref": "#/$defs/resultStatus", "description": "red-green runs only: the contract's own result on the head" },
         "base": { "$ref": "#/$defs/baseRun" },
+        "observations": { "type": "array", "items": { "$ref": "#/$defs/observation" } },
         "attempts": {
           "type": "array",
           "items": { "$ref": "#/$defs/contractAttempt" },
           "description": "set only when the scenario ran more than once; the other fields describe the last attempt"
-        }
+        },
+        "covers": { "$ref": "#/$defs/covers", "description": "the contract's and the scenario's requirement IDs, sorted and deduplicated" }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "what one metric, log or alerts step asked its provider and saw",
+      "required": ["phase", "index", "action", "provider", "url", "expect", "samples"],
+      "properties": {
+        "phase": { "enum": ["setup", "steps"] },
+        "index": { "type": "integer", "minimum": 0 },
+        "action": { "enum": ["metric", "log", "alerts"] },
+        "provider": { "type": "string" },
+        "url": { "type": "string", "description": "as written in the spec, before templating" },
+        "query": { "type": "string" },
+        "matchers": { "type": "array", "items": { "type": "string" } },
+        "ignore_preexisting": { "type": "boolean" },
+        "for": { "type": "string" },
+        "interval": { "type": "string" },
+        "settle": { "type": "string" },
+        "expect": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "min": { "type": "number" },
+            "max": { "type": "number" },
+            "min_series": { "type": "integer", "minimum": 0 },
+            "max_series": { "type": "integer", "minimum": 0 },
+            "if_no_data": { "enum": ["fail", "pass"] }
+          }
+        },
+        "samples": { "type": "array", "items": { "$ref": "#/$defs/sample" } },
+        "breach": { "type": "string" }
+      }
+    },
+    "sample": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "one query at one evaluation time; min and max are strings so +Inf and NaN survive JSON",
+      "required": ["at", "ok"],
+      "properties": {
+        "at": { "type": "string" },
+        "series": { "type": "integer", "minimum": 0 },
+        "alerts": { "type": "integer", "minimum": 0 },
+        "min": { "type": "string" },
+        "max": { "type": "string" },
+        "no_data": { "type": "boolean" },
+        "ok": { "type": "boolean" },
+        "error": { "type": "string" }
       }
     },
     "contractAttempt": {
@@ -121,7 +193,8 @@
         "output": { "type": "string" },
         "output_bytes": { "type": "integer", "minimum": 0 },
         "output_truncated": { "type": "boolean" },
-        "artifacts": { "type": "array", "items": { "type": "string" } }
+        "artifacts": { "type": "array", "items": { "type": "string" } },
+        "observations": { "type": "array", "items": { "$ref": "#/$defs/observation" } }
       }
     },
     "baseRun": {

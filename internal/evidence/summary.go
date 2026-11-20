@@ -6,16 +6,30 @@ import (
 )
 
 // Summary renders a report as the Markdown the GitHub Action writes to its
-// job summary: the verdict, the enforced results that failed or need review,
-// the flaky results, and the observe-mode policy findings, which never affect the verdict.
+// job summary: the verdict, the enforced results that failed or need review, the
+// requirements covered, the flaky results, and the observe-mode policy findings.
 func Summary(r *Report) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "## Maslow: `%s`\n", r.Verdict)
 	fmt.Fprintf(&b, "%s\n\n", metadataLine(r))
 	writeEnforced(&b, r)
+	writeRequirements(&b, r)
 	writeFlaky(&b, r)
 	writeObserved(&b, r)
 	return b.String()
+}
+
+func writeRequirements(b *strings.Builder, r *Report) {
+	if len(r.Coverage) == 0 {
+		return
+	}
+	var rows [][]string
+	for _, c := range r.Coverage {
+		rows = append(rows, []string{c.ID, c.Status, strings.Join(c.Results, ", ")})
+	}
+	b.WriteString("\n### Requirements\n\n")
+	b.WriteString("The requirements the run's checks and contracts cover, by their `covers` lists. A requirement fails if any result covering it fails.\n\n")
+	writeTable(b, []string{"Requirement", "Status", "Covered by"}, rows)
 }
 
 func writeFlaky(b *strings.Builder, r *Report) {

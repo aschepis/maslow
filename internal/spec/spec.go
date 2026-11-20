@@ -116,6 +116,7 @@ type CheckRunner struct {
 	Timeout string   `yaml:"timeout,omitempty"`
 	Retries int      `yaml:"retries,omitempty"`
 	Tags    []string `yaml:"tags,omitempty"`
+	Covers  []string `yaml:"covers,omitempty"`
 }
 
 // Profile selects what a run covers. A nil Contracts or Budgets list selects
@@ -133,6 +134,8 @@ type Contract struct {
 	Name        string   `yaml:"name"`
 	Description string   `yaml:"description,omitempty"`
 	Tags        []string `yaml:"tags,omitempty"`
+	// Covers applies to every scenario, alongside the scenario's own.
+	Covers []string `yaml:"covers,omitempty"`
 	// Env lists the environment variables templates may read as {{.env.NAME}}.
 	Env []string `yaml:"env,omitempty"`
 	// BaseURL resolves step URLs that start with "/"; an endpoint audit replaces it.
@@ -145,33 +148,56 @@ type Contract struct {
 }
 
 type Scenario struct {
-	Name     string `yaml:"name"`
-	Setup    []Step `yaml:"setup,omitempty"`
-	Teardown []Step `yaml:"teardown,omitempty"`
-	Steps    []Step `yaml:"steps"`
+	Name     string   `yaml:"name"`
+	Covers   []string `yaml:"covers,omitempty"`
+	Setup    []Step   `yaml:"setup,omitempty"`
+	Teardown []Step   `yaml:"teardown,omitempty"`
+	Steps    []Step   `yaml:"steps"`
 	// Artifacts are repository-relative patterns for files the scenario leaves behind.
 	Artifacts []string `yaml:"artifacts,omitempty"`
 }
 
 type Step struct {
-	Action   string            `yaml:"action"`
-	Method   string            `yaml:"method,omitempty"`
-	URL      string            `yaml:"url,omitempty"`
-	Headers  map[string]string `yaml:"headers,omitempty"`
-	Body     string            `yaml:"body,omitempty"`
-	Command  string            `yaml:"command,omitempty"`
-	Args     []string          `yaml:"args,omitempty"`
-	Stdin    string            `yaml:"stdin,omitempty"`
-	Interval string            `yaml:"interval,omitempty"`
-	Timeout  string            `yaml:"timeout,omitempty"`
-	Expect   *Expectation      `yaml:"expect,omitempty"`
-	From     string            `yaml:"from,omitempty"`
-	As       string            `yaml:"as,omitempty"`
-	Duration string            `yaml:"duration,omitempty"`
+	Action  string            `yaml:"action"`
+	Method  string            `yaml:"method,omitempty"`
+	URL     string            `yaml:"url,omitempty"`
+	Headers map[string]string `yaml:"headers,omitempty"`
+	Body    string            `yaml:"body,omitempty"`
+	// Multipart is sent as a multipart/form-data body instead of Body.
+	Multipart []Part       `yaml:"multipart,omitempty"`
+	Command   string       `yaml:"command,omitempty"`
+	Args      []string     `yaml:"args,omitempty"`
+	Stdin     string       `yaml:"stdin,omitempty"`
+	Interval  string       `yaml:"interval,omitempty"`
+	Timeout   string       `yaml:"timeout,omitempty"`
+	Expect    *Expectation `yaml:"expect,omitempty"`
+	From      string       `yaml:"from,omitempty"`
+	As        string       `yaml:"as,omitempty"`
+	Duration  string       `yaml:"duration,omitempty"`
 	// Do is the browser operation: navigate, click, fill, wait or assert.
 	Do       string `yaml:"do,omitempty"`
 	Selector string `yaml:"selector,omitempty"`
 	Text     string `yaml:"text,omitempty"`
+	// Provider answers a metric, log or alerts step, such as prometheus.
+	Provider string `yaml:"provider,omitempty"`
+	Query    string `yaml:"query,omitempty"`
+	// For is how long a metric, log or alerts step keeps polling; "" queries once.
+	For string `yaml:"for,omitempty"`
+	// Settle extends an alerts step's polling so slow alert rules can fire.
+	Settle            string   `yaml:"settle,omitempty"`
+	Matchers          []string `yaml:"matchers,omitempty"`
+	IgnorePreexisting bool     `yaml:"ignore_preexisting,omitempty"`
+}
+
+// Part is one part of a multipart HTTP body. Exactly one of Value, File and
+// Content is set: a text field, a fixture's bytes, or inline text sent as a file.
+type Part struct {
+	Field       string `yaml:"field"`
+	Value       string `yaml:"value,omitempty"`
+	File        string `yaml:"file,omitempty"`
+	Content     string `yaml:"content,omitempty"`
+	Filename    string `yaml:"filename,omitempty"`
+	ContentType string `yaml:"content_type,omitempty"`
 }
 
 type Expectation struct {
@@ -193,6 +219,13 @@ type Expectation struct {
 	URLContains  string `yaml:"url_contains,omitempty"`
 	Visible      *bool  `yaml:"visible,omitempty"`
 	Enabled      *bool  `yaml:"enabled,omitempty"`
+	// Metric, log and alerts bounds, all inclusive.
+	Min       *float64 `yaml:"min,omitempty"`
+	Max       *float64 `yaml:"max,omitempty"`
+	MinSeries *int     `yaml:"min_series,omitempty"`
+	MaxSeries *int     `yaml:"max_series,omitempty"`
+	// IfNoData is "pass" to accept an empty or NaN result; otherwise it fails.
+	IfNoData string `yaml:"if_no_data,omitempty"`
 }
 
 type Assertion struct {

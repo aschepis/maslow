@@ -1,0 +1,15 @@
+mas: "1.0"
+project:
+  name: multipart-value-and-file
+contracts:
+  - name: uploads
+    scenarios:
+      - name: upload
+        steps:
+          - action: http
+            method: POST
+            url: http://localhost:8080/upload
+            multipart:
+              - field: video
+                value: "a title"
+                file: testdata/fixtures/sample.txt

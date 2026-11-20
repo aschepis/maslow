@@ -59,11 +59,12 @@ func foldContractAttempts(attempts []evidence.ContractResult) evidence.ContractR
 	for _, a := range attempts {
 		statuses = append(statuses, a.Status)
 		result.Attempts = append(result.Attempts, evidence.ContractAttempt{
-			Status:     a.Status,
-			Error:      a.Error,
-			FailedStep: a.FailedStep,
-			Output:     a.Output,
-			Artifacts:  a.Artifacts,
+			Status:       a.Status,
+			Error:        a.Error,
+			FailedStep:   a.FailedStep,
+			Output:       a.Output,
+			Artifacts:    a.Artifacts,
+			Observations: a.Observations,
 		})
 	}
 	result.Status = finalStatus(statuses)

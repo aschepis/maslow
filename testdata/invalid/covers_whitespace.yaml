@@ -1,0 +1,9 @@
+mas: "1.0"
+project:
+  name: covers-whitespace
+checks:
+  runner:
+    - name: unit
+      kind: command
+      run: go test ./...
+      covers: ["users can log in"]

@@ -1,0 +1,16 @@
+mas: "1.0"
+project:
+  name: alerts-settle-without-interval
+contracts:
+  - name: c
+    scenarios:
+      - name: s
+        steps:
+          - action: alerts
+            provider: alertmanager
+            url: http://alertmanager:9093
+            matchers:
+              - service="checkout"
+            settle: 5m
+            expect:
+              max: 0

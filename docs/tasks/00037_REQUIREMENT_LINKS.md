@@ -1,12 +1,12 @@
 ---
 id: 37
 title: Link checks and contracts to the requirements they cover
-status: todo
+status: done
 priority: medium
 created: 2026-11-18
 updated: 2026-11-19
-assigned_to: ""
-assigned_at: ""
+assigned_to: "claude-subagent"
+assigned_at: "2026-11-20T01:02:47Z"
 depends_on: []
 tags: [kind:gap, schema, evidence]
 ---
@@ -26,9 +26,9 @@ no contract, and which contract proves issue N is fixed.
 
 ## Acceptance Criteria
 
-- [ ] Schema and fixtures for `covers`.
-- [ ] Tests: covered references appear in the evidence with the right status.
-- [ ] Evidence schema updated; ADR records the reference format.
+- [x] Schema and fixtures for `covers`.
+- [x] Tests: covered references appear in the evidence with the right status.
+- [x] Evidence schema updated; ADR records the reference format.
 
 ## Notes
 

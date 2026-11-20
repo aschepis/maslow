@@ -1,0 +1,13 @@
+mas: "1.0"
+project:
+  name: metric-without-query
+contracts:
+  - name: c
+    scenarios:
+      - name: s
+        steps:
+          - action: metric
+            provider: prometheus
+            url: http://prometheus:9090
+            expect:
+              max: 1

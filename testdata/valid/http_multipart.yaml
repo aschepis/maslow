@@ -1,0 +1,30 @@
+mas: "1.0"
+project:
+  name: http-multipart-test
+  description: An HTTP step that uploads a multipart/form-data body
+
+contracts:
+  - name: videos
+    env: [API_BASE_URL]
+    base_url: "{{.env.API_BASE_URL}}"
+    scenarios:
+      - name: upload
+        steps:
+          - action: http
+            method: POST
+            url: /v1/videos
+            headers:
+              Authorization: "Bearer {{.cap.access_token}}"
+            multipart:
+              - field: title
+                value: "Test Video"
+              - field: video
+                file: testdata/fixtures/sample.txt
+                content_type: video/mp4
+              - field: notes
+                content: "made by {{.cap.user}}"
+                filename: notes.txt
+                content_type: text/plain
+            expect:
+              status: 201
+              json_path: "$.id"

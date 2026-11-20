@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 
@@ -32,7 +33,22 @@ func runCheckWithRetries(check spec.CheckRunner) evidence.CheckResult {
 			break
 		}
 	}
-	return foldCheckAttempts(attempts)
+	result := foldCheckAttempts(attempts)
+	result.Covers = sortedUnion(check.Covers)
+	return result
+}
+
+// sortedUnion returns the distinct IDs of all lists in order, or nil if there are none.
+func sortedUnion(lists ...[]string) []string {
+	var ids []string
+	for _, list := range lists {
+		ids = append(ids, list...)
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	slices.Sort(ids)
+	return slices.Compact(ids)
 }
 
 // RunProfileChecks executes only the checks matching the given profile.

@@ -1,8 +1,10 @@
 package runner
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -50,6 +52,7 @@ type stepFailure struct {
 }
 
 func (f *stepFailure) Error() string { return f.err.Error() }
+func (f *stepFailure) Unwrap() error { return f.err }
 
 func (f *stepFailure) evidence() *evidence.FailedStep {
 	return &evidence.FailedStep{
@@ -85,6 +88,10 @@ func stepTarget(step spec.Step) string {
 			return step.Do + " " + step.Selector
 		}
 		return step.Do + " page"
+	case "metric", "log":
+		return step.Action + " " + step.Query
+	case "alerts":
+		return strings.TrimSpace("alerts " + strings.Join(step.Matchers, ", "))
 	}
 	return ""
 }
@@ -96,7 +103,8 @@ type contractConfig struct {
 	// baseURL is what HTTP and poll URLs starting with "/" are resolved against.
 	baseURL string
 	// dir is where CLI steps run; "" means the current directory.
-	dir string
+	dir   string
+	clock clock
 }
 
 // scope is what the steps of one scenario share.
@@ -109,7 +117,8 @@ type scope struct {
 	browser *browser
 	// screenshot is the repository-relative path for a failing browser
 	// step's screenshot; "" takes none.
-	screenshot string
+	screenshot   string
+	observations []evidence.Observation
 }
 
 func newScope(cfg contractConfig) *scope {
@@ -140,6 +149,8 @@ type ContractOptions struct {
 	// Dir, when set, is where CLI steps run, so the same scenarios can run
 	// against another checkout such as the base commit.
 	Dir string
+	// clock is the real clock unless a test sets one.
+	clock clock
 }
 
 // RunContracts executes all contract scenarios and returns results.
@@ -149,10 +160,15 @@ func RunContracts(contracts []spec.Contract) []evidence.ContractResult {
 
 // RunContractsWith executes all contract scenarios under opts.
 func RunContractsWith(contracts []spec.Contract, opts ContractOptions) []evidence.ContractResult {
+	clk := opts.clock
+	if clk.now == nil {
+		clk = realClock
+	}
 	var results []evidence.ContractResult
 	for _, contract := range contracts {
-		cfg := contractConfig{env: allowedEnv(contract.Env), baseURL: opts.BaseURL, dir: opts.Dir}
-		for _, result := range runContract(contract, cfg) {
+		cfg := contractConfig{env: allowedEnv(contract.Env), baseURL: opts.BaseURL, dir: opts.Dir, clock: clk}
+		for i, result := range runContract(contract, cfg) {
+			result.Covers = sortedUnion(contract.Covers, contract.Scenarios[i].Covers)
 			results = append(results, redact(result, cfg.env))
 		}
 	}
@@ -185,7 +201,7 @@ func runContract(contract spec.Contract, cfg contractConfig) []evidence.Contract
 		var failed []int
 		for j, i := range pending {
 			attempts[i] = append(attempts[i], results[j])
-			if shouldRetry(results[j].Status) {
+			if shouldRetry(results[j].Status) && !results[j].Breached {
 				failed = append(failed, i)
 			}
 		}
@@ -252,6 +268,7 @@ func runScenario(contractName string, scenario spec.Scenario, cfg contractConfig
 	}
 
 	// Collected before teardown, which may clean the artifacts up.
+	result.Observations = sc.observations
 	attachArtifacts(&result, scenario.Artifacts)
 	runStepsIgnoreError(scenario.Teardown, state, sc)
 	return result
@@ -259,6 +276,13 @@ func runScenario(contractName string, scenario spec.Scenario, cfg contractConfig
 
 func failedResult(name, prefix string, err error) evidence.ContractResult {
 	result := evidence.ContractResult{Name: name, Status: "fail", Error: prefix + err.Error()}
+	var fixture *fixtureError
+	var config *configError
+	if errors.As(err, &fixture) || errors.As(err, &config) {
+		result.Status = "error"
+	}
+	var breach *breachError
+	result.Breached = errors.As(err, &breach)
 	if f, ok := err.(*stepFailure); ok {
 		result.FailedStep = f.evidence()
 		result.Output = f.output
@@ -272,7 +296,7 @@ func failedResult(name, prefix string, err error) evidence.ContractResult {
 // runSteps executes a sequence of steps, returning a *stepFailure for the first one that fails.
 func runSteps(phase string, steps []spec.Step, state *stepState, sc *scope) error {
 	for i, step := range steps {
-		if err := runStep(step, state, sc); err != nil {
+		if err := runStep(phase, i, step, state, sc); err != nil {
 			f := &stepFailure{phase: phase, index: i, step: substitutedOrRaw(step, sc), output: state.output, err: err}
 			if step.Action == "browser" && phase != phaseTeardown {
 				recordPage(f, sc)
@@ -304,7 +328,9 @@ func substitutedOrRaw(step spec.Step, sc *scope) spec.Step {
 	return step
 }
 
-func runStep(step spec.Step, state *stepState, sc *scope) error {
+// runStep runs the step at index in phase.
+func runStep(phase string, index int, step spec.Step, state *stepState, sc *scope) error {
+	rawURL := step.URL
 	step, err := substituteStep(step, sc)
 	if err != nil {
 		return fmt.Errorf("variable substitution: %w", err)
@@ -322,7 +348,7 @@ func runStep(step spec.Step, state *stepState, sc *scope) error {
 	case "http":
 		statusCode, headers, body, err := runHTTPStep(step, sc.client)
 		if err != nil {
-			return fmt.Errorf("step http %s %s: %v", step.Method, step.URL, err)
+			return fmt.Errorf("step http %s %s: %w", step.Method, step.URL, err)
 		}
 		state.httpStatus = statusCode
 		state.httpHeaders = headers
@@ -373,6 +399,11 @@ func runStep(step spec.Step, state *stepState, sc *scope) error {
 	case "browser":
 		if err := runBrowserStep(step, state, sc); err != nil {
 			return fmt.Errorf("step browser %s: %v", stepTarget(step), err)
+		}
+
+	case "metric", "log", "alerts":
+		if err := runObserveStep(phase, index, step, rawURL, state, sc); err != nil {
+			return fmt.Errorf("step %s: %w", stepTarget(step), err)
 		}
 
 	default:
@@ -458,9 +489,16 @@ func substituteStep(step spec.Step, sc *scope) (spec.Step, error) {
 	if err != nil {
 		return step, fmt.Errorf("url: %w", err)
 	}
-	step.URL, err = resolveURL(step.URL, sc.baseURL)
+	// An observability URL points at the provider, never at the service under test.
+	if !isObserveAction(step.Action) {
+		step.URL, err = resolveURL(step.URL, sc.baseURL)
+		if err != nil {
+			return step, err
+		}
+	}
+	step.Query, err = applyTemplate(step.Query, sc)
 	if err != nil {
-		return step, err
+		return step, fmt.Errorf("query: %w", err)
 	}
 	step.Body, err = applyTemplate(step.Body, sc)
 	if err != nil {
@@ -492,6 +530,33 @@ func substituteStep(step spec.Step, sc *scope) (spec.Step, error) {
 			}
 		}
 		step.Headers = headers
+	}
+
+	if len(step.Multipart) > 0 {
+		parts := make([]spec.Part, len(step.Multipart))
+		for i, p := range step.Multipart {
+			if p.Value, err = applyTemplate(p.Value, sc); err != nil {
+				return step, fmt.Errorf("multipart[%d].value: %w", i, err)
+			}
+			if p.Content, err = applyTemplate(p.Content, sc); err != nil {
+				return step, fmt.Errorf("multipart[%d].content: %w", i, err)
+			}
+			if p.Filename, err = applyTemplate(p.Filename, sc); err != nil {
+				return step, fmt.Errorf("multipart[%d].filename: %w", i, err)
+			}
+			parts[i] = p
+		}
+		step.Multipart = parts
+	}
+
+	if len(step.Matchers) > 0 {
+		matchers := make([]string, len(step.Matchers))
+		for i, m := range step.Matchers {
+			if matchers[i], err = applyTemplate(m, sc); err != nil {
+				return step, fmt.Errorf("matchers[%d]: %w", i, err)
+			}
+		}
+		step.Matchers = matchers
 	}
 
 	if len(step.Args) > 0 {
@@ -578,7 +643,19 @@ func runHTTPStep(step spec.Step, client *http.Client) (statusCode int, headers h
 	}
 
 	var reqBody io.Reader
-	if step.Body != "" {
+	var contentType string
+	switch {
+	case len(step.Multipart) > 0:
+		if err := checkMultipartStep(step); err != nil {
+			return 0, nil, "", err
+		}
+		data, ct, err := buildMultipart(step.Multipart)
+		if err != nil {
+			return 0, nil, "", err
+		}
+		// A bytes.Reader lets the client replay the body on a 307 or 308.
+		reqBody, contentType = bytes.NewReader(data), ct
+	case step.Body != "":
 		reqBody = strings.NewReader(step.Body)
 	}
 
@@ -592,6 +669,9 @@ func runHTTPStep(step spec.Step, client *http.Client) (statusCode int, headers h
 
 	for k, v := range step.Headers {
 		req.Header.Set(k, v)
+	}
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
 	}
 
 	resp, err := client.Do(req)

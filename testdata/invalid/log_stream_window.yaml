@@ -1,0 +1,15 @@
+mas: "1.0"
+project:
+  name: log-stream-window
+contracts:
+  - name: c
+    scenarios:
+      - name: s
+        steps:
+          - action: log
+            provider: loki
+            url: http://loki:3100
+            query: '{app="checkout"} |= "panic"'
+            window: 5m
+            expect:
+              max_lines: 0

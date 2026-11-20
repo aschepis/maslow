@@ -73,6 +73,20 @@ func TestRedGreen_RedOnBaseGreenOnHeadPasses(t *testing.T) {
 	}
 }
 
+func TestRedGreen_KeepsCoversAndDerivesCoverage(t *testing.T) {
+	base := redGreenRepo(t)
+	overlay := grepOverlay("new")
+	overlay.Overlay.Contracts[0].Covers = []string{"acme/app#7"}
+	report := runRedGreen(t, base, quickSpec(), overlay)
+
+	if got := report.Contracts[0].Covers; len(got) != 1 || got[0] != "acme/app#7" {
+		t.Errorf("covers = %v, want [acme/app#7]", got)
+	}
+	if len(report.Coverage) != 1 || report.Coverage[0].ID != "acme/app#7" || report.Coverage[0].Status != "pass" {
+		t.Errorf("coverage = %+v", report.Coverage)
+	}
+}
+
 // A contract already green on the base proves nothing about the change.
 func TestRedGreen_GreenOnBothIsNotRed(t *testing.T) {
 	base := redGreenRepo(t)

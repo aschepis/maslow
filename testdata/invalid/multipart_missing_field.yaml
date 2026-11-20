@@ -1,0 +1,13 @@
+mas: "1.0"
+project:
+  name: multipart-missing-field
+contracts:
+  - name: uploads
+    scenarios:
+      - name: upload
+        steps:
+          - action: http
+            method: POST
+            url: http://localhost:8080/upload
+            multipart:
+              - value: "a title"

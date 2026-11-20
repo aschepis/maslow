@@ -67,6 +67,8 @@ Commands:
            [--base <sha>]      Full merge-base SHA the evidence's base_sha must match
            [--require-red-green]  Decline unless every overlay contract failed on --base
                                and passed on --head (needs --base and an overlay flag)
+           [--require-covered <id>]  Decline unless passing results cover <id>; repeatable
+                               (with --require-red-green, only overlay contracts count)
            [--json]          Print the decision and reasons as JSON
   evidence summary <file>      Print an evidence file as the Markdown job summary
   init    [--apply]           Add a starter maslow.yaml to the current directory

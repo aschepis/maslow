@@ -1,12 +1,12 @@
 ---
 id: 36
 title: Add contract steps that assert on metrics, logs and alerts through pluggable providers
-status: todo
+status: done
 priority: medium
 created: 2026-11-18
 updated: 2026-11-19
-assigned_to: ""
-assigned_at: ""
+assigned_to: "claude-subagent"
+assigned_at: "2026-11-20T00:50:52Z"
 depends_on: []
 tags: [kind:gap, contracts, audit]
 ---
@@ -28,9 +28,9 @@ load generator.
 
 ## Acceptance Criteria
 
-- [ ] Schema and fixtures for both steps.
-- [ ] Tests against a stub Prometheus and Loki HTTP API.
-- [ ] ADR records the step shape and why this replaces a built-in load runner for production
+- [x] Schema and fixtures for both steps.
+- [x] Tests against a stub Prometheus and Loki HTTP API.
+- [x] ADR records the step shape and why this replaces a built-in load runner for production
       (see task 16).
 
 ## Notes

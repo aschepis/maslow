@@ -159,6 +159,7 @@ func Run(mas *spec.MAS, opts Options) (*evidence.Report, error) {
 	})
 
 	report.ComputeVerdict()
+	report.ComputeCoverage()
 	return report, nil
 }
 

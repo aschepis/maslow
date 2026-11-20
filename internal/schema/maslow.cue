@@ -3,6 +3,11 @@
 
 package maslow
 
+import (
+	"strconv"
+	"strings"
+)
+
 // Top-level MAS document.
 #MAS: {
 	// MAS schema version (required).
@@ -153,9 +158,14 @@ package maslow
 	// Reruns of a failing check; one that fails and then passes is "flaky".
 	retries?: #Retries
 	tags?: [...string]
+	covers?: #Covers
 }
 
 #Retries: int & >=0
+
+// Requirement IDs a check, contract or scenario covers: opaque strings with no
+// whitespace, compared exactly (ADR 0043).
+#Covers: [...string & =~"^\\S+$"]
 
 #Profile: {
 	description?: string
@@ -172,6 +182,8 @@ package maslow
 	name:        string
 	description?: string
 	tags?: [...string]
+	// Every scenario covers these as well as its own.
+	covers?: #Covers
 	// Environment variables templates may read as {{.env.NAME}}; their values are redacted from evidence.
 	env?: [...=~"^[A-Za-z_][A-Za-z0-9_]*$"]
 	// Base for step URLs starting with "/"; an endpoint audit target replaces it.
@@ -185,6 +197,7 @@ package maslow
 
 #Scenario: {
 	name: string
+	covers?: #Covers
 	setup?: [...#Step]
 	teardown?: [...#Step]
 	steps: [...#Step]
@@ -193,7 +206,7 @@ package maslow
 }
 
 #Step: {
-	action: "http" | "cli" | "poll" | "assert" | "capture" | "wait" | "browser"
+	action: "http" | "cli" | "poll" | "assert" | "capture" | "wait" | "browser" | "metric" | "log" | "alerts"
 
 	// HTTP action fields.
 	if action == "http" {
@@ -201,7 +214,10 @@ package maslow
 		url:     string
 		headers?: [string]: string
 		body?:   string
+		// Parts of a multipart/form-data body, sent in order instead of body.
+		multipart?: [#Part, ...#Part]
 		expect?: #Expectation
+		matchN(<=1, [{body!: _}, {multipart!: _}])
 	}
 
 	// CLI action fields.
@@ -261,7 +277,101 @@ package maslow
 			expect:    #BrowserExpectation
 		}
 	}
+
+	// Observability actions ask a provider what the running system reports.
+	// Their url is absolute and never joined to base_url.
+	if action == "metric" {
+		#Observe
+		provider: "prometheus" | "datadog"
+		// PromQL that returns a vector or scalar.
+		query:  string & !=""
+		expect: #MetricExpectation
+	}
+	if action == "log" {
+		#Observe
+		provider: "loki" | "datadog"
+		// Metric LogQL, such as sum(count_over_time({app="x"} |= "panic" [5m])).
+		query:  string & !=""
+		expect: #MetricExpectation
+	}
+	if action == "alerts" {
+		#Observe
+		provider: "alertmanager" | "datadog"
+		// Label matchers such as 'service="checkout"'; omitted matches every alert.
+		matchers?: [...string]
+		// Leaves out alerts that started before the step's first sample.
+		ignore_preexisting?: bool
+		// Extra polling after for, so a breach late in the window has time to
+		// pass the alert rule's own "for:" and fire.
+		settle?: #Duration
+		expect:  #AlertsExpectation
+		if settle != _|_ {
+			interval!: _
+			_settle:   settle
+		}
+	}
 }
+
+// Fields every observability step shares: where to ask, and how long to keep asking.
+#Observe: {
+	url: string & !=""
+	headers?: [string]: string
+	// Omitted means one query; otherwise queries every interval until for has passed.
+	F="for"?:  #Duration
+	interval?: #Duration
+	if F != _|_ {
+		interval!: _
+		_for:      F
+	}
+
+	// At most 1000 polls, so a typo such as "for: 10h" cannot stall a pipeline.
+	_for:    *"0s" | #Duration
+	_settle: *"0s" | #Duration
+	if interval != _|_ {
+		_polls: div((#Seconds & {in: _for}).out+(#Seconds & {in: _settle}).out, (#Seconds & {in: interval}).out) & <=1000
+	}
+}
+
+#Duration: =~"^[0-9]+(s|m|h)$"
+
+#Seconds: {
+	in:  #Duration
+	out: strconv.Atoi(strings.TrimRight(in, "smh")) * {s: 1, m: 60, h: 3600}[strings.TrimLeft(in, "0123456789")]
+}
+
+// Bounds are inclusive. Every series must lie within min and max.
+#MetricExpectation: {
+	min?:        number
+	max?:        number
+	min_series?: int & >=0
+	max_series?: int & >=0
+	// An empty result or NaN is no data, which fails unless this is "pass".
+	if_no_data: *"fail" | "pass"
+}
+
+// Bounds on the number of active, unsilenced, uninhibited alerts.
+#AlertsExpectation: {
+	min?: int & >=0
+	max?: int & >=0
+}
+
+// One part of a multipart HTTP body: a text field, a fixture file, or inline file content.
+#Part: {
+	field!:        string & !=""
+	value?:        string
+	file?:         #FixturePath
+	content?:      string
+	filename?:     string & !=""
+	content_type?: string & !=""
+
+	// Exactly one of value, file or content; a text field has no filename or type.
+	matchN(1, [{value!: _}, {file!: _}, {content!: _}])
+	matchIf({value!: _}, matchN(0, [{filename!: _}, {content_type!: _}]), _)
+	matchIf({content!: _}, {filename!: _}, _)
+}
+
+// A slash-separated path relative to where Maslow runs, with no ".", ".." or empty segment.
+#FixturePath: string & =~"^[^/\\\\]+(/[^/\\\\]+)*$" & !~"(^|/)\\.\\.?(/|$)"
 
 #BrowserExpectation: {
 	text_contains?: string

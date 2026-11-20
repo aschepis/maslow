@@ -33,17 +33,48 @@ func redact(result evidence.ContractResult, env map[string]string) evidence.Cont
 	result.Error = r.Replace(result.Error)
 	result.Output = r.Replace(result.Output)
 	result.FailedStep = redactStep(result.FailedStep, r)
+	result.Observations = redactObservations(result.Observations, r)
 	if result.Attempts != nil {
 		attempts := make([]evidence.ContractAttempt, len(result.Attempts))
 		for i, a := range result.Attempts {
 			a.Error = r.Replace(a.Error)
 			a.Output = r.Replace(a.Output)
 			a.FailedStep = redactStep(a.FailedStep, r)
+			a.Observations = redactObservations(a.Observations, r)
 			attempts[i] = a
 		}
 		result.Attempts = attempts
 	}
 	return result
+}
+
+// redactObservations covers queries and matchers, and breaches and errors,
+// which can quote label values.
+func redactObservations(observations []evidence.Observation, r *strings.Replacer) []evidence.Observation {
+	if observations == nil {
+		return nil
+	}
+	redacted := make([]evidence.Observation, len(observations))
+	for i, o := range observations {
+		o.URL = r.Replace(o.URL)
+		o.Query = r.Replace(o.Query)
+		o.Breach = r.Replace(o.Breach)
+		if o.Matchers != nil {
+			matchers := make([]string, len(o.Matchers))
+			for j, m := range o.Matchers {
+				matchers[j] = r.Replace(m)
+			}
+			o.Matchers = matchers
+		}
+		samples := make([]evidence.Sample, len(o.Samples))
+		for j, s := range o.Samples {
+			s.Error = r.Replace(s.Error)
+			samples[j] = s
+		}
+		o.Samples = samples
+		redacted[i] = o
+	}
+	return redacted
 }
 
 func redactStep(failed *evidence.FailedStep, r *strings.Replacer) *evidence.FailedStep {

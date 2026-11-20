@@ -1,0 +1,13 @@
+mas: "1.0"
+project:
+  name: http-metric-expectation
+contracts:
+  - name: c
+    scenarios:
+      - name: s
+        steps:
+          - action: http
+            method: GET
+            url: http://localhost:8080/healthz
+            expect:
+              max: 1

@@ -1,0 +1,19 @@
+mas: "1.0"
+project:
+  name: covers-test
+  description: Checks, contracts and scenarios naming the requirements they cover
+checks:
+  runner:
+    - name: unit
+      kind: command
+      run: go test ./...
+      covers: [REQ-1, "https://example.com/specs/login#ac-2"]
+contracts:
+  - name: login
+    covers: [acme/app#7]
+    scenarios:
+      - name: rejects-bad-password
+        covers: [acme/app#7/ac-2]
+        steps:
+          - action: cli
+            command: "true"

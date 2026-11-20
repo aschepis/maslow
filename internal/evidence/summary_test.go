@@ -7,7 +7,7 @@ import (
 )
 
 func TestSummaryGolden(t *testing.T) {
-	for _, name := range []string{"pass", "needs-review", "observe-only", "fail-with-observe", "flaky"} {
+	for _, name := range []string{"pass", "needs-review", "observe-only", "fail-with-observe", "flaky", "covers"} {
 		t.Run(name, func(t *testing.T) {
 			r, err := ReadReport("../../testdata/evidence/" + name + ".json")
 			if err != nil {
