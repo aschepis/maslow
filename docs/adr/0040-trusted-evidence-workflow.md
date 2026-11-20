@@ -21,7 +21,7 @@ Trusted evidence is produced by `.github/workflows/maslow-evidence.yml`, a `pull
 ## What the consumer does
 
 1. List candidates with `GET /repos/O/R/actions/artifacts?name=maslow-evidence-<head>`. Any workflow can upload an artifact by that name, so the name only finds candidates. Never take a run or artifact ID from the pull request author or from the evidence.
-2. For each candidate, fetch its run with `GET /repos/O/R/actions/runs/<workflow_run.id>` and keep it only if `path` is `.github/workflows/maslow-evidence.yml`, `event` is `pull_request_target`, `head_branch` is `main` and `repository.full_name` is `O/R`. A `pull_request_target` run takes its definition from the base branch, so `head_branch: main` is what says `main`'s workflow ran. GitHub reports these fields, not the run.
+2. For each candidate, fetch its run with `GET /repos/O/R/actions/runs/<workflow_run.id>` and keep it only if `path` is `.github/workflows/maslow-evidence.yml`, `event` is `pull_request_target`, `head_sha` is `<head>`, and both `repository.full_name` and `head_repository.full_name` are `O/R`. GitHub reports these fields, not the run. No run field names the commit the workflow definition came from: `event: pull_request_target` is what guarantees it, because GitHub always takes that event's workflow from the base repository's default branch. `head_branch` is the pull request's branch, not `main` (observed on the first runs, #36 to #38), so do not check it.
 3. Download that artifact (`GET /repos/O/R/actions/artifacts/<id>/zip`). Optionally compare its sha256 with the `record` job's summary.
 4. Run `maslow evidence check verify.json --head <head> --spec <trusted spec> --profile full`. `--head` stops evidence for one commit being replayed for another.
 

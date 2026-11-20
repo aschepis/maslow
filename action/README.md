@@ -105,7 +105,7 @@ The rules that keep this safe:
 **Consuming the evidence.** Do not trust an artifact because of its name, and never take a run ID from the pull request. Look the run up yourself:
 
 1. `GET /repos/O/R/actions/artifacts?name=maslow-evidence-<head sha>` lists candidates.
-2. For each candidate, `GET /repos/O/R/actions/runs/<workflow_run.id>`. Keep it only if `path` is your evidence workflow file, `event` is `pull_request_target`, `head_branch` is your default branch, and `repository.full_name` is `O/R`. GitHub reports these fields, not the run.
+2. For each candidate, `GET /repos/O/R/actions/runs/<workflow_run.id>`. Keep it only if `path` is your evidence workflow file, `event` is `pull_request_target`, `head_sha` is the head SHA, and both `repository.full_name` and `head_repository.full_name` are `O/R`. GitHub reports these fields, not the run. The `pull_request_target` event is what guarantees the workflow came from your default branch; `head_branch` is the pull request's branch, so do not check it.
 3. Download it with `GET /repos/O/R/actions/artifacts/<id>/zip`.
 4. Run `maslow evidence check verify.json --head <head sha> --spec <trusted spec>`.
 
