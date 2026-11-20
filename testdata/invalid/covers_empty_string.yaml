@@ -1,0 +1,11 @@
+mas: "1.0"
+project:
+  name: covers-empty-string
+contracts:
+  - name: login
+    covers: [""]
+    scenarios:
+      - name: s
+        steps:
+          - action: cli
+            command: "true"

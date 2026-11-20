@@ -116,6 +116,7 @@ type CheckRunner struct {
 	Timeout string   `yaml:"timeout,omitempty"`
 	Retries int      `yaml:"retries,omitempty"`
 	Tags    []string `yaml:"tags,omitempty"`
+	Covers  []string `yaml:"covers,omitempty"`
 }
 
 // Profile selects what a run covers. A nil Contracts or Budgets list selects
@@ -133,6 +134,8 @@ type Contract struct {
 	Name        string   `yaml:"name"`
 	Description string   `yaml:"description,omitempty"`
 	Tags        []string `yaml:"tags,omitempty"`
+	// Covers applies to every scenario, alongside the scenario's own.
+	Covers []string `yaml:"covers,omitempty"`
 	// Env lists the environment variables templates may read as {{.env.NAME}}.
 	Env []string `yaml:"env,omitempty"`
 	// BaseURL resolves step URLs that start with "/"; an endpoint audit replaces it.
@@ -145,10 +148,11 @@ type Contract struct {
 }
 
 type Scenario struct {
-	Name     string `yaml:"name"`
-	Setup    []Step `yaml:"setup,omitempty"`
-	Teardown []Step `yaml:"teardown,omitempty"`
-	Steps    []Step `yaml:"steps"`
+	Name     string   `yaml:"name"`
+	Covers   []string `yaml:"covers,omitempty"`
+	Setup    []Step   `yaml:"setup,omitempty"`
+	Teardown []Step   `yaml:"teardown,omitempty"`
+	Steps    []Step   `yaml:"steps"`
 	// Artifacts are repository-relative patterns for files the scenario leaves behind.
 	Artifacts []string `yaml:"artifacts,omitempty"`
 }

@@ -158,9 +158,14 @@ import (
 	// Reruns of a failing check; one that fails and then passes is "flaky".
 	retries?: #Retries
 	tags?: [...string]
+	covers?: #Covers
 }
 
 #Retries: int & >=0
+
+// Requirement IDs a check, contract or scenario covers: opaque strings with no
+// whitespace, compared exactly (ADR 0043).
+#Covers: [...string & =~"^\\S+$"]
 
 #Profile: {
 	description?: string
@@ -177,6 +182,8 @@ import (
 	name:        string
 	description?: string
 	tags?: [...string]
+	// Every scenario covers these as well as its own.
+	covers?: #Covers
 	// Environment variables templates may read as {{.env.NAME}}; their values are redacted from evidence.
 	env?: [...=~"^[A-Za-z_][A-Za-z0-9_]*$"]
 	// Base for step URLs starting with "/"; an endpoint audit target replaces it.
@@ -190,6 +197,7 @@ import (
 
 #Scenario: {
 	name: string
+	covers?: #Covers
 	setup?: [...#Step]
 	teardown?: [...#Step]
 	steps: [...#Step]

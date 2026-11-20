@@ -3,6 +3,7 @@ package spec
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -37,6 +38,20 @@ func TestReadOverlay(t *testing.T) {
 	}
 	if len(loaded.SHA256) != 64 {
 		t.Errorf("expected a sha256 hex digest, got %q", loaded.SHA256)
+	}
+}
+
+func TestReadOverlay_Covers(t *testing.T) {
+	loaded, err := ReadOverlay("../../testdata/overlays/with-covers.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	contract := loaded.Overlay.Contracts[0]
+	if !reflect.DeepEqual(contract.Covers, []string{"acme/app#7"}) {
+		t.Errorf("contract covers = %v", contract.Covers)
+	}
+	if !reflect.DeepEqual(contract.Scenarios[0].Covers, []string{"acme/app#7/ac-1"}) {
+		t.Errorf("scenario covers = %v", contract.Scenarios[0].Covers)
 	}
 }
 
