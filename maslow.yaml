@@ -238,6 +238,28 @@ contracts:
             expect:
               exit_code: 1
               body_contains: 'multipart.0.file: invalid value "../secret"'
+      - name: observability-steps-are-valid
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - validate
+              - testdata/valid/observability_steps.yaml
+          - action: assert
+            expect:
+              exit_code: 0
+              body_contains: "is valid"
+      - name: observability-hold-over-1000-polls-fails
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - validate
+              - testdata/invalid/metric_too_many_polls.yaml
+          - action: assert
+            expect:
+              exit_code: 1
+              body_contains: "_polls: invalid value 1200 (out of bound <=1000)"
       - name: invalid-file-fails
         steps:
           - action: cli
