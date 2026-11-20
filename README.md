@@ -202,6 +202,55 @@ contracts:
 
 `click`, `fill` and `assert` never wait: an element that appears later needs a `wait` step first. Browser and HTTP steps share the scenario's cookies. A failing browser step records the page URL and console errors on `failed_step`, and a screenshot at `reports/browser/<contract>/<scenario>.png` in the result's `artifacts` (ADR 0035).
 
+### Metric, log and alerts steps
+
+`metric`, `log` and `alerts` steps judge what a running system reports, so a post-deploy audit can check live behaviour without generating load. Each names a `provider`:
+
+| Action | Query | Providers |
+|--------|-------|-----------|
+| `metric` | PromQL returning a vector or scalar | `prometheus` (any Prometheus-compatible query API), `datadog` (not implemented yet) |
+| `log` | Metric LogQL, such as `sum(count_over_time(...))` | `loki`, `datadog` (not implemented yet) |
+| `alerts` | Alertmanager label `matchers` | `alertmanager`, `datadog` (not implemented yet) |
+
+```yaml
+contracts:
+  - name: checkout-after-deploy
+    tags: [post-deploy]
+    env: [PROM_URL, PROM_TOKEN, LOKI_URL, ALERTMANAGER_URL]
+    scenarios:
+      - name: error-rate-holds
+        steps:
+          - action: metric
+            provider: prometheus
+            url: "{{.env.PROM_URL}}"
+            headers: { Authorization: "Bearer {{.env.PROM_TOKEN}}" }
+            query: sum(rate(http_requests_total{code=~"5.."}[1m])) / sum(rate(http_requests_total[1m]))
+            for: 10m          # optional; omitted queries once
+            interval: 30s     # required with for
+            expect: { max: 0.01 }
+          - action: log
+            provider: loki
+            url: "{{.env.LOKI_URL}}"
+            query: sum(count_over_time({app="checkout"} |= "panic" [5m]))
+            expect: { max: 0, if_no_data: pass }
+          - action: alerts
+            provider: alertmanager
+            url: "{{.env.ALERTMANAGER_URL}}"
+            matchers: ['service="checkout"']
+            ignore_preexisting: true
+            for: 10m
+            settle: 5m        # keep polling while slow alert rules catch up
+            interval: 1m
+            expect: { max: 0 }
+```
+
+- `url` is the provider's base URL and must be absolute. It is never joined to `base_url`, so an endpoint audit target does not redirect it.
+- `metric` and `log` take `min`, `max`, `min_series`, `max_series` and `if_no_data`. Every series must be within `min` and `max`, inclusive. An empty result, or only NaN, is no data and fails unless `if_no_data: pass`. A `count_over_time` with no matching lines returns nothing, so a "no panics" step needs `if_no_data: pass`.
+- `alerts` counts active alerts that are not silenced or inhibited, bounded by `min` and `max`.
+- With `for`, the step queries every `interval` until `for` (plus `settle`) has passed and fails at the first breach. At most 1000 polls are allowed. "Over the last 10 minutes" is a single query with `max_over_time(...[10m])`.
+- A breach is never retried. A failed query is, and fails the step at once mid-hold. `provider: datadog` validates but gives status `error`.
+- Each step adds an entry to the result's `observations`: the query, its exact evaluation times, and the values judged, so any query can be replayed (ADR 0042).
+
 ## Development
 
 ```bash
