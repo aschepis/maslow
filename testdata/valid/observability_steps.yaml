@@ -1,0 +1,83 @@
+mas: "1.0"
+project:
+  name: observability-steps-test
+  description: Metric, log and alerts steps that judge what a deployed system reports
+
+contracts:
+  - name: checkout-after-deploy
+    tags: [post-deploy]
+    env: [PROM_URL, PROM_TOKEN, LOKI_URL, LOKI_TENANT, ALERTMANAGER_URL, DD_API_KEY]
+    scenarios:
+      - name: error-rate-holds
+        steps:
+          - action: metric
+            provider: prometheus
+            url: "{{.env.PROM_URL}}"
+            headers:
+              Authorization: "Bearer {{.env.PROM_TOKEN}}"
+            query: >-
+              sum(rate(http_requests_total{route="/checkout",code=~"5.."}[1m]))
+              / sum(rate(http_requests_total{route="/checkout"}[1m]))
+            for: 10m
+            interval: 30s
+            expect:
+              max: 0.01
+      - name: traffic-is-flowing
+        steps:
+          - action: metric
+            provider: prometheus
+            url: "{{.env.PROM_URL}}"
+            query: sum by (pod) (rate(http_requests_total{route="/checkout"}[1m]))
+            expect:
+              min: 0.1
+              min_series: 2
+              max_series: 10
+              if_no_data: fail
+      - name: no-panics
+        steps:
+          - action: log
+            provider: loki
+            url: "{{.env.LOKI_URL}}"
+            headers:
+              X-Scope-OrgID: "{{.env.LOKI_TENANT}}"
+            query: sum(count_over_time({app="checkout"} |= "panic" [5m]))
+            for: 10m
+            interval: 5m
+            expect:
+              max: 0
+              if_no_data: pass
+      - name: no-new-alerts
+        steps:
+          - action: alerts
+            provider: alertmanager
+            url: "{{.env.ALERTMANAGER_URL}}"
+            matchers:
+              - service="checkout"
+              - severity=~"page|critical"
+            ignore_preexisting: true
+            for: 10m
+            settle: 5m
+            interval: 1m
+            expect:
+              max: 0
+      - name: datadog-validates-but-is-not-implemented
+        steps:
+          - action: metric
+            provider: datadog
+            url: https://api.datadoghq.com
+            headers:
+              DD-API-KEY: "{{.env.DD_API_KEY}}"
+            query: avg:trace.http.request.errors{service:checkout}
+            expect:
+              max: 0.01
+          - action: log
+            provider: datadog
+            url: https://api.datadoghq.com
+            query: service:checkout status:error
+            expect:
+              max: 0
+          - action: alerts
+            provider: datadog
+            url: https://api.datadoghq.com
+            expect:
+              max: 0

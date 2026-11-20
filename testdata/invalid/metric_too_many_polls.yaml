@@ -1,0 +1,16 @@
+mas: "1.0"
+project:
+  name: metric-too-many-polls
+contracts:
+  - name: c
+    scenarios:
+      - name: s
+        steps:
+          - action: metric
+            provider: prometheus
+            url: http://prometheus:9090
+            query: up
+            for: 10h
+            interval: 30s
+            expect:
+              min: 1

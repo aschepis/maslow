@@ -1,0 +1,13 @@
+mas: "1.0"
+project:
+  name: alerts-series-expectation
+contracts:
+  - name: c
+    scenarios:
+      - name: s
+        steps:
+          - action: alerts
+            provider: alertmanager
+            url: http://alertmanager:9093
+            expect:
+              max_series: 0

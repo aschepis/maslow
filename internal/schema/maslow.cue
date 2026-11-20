@@ -3,6 +3,11 @@
 
 package maslow
 
+import (
+	"strconv"
+	"strings"
+)
+
 // Top-level MAS document.
 #MAS: {
 	// MAS schema version (required).
@@ -193,7 +198,7 @@ package maslow
 }
 
 #Step: {
-	action: "http" | "cli" | "poll" | "assert" | "capture" | "wait" | "browser"
+	action: "http" | "cli" | "poll" | "assert" | "capture" | "wait" | "browser" | "metric" | "log" | "alerts"
 
 	// HTTP action fields.
 	if action == "http" {
@@ -264,6 +269,82 @@ package maslow
 			expect:    #BrowserExpectation
 		}
 	}
+
+	// Observability actions ask a provider what the running system reports.
+	// Their url is absolute and never joined to base_url.
+	if action == "metric" {
+		#Observe
+		provider: "prometheus" | "datadog"
+		// PromQL that returns a vector or scalar.
+		query:  string & !=""
+		expect: #MetricExpectation
+	}
+	if action == "log" {
+		#Observe
+		provider: "loki" | "datadog"
+		// Metric LogQL, such as sum(count_over_time({app="x"} |= "panic" [5m])).
+		query:  string & !=""
+		expect: #MetricExpectation
+	}
+	if action == "alerts" {
+		#Observe
+		provider: "alertmanager" | "datadog"
+		// Label matchers such as 'service="checkout"'; omitted matches every alert.
+		matchers?: [...string]
+		// Leaves out alerts that started before the step's first sample.
+		ignore_preexisting?: bool
+		// Extra polling after for, so a breach late in the window has time to
+		// pass the alert rule's own "for:" and fire.
+		settle?: #Duration
+		expect:  #AlertsExpectation
+		if settle != _|_ {
+			interval!: _
+			_settle:   settle
+		}
+	}
+}
+
+// Fields every observability step shares: where to ask, and how long to keep asking.
+#Observe: {
+	url: string & !=""
+	headers?: [string]: string
+	// Omitted means one query; otherwise queries every interval until for has passed.
+	F="for"?:  #Duration
+	interval?: #Duration
+	if F != _|_ {
+		interval!: _
+		_for:      F
+	}
+
+	// At most 1000 polls, so a typo such as "for: 10h" cannot stall a pipeline.
+	_for:    *"0s" | #Duration
+	_settle: *"0s" | #Duration
+	if interval != _|_ {
+		_polls: div((#Seconds & {in: _for}).out+(#Seconds & {in: _settle}).out, (#Seconds & {in: interval}).out) & <=1000
+	}
+}
+
+#Duration: =~"^[0-9]+(s|m|h)$"
+
+#Seconds: {
+	in:  #Duration
+	out: strconv.Atoi(strings.TrimRight(in, "smh")) * {s: 1, m: 60, h: 3600}[strings.TrimLeft(in, "0123456789")]
+}
+
+// Bounds are inclusive. Every series must lie within min and max.
+#MetricExpectation: {
+	min?:        number
+	max?:        number
+	min_series?: int & >=0
+	max_series?: int & >=0
+	// An empty result or NaN is no data, which fails unless this is "pass".
+	if_no_data: *"fail" | "pass"
+}
+
+// Bounds on the number of active, unsilenced, uninhibited alerts.
+#AlertsExpectation: {
+	min?: int & >=0
+	max?: int & >=0
 }
 
 // One part of a multipart HTTP body: a text field, a fixture file, or inline file content.
