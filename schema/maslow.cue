@@ -201,7 +201,10 @@ package maslow
 		url:     string
 		headers?: [string]: string
 		body?:   string
+		// Parts of a multipart/form-data body, sent in order instead of body.
+		multipart?: [#Part, ...#Part]
 		expect?: #Expectation
+		matchN(<=1, [{body!: _}, {multipart!: _}])
 	}
 
 	// CLI action fields.
@@ -262,6 +265,24 @@ package maslow
 		}
 	}
 }
+
+// One part of a multipart HTTP body: a text field, a fixture file, or inline file content.
+#Part: {
+	field!:        string & !=""
+	value?:        string
+	file?:         #FixturePath
+	content?:      string
+	filename?:     string & !=""
+	content_type?: string & !=""
+
+	// Exactly one of value, file or content; a text field has no filename or type.
+	matchN(1, [{value!: _}, {file!: _}, {content!: _}])
+	matchIf({value!: _}, matchN(0, [{filename!: _}, {content_type!: _}]), _)
+	matchIf({content!: _}, {filename!: _}, _)
+}
+
+// A slash-separated path relative to where Maslow runs, with no ".", ".." or empty segment.
+#FixturePath: string & =~"^[^/\\\\]+(/[^/\\\\]+)*$" & !~"(^|/)\\.\\.?(/|$)"
 
 #BrowserExpectation: {
 	text_contains?: string

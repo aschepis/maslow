@@ -154,24 +154,37 @@ type Scenario struct {
 }
 
 type Step struct {
-	Action   string            `yaml:"action"`
-	Method   string            `yaml:"method,omitempty"`
-	URL      string            `yaml:"url,omitempty"`
-	Headers  map[string]string `yaml:"headers,omitempty"`
-	Body     string            `yaml:"body,omitempty"`
-	Command  string            `yaml:"command,omitempty"`
-	Args     []string          `yaml:"args,omitempty"`
-	Stdin    string            `yaml:"stdin,omitempty"`
-	Interval string            `yaml:"interval,omitempty"`
-	Timeout  string            `yaml:"timeout,omitempty"`
-	Expect   *Expectation      `yaml:"expect,omitempty"`
-	From     string            `yaml:"from,omitempty"`
-	As       string            `yaml:"as,omitempty"`
-	Duration string            `yaml:"duration,omitempty"`
+	Action  string            `yaml:"action"`
+	Method  string            `yaml:"method,omitempty"`
+	URL     string            `yaml:"url,omitempty"`
+	Headers map[string]string `yaml:"headers,omitempty"`
+	Body    string            `yaml:"body,omitempty"`
+	// Multipart is sent as a multipart/form-data body instead of Body.
+	Multipart []Part       `yaml:"multipart,omitempty"`
+	Command   string       `yaml:"command,omitempty"`
+	Args      []string     `yaml:"args,omitempty"`
+	Stdin     string       `yaml:"stdin,omitempty"`
+	Interval  string       `yaml:"interval,omitempty"`
+	Timeout   string       `yaml:"timeout,omitempty"`
+	Expect    *Expectation `yaml:"expect,omitempty"`
+	From      string       `yaml:"from,omitempty"`
+	As        string       `yaml:"as,omitempty"`
+	Duration  string       `yaml:"duration,omitempty"`
 	// Do is the browser operation: navigate, click, fill, wait or assert.
 	Do       string `yaml:"do,omitempty"`
 	Selector string `yaml:"selector,omitempty"`
 	Text     string `yaml:"text,omitempty"`
+}
+
+// Part is one part of a multipart HTTP body. Exactly one of Value, File and
+// Content is set: a text field, a fixture's bytes, or inline text sent as a file.
+type Part struct {
+	Field       string `yaml:"field"`
+	Value       string `yaml:"value,omitempty"`
+	File        string `yaml:"file,omitempty"`
+	Content     string `yaml:"content,omitempty"`
+	Filename    string `yaml:"filename,omitempty"`
+	ContentType string `yaml:"content_type,omitempty"`
 }
 
 type Expectation struct {

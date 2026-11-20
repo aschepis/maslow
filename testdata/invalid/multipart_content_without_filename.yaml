@@ -1,0 +1,14 @@
+mas: "1.0"
+project:
+  name: multipart-content-without-filename
+contracts:
+  - name: uploads
+    scenarios:
+      - name: upload
+        steps:
+          - action: http
+            method: POST
+            url: http://localhost:8080/upload
+            multipart:
+              - field: notes
+                content: "inline text"
