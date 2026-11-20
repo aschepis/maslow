@@ -54,7 +54,7 @@ reports/verify.json         <- verify evidence (reports/audit.json for audit)
 | `internal/verify/` | Executes verification: profile selection, check sequencing, result collection; `--red-green` reruns overlay contracts in a base worktree (ADR 0034) |
 | `internal/runner/` | Runs individual checks (shell, HTTP, CLI); abstracts runner kinds; `retry.go` reruns failing checks and scenarios and folds the attempts into `pass`, `flaky`, `fail` or `error` (ADR 0039) |
 | `internal/audit/` | Black-box audit mode; binary targets, endpoint targets that run contracts against a base URL (ADR 0028), container stub |
-| `internal/evidence/` | Builds the evidence report, computes the verdict, caps output, writes JSON; `Check` decides pass, needs_review or decline for a report against trusted inputs (ADR 0033); `Summary` (`summary.go`) renders the job summary, flaky results and observed policy findings in their own sections (ADR 0036, ADR 0039) |
+| `internal/evidence/` | Builds the evidence report, computes the verdict, caps output, writes JSON; `Check` decides pass, needs_review or decline for a report against trusted inputs (ADR 0033); `coverage.go` derives `coverage` from per-result `covers` and holds the `--require-covered` rule (ADR 0043); `Summary` (`summary.go`) renders the job summary, requirements, flaky results and observed policy findings in their own sections (ADR 0036, ADR 0039) |
 | `internal/gitrepo/` | Git queries shared by policy and spec loading, including line-level diffs against a base and temporary worktrees |
 | `schema/maslow.cue` | CUE schema defining the MAS format |
 | `action/action.yml` | Composite GitHub Action wrapping `maslow verify`; its job summary comes from `maslow evidence summary`; `action/README.md` documents the trusted-evidence pattern (ADR 0040) |
@@ -100,7 +100,8 @@ A valid `maslow.yaml` defines:
 - `contracts` - scenario-based behavioral contracts (HTTP, CLI and headless-browser steps); each scenario keeps its own cookie jar (ADR 0027), shared with its browser, which `internal/runner/browser.go` drives through chromedp (ADR 0035); an HTTP step's `multipart` parts are encoded by `internal/runner/multipart.go`, reading fixtures from the working directory (ADR 0041); `metric`, `log` and `alerts` steps hold thresholds in `internal/runner/observe.go` over providers in `internal/runner/providers.go` (`prometheus`, `loki`, `alertmanager`; `datadog` is a not-implemented stub) and record `observations` (ADR 0042)
 - `budgets` - performance, availability, artifact size, complexity limits
 - `checks` - named check definitions and runner configuration; checks and contracts take `retries`,
-  capped by the top-level `max_retries` (default 5) (ADR 0039)
+  capped by the top-level `max_retries` (default 5) (ADR 0039); checks, contracts and scenarios take
+  `covers`, the requirement IDs they prove (ADR 0043)
 - `profiles` - named subsets of checks, contracts and budgets (`quick`, `full`, custom); refs and policy run unless a profile turns them off
 - `audit` - black-box audit targets; an `endpoint` target runs selected contracts against its base URL
 - `extensions` - domain overlays (web, game, cli, service)
@@ -127,6 +128,10 @@ A valid `maslow.yaml` defines:
   an observed policy entry has `mode: observe`, a `would_*` status, and no effect on the verdict;
   a line-level policy entry lists flagged `path:line: text` entries in `lines`
 - `verdict` - `fail`, `needs_review`, `inconclusive` or `pass` (in that precedence)
+- `coverage` - derived from the `covers` on check and contract results (the union of a contract's
+  and its scenario's IDs): one `{id, status, results}` per requirement ID, sorted by ID; it never
+  affects the verdict, and `evidence check --require-covered <id>` recomputes it from the per-result
+  `covers` instead of trusting it; with `--require-red-green` only overlay contracts count (ADR 0043)
 
 Check output keeps the last `--output-limit` bytes and records `output_truncated` when cut.
 A failing contract records its `failed_step` and that step's `output` under the same cap, and
