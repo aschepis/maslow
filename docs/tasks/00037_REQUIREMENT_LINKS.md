@@ -1,10 +1,10 @@
 ---
 id: 37
 title: Link checks and contracts to the requirements they cover
-status: draft
+status: todo
 priority: medium
 created: 2026-11-18
-updated: 2026-11-18
+updated: 2026-11-19
 assigned_to: ""
 assigned_at: ""
 depends_on: []
@@ -35,6 +35,13 @@ no contract, and which contract proves issue N is fixed.
 Source: Damocles reconciler design note (18 Nov 2026), feature V6. Whether Maslow should also
 report uncovered requirements depends on having a requirement list to compare against; leave that
 out unless a clear source exists.
+
+## Decisions (human review, 2026-11-19)
+
+All recommendations in the proposal below are accepted: the gate supplies the requirement list
+(`--require-covered`), IDs match exactly, only red-green overlay contracts count under
+`--require-red-green`, every covering result must pass, no file form of the flag yet, no `covers`
+on budgets, and the derived top-level `coverage` field stays, documented as derived.
 
 ## Proposed implementation
 

@@ -1,10 +1,10 @@
 ---
 id: 20
 title: Add multipart/form-data support for HTTP contract steps
-status: draft
+status: todo
 priority: low
 created: 2026-02-20
-updated: 2026-02-20
+updated: 2026-11-19
 assigned_to: ""
 assigned_at: ""
 depends_on: [13]
@@ -60,6 +60,13 @@ File upload is a core feature of many applications (MaslowTok's entire value pro
 - Go's `mime/multipart` package handles the heavy lifting
 - Consider file size limits for test fixtures — don't want huge files in the repo. Small sample files or generated test data is preferred.
 - The RPG game example could use this for asset upload/import testing
+
+## Decisions (human review, 2026-11-19)
+
+All recommendations in the proposal below are accepted, and its updated requirements replace the
+original ones: test files come from the head checkout (documented in ADR 0041, with a `kind:gap`
+draft task), a missing or bad file is `error`, the body cap is 10 MiB, file paths are not
+templated, and the maslow-tok example is dropped in favour of a `testdata` fixture.
 
 ## Proposed implementation
 
@@ -201,22 +208,22 @@ confirm they fail on behaviour.
 JSON listing each part's field, filename, content type, length and SHA-256, plus the request's
 `Content-Type`.
 
-| Case | Expectation |
-|---|---|
-| single `file` part from a temp fixture | pass; the server sees the bytes, base-name filename and `application/octet-stream` |
-| two files and two values, interleaved | pass; parts arrive in spec order |
-| `content` part with `filename` and `content_type` | pass; the server sees both |
-| `value` from `{{.cap.id}}` and `{{.env.TOKEN}}` | pass; if the server echoes `TOKEN`, `output` shows `[redacted:TOKEN]` |
-| missing file | status `error`; `failed_step` is `{steps, 0, http, "POST <url>"}`; error names the field and relative path; no absolute path; one attempt despite `retries: 2` |
-| `file: ../x` and absolute path (bypassing CUE) | status `error`, nothing sent |
-| symlink in the fixture dir pointing outside | status `error` from `os.Root`, nothing sent |
-| author sets `content-type` header | fails before sending; error names the header |
-| `body` and `multipart` both set | fails before sending |
-| body over 10 MiB | status `error`; message names the cap |
-| same step run twice | identical request `Content-Type`; identical marshalled result JSON |
-| `ContractOptions{Dir: tmp}` where `tmp` lacks the fixture | pass; the file is read from the working directory, not `Dir` |
-| login sets a cookie, then a 307 to an upload endpoint that checks the cookie and parts | pass (ADR 0027 and `GetBody`) |
-| relative `url` with `base_url` | pass (ADR 0028) |
+| Case                                                                                   | Expectation                                                                                                                                                    |
+| -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| single `file` part from a temp fixture                                                 | pass; the server sees the bytes, base-name filename and `application/octet-stream`                                                                             |
+| two files and two values, interleaved                                                  | pass; parts arrive in spec order                                                                                                                               |
+| `content` part with `filename` and `content_type`                                      | pass; the server sees both                                                                                                                                     |
+| `value` from `{{.cap.id}}` and `{{.env.TOKEN}}`                                        | pass; if the server echoes `TOKEN`, `output` shows `[redacted:TOKEN]`                                                                                          |
+| missing file                                                                           | status `error`; `failed_step` is `{steps, 0, http, "POST <url>"}`; error names the field and relative path; no absolute path; one attempt despite `retries: 2` |
+| `file: ../x` and absolute path (bypassing CUE)                                         | status `error`, nothing sent                                                                                                                                   |
+| symlink in the fixture dir pointing outside                                            | status `error` from `os.Root`, nothing sent                                                                                                                    |
+| author sets `content-type` header                                                      | fails before sending; error names the header                                                                                                                   |
+| `body` and `multipart` both set                                                        | fails before sending                                                                                                                                           |
+| body over 10 MiB                                                                       | status `error`; message names the cap                                                                                                                          |
+| same step run twice                                                                    | identical request `Content-Type`; identical marshalled result JSON                                                                                             |
+| `ContractOptions{Dir: tmp}` where `tmp` lacks the fixture                              | pass; the file is read from the working directory, not `Dir`                                                                                                   |
+| login sets a cookie, then a 307 to an upload endpoint that checks the cookie and parts | pass (ADR 0027 and `GetBody`)                                                                                                                                  |
+| relative `url` with `base_url`                                                         | pass (ADR 0028)                                                                                                                                                |
 
 `internal/schema/validate_test.go`: add `testdata/valid/http_multipart.yaml`, covering all three
 part kinds. Add invalid fixtures for an absolute `file`, a `..` segment, `value` together with
@@ -239,29 +246,29 @@ question 1. No accepted ADR is amended.
 
 1. **Under `--spec-from base` (ADR 0019), fixtures still come from the head.** A pull request
    cannot change the spec, but it can replace `testdata/sample.mp4` with a file that weakens the
-   test. *Recommendation:* accept this for now. Write it in the ADR, advise listing fixture
+   test. _Recommendation:_ accept this for now. Write it in the ADR, advise listing fixture
    directories in `policy.protected`, and open a `kind:gap` draft task to read spec contracts'
    fixtures with `gitrepo.Show` at the base commit.
 2. **Should red-green base runs read fixtures from the base worktree, as CLI steps do?** If they
    did, a fixture added in the same pull request would be missing on the base. The base run would
-   fail for the wrong reason and count as red. *Recommendation:* no. Read from the head. The
+   fail for the wrong reason and count as red. _Recommendation:_ no. Read from the head. The
    fixture is test input, like the overlay, not code under test.
 3. **Should a missing fixture be `error` rather than `fail`?** This adds a second failure status to
-   `failedResult`. *Recommendation:* yes. It is a spec problem, a retry cannot fix it, and
+   `failedResult`. _Recommendation:_ yes. It is a spec problem, a retry cannot fix it, and
    red-green already treats a base `error` as not red.
 4. **Should `file` be templated?** Templating would allow per-environment fixtures, but paths
    could then come from env, differ between machines and be harder to review.
-   *Recommendation:* no. Revisit if someone needs it.
+   _Recommendation:_ no. Revisit if someone needs it.
 5. **What should the size cap be?** The body is held in memory so that redirects can replay it.
-   *Recommendation:* 10 MiB, as a constant. Make it configurable only if real specs need more.
+   _Recommendation:_ 10 MiB, as a constant. Make it configurable only if real specs need more.
 6. **Should evidence record the parts, for example field names and fixture SHA-256s in
-   `failed_step`?** This would help reviewers when a fixture is untracked. *Recommendation:* no,
+   `failed_step`?** This would help reviewers when a fixture is untracked. _Recommendation:_ no,
    not in this task. Tracked fixtures are pinned by `git_sha`, and adding the field changes the
    evidence schema.
 7. **Should the maslow-tok example still be updated?** Nothing validates `examples/`.
-   *Recommendation:* skip it and use the self-hosted `testdata` fixture and `validate-command`
+   _Recommendation:_ skip it and use the self-hosted `testdata` fixture and `validate-command`
    contract instead. If the example is wanted, use a `content` part so no binary file is
    committed.
 8. **Risk: CUE may not express the mutual exclusions cleanly** (exactly one of
-   `value`/`file`/`content`; `body` versus `multipart`). *Recommendation:* try closed
+   `value`/`file`/`content`; `body` versus `multipart`). _Recommendation:_ try closed
    disjunctions first. Fall back to a runner check, keep it tested, and note it in the ADR.

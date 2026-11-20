@@ -1,10 +1,10 @@
 ---
 id: 36
-title: Add contract steps that assert on Prometheus and Loki queries
-status: draft
+title: Add contract steps that assert on metrics, logs and alerts through pluggable providers
+status: todo
 priority: medium
 created: 2026-11-18
-updated: 2026-11-18
+updated: 2026-11-19
 assigned_to: ""
 assigned_at: ""
 depends_on: []
@@ -36,6 +36,30 @@ load generator.
 ## Notes
 
 Source: Damocles reconciler design note (18 Nov 2026), feature V5.
+
+## Decisions (human review, 2026-11-19)
+
+These override the Requirements and the proposal below where they differ.
+
+1. **Providers.** `metric`, `log` and `alerts` steps take a `provider` field. A provider turns a
+   query and an evaluation time into numbers (or, for `alerts`, matching alerts); Maslow owns
+   thresholds, hold windows, the no-data rule and evidence, so semantics are identical across
+   vendors. Providers sit behind one Go interface so a new vendor is one implementation.
+2. **Providers in this task:** `metric`: `prometheus` (any Prometheus-compatible query API) and
+   `datadog`; `log`: `loki` and `datadog`; `alerts`: `alertmanager` and `datadog`.
+3. **Datadog is a stub.** `provider: datadog` validates in the schema, so specs can be written
+   now, but at run time the step returns status `error` with "provider datadog is not implemented".
+   File a `kind:gap` draft task for the real Datadog providers, plus one listing later vendors
+   (New Relic, CloudWatch, SigV4 for AWS Managed Prometheus).
+4. **`alerts` step.** Queries Alertmanager `GET /api/v2/alerts` with label matchers, polled forward
+   like `metric`. Counts active, unsilenced, uninhibited alerts. Takes a `settle` duration because
+   alert rules have their own `for:` lag, and an option to ignore alerts whose `startsAt` precedes
+   the step's start. The ADR says alerts complement thresholds, not replace them.
+5. **`log` steps accept metric LogQL only** (e.g. `count_over_time(...)`), so one evaluator serves
+   `metric` and `log`.
+6. Otherwise the proposal's recommendations stand: poll forward, no data fails unless
+   `if_no_data: pass`, breaches are never retried, a failed query mid-hold fails the step at once,
+   at most 1000 polls per hold, header auth only.
 
 ## Proposed implementation
 
