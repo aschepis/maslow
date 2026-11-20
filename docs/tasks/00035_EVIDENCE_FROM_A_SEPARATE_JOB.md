@@ -27,9 +27,10 @@ own evidence file. A consumer cannot tell a real pass from a forged one.
 
 ## Acceptance Criteria
 
-- [ ] `action/README.md` documents the pattern with a working example workflow. *Documented. The
-  example passes `scripts/check-trusted-workflow.sh` and zizmor, but "working" needs a real
-  `pull_request_target` run on GitHub, which cannot happen until `maslow-evidence.yml` is on `main`.*
+- [x] `action/README.md` documents the pattern with a working example workflow. *Confirmed on the
+  first real runs (PRs #36 to #38): the workflow passed, and the artifact lookup found run
+  44651531826. `head_branch` turned out to be the PR's branch, so the consumer steps now check
+  `head_sha` and `head_repository` instead.*
 - [x] Maslow's own repository runs the trusted workflow as its own file beside `ci.yml` (Decision 7):
   `.github/workflows/maslow-evidence.yml`. *The first real run happens on the first pull request
   after merge. Check then that the run's `head_branch` is `main` and the artifact lookup in ADR 0040
