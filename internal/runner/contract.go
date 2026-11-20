@@ -1,8 +1,10 @@
 package runner
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -50,6 +52,7 @@ type stepFailure struct {
 }
 
 func (f *stepFailure) Error() string { return f.err.Error() }
+func (f *stepFailure) Unwrap() error { return f.err }
 
 func (f *stepFailure) evidence() *evidence.FailedStep {
 	return &evidence.FailedStep{
@@ -259,6 +262,10 @@ func runScenario(contractName string, scenario spec.Scenario, cfg contractConfig
 
 func failedResult(name, prefix string, err error) evidence.ContractResult {
 	result := evidence.ContractResult{Name: name, Status: "fail", Error: prefix + err.Error()}
+	var fixture *fixtureError
+	if errors.As(err, &fixture) {
+		result.Status = "error"
+	}
 	if f, ok := err.(*stepFailure); ok {
 		result.FailedStep = f.evidence()
 		result.Output = f.output
@@ -322,7 +329,7 @@ func runStep(step spec.Step, state *stepState, sc *scope) error {
 	case "http":
 		statusCode, headers, body, err := runHTTPStep(step, sc.client)
 		if err != nil {
-			return fmt.Errorf("step http %s %s: %v", step.Method, step.URL, err)
+			return fmt.Errorf("step http %s %s: %w", step.Method, step.URL, err)
 		}
 		state.httpStatus = statusCode
 		state.httpHeaders = headers
@@ -494,6 +501,23 @@ func substituteStep(step spec.Step, sc *scope) (spec.Step, error) {
 		step.Headers = headers
 	}
 
+	if len(step.Multipart) > 0 {
+		parts := make([]spec.Part, len(step.Multipart))
+		for i, p := range step.Multipart {
+			if p.Value, err = applyTemplate(p.Value, sc); err != nil {
+				return step, fmt.Errorf("multipart[%d].value: %w", i, err)
+			}
+			if p.Content, err = applyTemplate(p.Content, sc); err != nil {
+				return step, fmt.Errorf("multipart[%d].content: %w", i, err)
+			}
+			if p.Filename, err = applyTemplate(p.Filename, sc); err != nil {
+				return step, fmt.Errorf("multipart[%d].filename: %w", i, err)
+			}
+			parts[i] = p
+		}
+		step.Multipart = parts
+	}
+
 	if len(step.Args) > 0 {
 		args := make([]string, len(step.Args))
 		for i, a := range step.Args {
@@ -578,7 +602,19 @@ func runHTTPStep(step spec.Step, client *http.Client) (statusCode int, headers h
 	}
 
 	var reqBody io.Reader
-	if step.Body != "" {
+	var contentType string
+	switch {
+	case len(step.Multipart) > 0:
+		if err := checkMultipartStep(step); err != nil {
+			return 0, nil, "", err
+		}
+		data, ct, err := buildMultipart(step.Multipart)
+		if err != nil {
+			return 0, nil, "", err
+		}
+		// A bytes.Reader lets the client replay the body on a 307 or 308.
+		reqBody, contentType = bytes.NewReader(data), ct
+	case step.Body != "":
 		reqBody = strings.NewReader(step.Body)
 	}
 
@@ -592,6 +628,9 @@ func runHTTPStep(step spec.Step, client *http.Client) (statusCode int, headers h
 
 	for k, v := range step.Headers {
 		req.Header.Set(k, v)
+	}
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
 	}
 
 	resp, err := client.Do(req)
