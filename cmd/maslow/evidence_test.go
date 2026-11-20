@@ -49,7 +49,11 @@ func TestCmdEvidence(t *testing.T) {
 		{"red-green evidence passes", []string{"check", redGreenFile, "--head", fixtureHead, "--spec", fixtureSpec, "--overlay-sha256", fixtureOverlay, "--base", fixtureBase, "--require-red-green"}, 0, "pass"},
 		{"plain overlay evidence declines", []string{"check", plainOverlayFile, "--head", fixtureHead, "--spec", fixtureSpec, "--overlay-sha256", fixtureOverlay, "--base", fixtureBase, "--require-red-green"}, 1, "--red-green"},
 		{"base alone checks base_sha", []string{"check", plainOverlayFile, "--head", fixtureHead, "--spec", fixtureSpec, "--overlay-sha256", fixtureOverlay, "--base", fixtureHead}, 1, "base_sha"},
+		{"require covered empty", []string{"check", passFile, "--head", fixtureHead, "--spec", fixtureSpec, "--require-covered", ""}, 2, ""},
+		{"require covered with whitespace", []string{"check", passFile, "--head", fixtureHead, "--spec", fixtureSpec, "--require-covered", "two words"}, 2, ""},
+		{"require covered uncovered", []string{"check", passFile, "--head", fixtureHead, "--spec", fixtureSpec, "--require-covered", "acme/app#8"}, 1, `requirement "acme/app#8" is not covered`},
 		{"summary", []string{"summary", "../../testdata/evidence/observe-only.json"}, 0, "Observed policy rules"},
+		{"summary lists requirements", []string{"summary", "../../testdata/evidence/covers.json"}, 0, "### Requirements"},
 		{"summary of missing evidence", []string{"summary", "no-such.json"}, 1, ""},
 		{"summary without file", []string{"summary"}, 2, ""},
 		{"summary with two files", []string{"summary", passFile, reviewFile}, 2, ""},
@@ -168,6 +172,37 @@ func TestCmdEvidenceRequireRedGreenEndToEnd(t *testing.T) {
 	code, out := check(plain)
 	if code != 1 || !strings.Contains(out, "--red-green") {
 		t.Errorf("plain overlay evidence: exit = %d, want 1 with a --red-green reason; output:\n%s", code, out)
+	}
+}
+
+func TestCmdEvidenceRequireCoveredEndToEnd(t *testing.T) {
+	repoWithBranch(t,
+		map[string]string{"maslow.yaml": passingSpec, "feature.txt": "old\n"},
+		map[string]string{"feature.txt": "new\n"})
+	head := gitOutput(t, "rev-parse", "HEAD")
+	base := gitOutput(t, "merge-base", "main", "HEAD")
+	tmp := t.TempDir()
+	overlay := filepath.Join(tmp, "acceptance.yaml")
+	covered := strings.Replace(fmt.Sprintf(grepOverlay, "new"), "  - name: acceptance\n", "  - name: acceptance\n    covers: [acme/app#7]\n", 1)
+	if err := os.WriteFile(overlay, []byte(covered), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	report := filepath.Join(tmp, "verify.json")
+	if code := cmdVerify([]string{"--profile", "full", "--base", "main", "--red-green", "--overlay", overlay, "--report", report}); code != 0 {
+		t.Fatalf("verify --red-green exit = %d", code)
+	}
+
+	check := func(id string) (int, string) {
+		var out bytes.Buffer
+		code := cmdEvidence([]string{"check", report, "--head", head, "--spec", "maslow.yaml",
+			"--overlay", overlay, "--base", base, "--require-red-green", "--require-covered", id}, &out)
+		return code, out.String()
+	}
+	if code, out := check("acme/app#7"); code != 0 {
+		t.Errorf("covered requirement: exit = %d, want 0; output:\n%s", code, out)
+	}
+	if code, out := check("acme/app#8"); code != 1 || !strings.Contains(out, `"acme/app#8"`) {
+		t.Errorf("uncovered requirement: exit = %d, want 1 naming acme/app#8; output:\n%s", code, out)
 	}
 }
 

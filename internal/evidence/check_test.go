@@ -40,6 +40,17 @@ func requireRedGreen(tr *Trusted) {
 	tr.OverlaySHA256s = []string{testOverlay}
 }
 
+func requireCovered(ids ...string) func(*Trusted) {
+	return func(tr *Trusted) { tr.RequireCovered = ids }
+}
+
+func both(a, b func(*Trusted)) func(*Trusted) {
+	return func(tr *Trusted) {
+		a(tr)
+		b(tr)
+	}
+}
+
 func goodReport() *Report {
 	return &Report{
 		EvidenceVersion: Version,
@@ -333,6 +344,133 @@ func TestCheck(t *testing.T) {
 			decision: DecisionDecline,
 			fields:   []string{"verdict", "contracts"},
 		},
+		{
+			name:     "covers without the flag change nothing",
+			report:   func(r *Report) { r.CheckResults = []CheckResult{{Name: "unit", Status: "pass", Covers: []string{"X"}}} },
+			decision: DecisionPass,
+		},
+		{
+			name:     "covered by a passing contract",
+			report:   func(r *Report) { r.Contracts = []ContractResult{{Name: "c/s", Status: "pass", Covers: []string{"X"}}} },
+			trusted:  requireCovered("X"),
+			decision: DecisionPass,
+		},
+		{
+			name:     "covered by a passing check",
+			report:   func(r *Report) { r.CheckResults = []CheckResult{{Name: "unit", Status: "pass", Covers: []string{"X"}}} },
+			trusted:  requireCovered("X"),
+			decision: DecisionPass,
+		},
+		{
+			name:     "uncovered",
+			trusted:  requireCovered("X"),
+			decision: DecisionDecline,
+			fields:   []string{"covers"},
+		},
+		{
+			name:     "two ids, one uncovered",
+			report:   func(r *Report) { r.Contracts = []ContractResult{{Name: "c/s", Status: "pass", Covers: []string{"X"}}} },
+			trusted:  requireCovered("X", "Y"),
+			decision: DecisionDecline,
+			fields:   []string{"covers"},
+		},
+		{
+			name: "covering result fails",
+			report: func(r *Report) {
+				r.Contracts = []ContractResult{{Name: "c/s", Status: "fail", Covers: []string{"X"}}}
+				r.Verdict = "fail"
+			},
+			trusted:  requireCovered("X"),
+			decision: DecisionDecline,
+			fields:   []string{"verdict", "covers"},
+		},
+		{
+			name: "one of two covering results fails",
+			report: func(r *Report) {
+				r.Contracts = []ContractResult{
+					{Name: "c/a", Status: "pass", Covers: []string{"X"}},
+					{Name: "c/b", Status: "fail", Covers: []string{"X"}},
+				}
+				r.Verdict = "fail"
+			},
+			trusted:  requireCovered("X"),
+			decision: DecisionDecline,
+			fields:   []string{"verdict", "covers"},
+		},
+		{
+			name: "edited top-level coverage is not trusted",
+			report: func(r *Report) {
+				r.Coverage = []CoverageEntry{{ID: "X", Status: "pass", Results: []string{"contract:c/s"}}}
+			},
+			trusted:  requireCovered("X"),
+			decision: DecisionDecline,
+			fields:   []string{"covers"},
+		},
+		{
+			name: "ids match case-sensitively",
+			report: func(r *Report) {
+				r.Contracts = []ContractResult{{Name: "c/s", Status: "pass", Covers: []string{"req-1"}}}
+			},
+			trusted:  requireCovered("REQ-1"),
+			decision: DecisionDecline,
+			fields:   []string{"covers"},
+		},
+		{
+			name: "red-green overlay contract covers",
+			report: func(r *Report) {
+				withRedGreen(r)
+				r.Contracts[0].Covers = []string{"X"}
+			},
+			trusted:  both(requireRedGreen, requireCovered("X")),
+			decision: DecisionPass,
+		},
+		{
+			name: "red-green with only a spec check covering",
+			report: func(r *Report) {
+				withRedGreen(r)
+				r.CheckResults = []CheckResult{{Name: "unit", Status: "pass", Covers: []string{"X"}}}
+			},
+			trusted:  both(requireRedGreen, requireCovered("X")),
+			decision: DecisionDecline,
+			fields:   []string{"covers"},
+		},
+		{
+			name: "red-green covering overlay contract is not red",
+			report: func(r *Report) {
+				withRedGreen(r)
+				r.Contracts[0].Covers = []string{"X"}
+				r.Contracts[0].Base.Status = "pass"
+				r.Contracts[0].Status = StatusNotRed
+				r.Verdict = "fail"
+			},
+			trusted:  both(requireRedGreen, requireCovered("X")),
+			decision: DecisionDecline,
+			fields:   []string{"verdict", "contracts", "covers"},
+		},
+		{
+			name: "red-green covering overlay contract is flaky",
+			report: func(r *Report) {
+				withRedGreen(r)
+				r.Contracts[0].Covers = []string{"X"}
+				r.Contracts[0].HeadStatus = StatusFlaky
+				r.Contracts[0].Status = StatusFlaky
+				r.Verdict = "needs_review"
+			},
+			trusted:  both(requireRedGreen, requireCovered("X")),
+			decision: DecisionDecline,
+			fields:   []string{"contracts", "covers"},
+		},
+		{
+			name: "flaky overlay contract covers",
+			report: func(r *Report) {
+				r.Overlays = []OverlayRef{{Path: overlayPath, SHA256: testOverlay}}
+				r.Contracts = []ContractResult{{Name: "c/s", Status: StatusFlaky, Overlay: overlayPath, Covers: []string{"X"}}}
+				r.Verdict = "needs_review"
+			},
+			trusted:  both(requireCovered("X"), func(tr *Trusted) { tr.OverlaySHA256s = []string{testOverlay} }),
+			decision: DecisionNeedsReview,
+			fields:   []string{"verdict"},
+		},
 	}
 
 	for _, c := range cases {
@@ -376,6 +514,67 @@ func TestCheck_RedGreenReasonsNameContractAndOverlay(t *testing.T) {
 		if !strings.Contains(msg, want) {
 			t.Errorf("reason %q does not mention %s", msg, want)
 		}
+	}
+}
+
+func TestCheck_CoverageReasons(t *testing.T) {
+	cases := []struct {
+		name    string
+		report  func(*Report)
+		trusted func(*Trusted)
+		want    []string
+	}{
+		{
+			name:    "uncovered",
+			trusted: requireCovered("acme/app#8"),
+			want:    []string{`requirement "acme/app#8" is not covered by any check or contract in the run`},
+		},
+		{
+			name: "failing overlay contract",
+			report: func(r *Report) {
+				r.Contracts = []ContractResult{
+					{Name: "c/a", Status: "pass", Covers: []string{"X"}},
+					{Name: "c/b", Status: "fail", Overlay: "o.yaml", Covers: []string{"X"}},
+				}
+			},
+			trusted: requireCovered("X"),
+			want:    []string{`requirement "X" is covered by contract "c/b" (overlay o.yaml) with status "fail"`},
+		},
+		{
+			name: "failing check",
+			report: func(r *Report) {
+				r.CheckResults = []CheckResult{{Name: "unit", Status: "error", Covers: []string{"X"}}}
+			},
+			trusted: requireCovered("X"),
+			want:    []string{`requirement "X" is covered by check "unit" with status "error"`},
+		},
+		{
+			name: "red-green with no overlay contract covering",
+			report: func(r *Report) {
+				withRedGreen(r)
+				r.CheckResults = []CheckResult{{Name: "unit", Status: "pass", Covers: []string{"X"}}}
+			},
+			trusted: both(requireRedGreen, requireCovered("X")),
+			want:    []string{`requirement "X" is covered by no overlay contract; --require-red-green needs one`},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			r, tr := goodReport(), goodTrusted()
+			if c.report != nil {
+				c.report(r)
+			}
+			c.trusted(&tr)
+			var got []string
+			for _, reason := range Check(r, tr).Reasons {
+				if reason.Field == "covers" {
+					got = append(got, reason.Message)
+				}
+			}
+			if !reflect.DeepEqual(got, c.want) {
+				t.Errorf("covers reasons = %q, want %q", got, c.want)
+			}
+		})
 	}
 }
 

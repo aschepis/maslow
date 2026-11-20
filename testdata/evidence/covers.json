@@ -1,0 +1,77 @@
+{
+  "evidence_version": "2",
+  "maslow_version": "0.9.0",
+  "command": "verify",
+  "timestamp": "2026-11-19T00:00:00Z",
+  "spec_path": "testdata/valid/covers.yaml",
+  "spec_sha256": "3d4a2223f6b10f34ea4333505a0b7e61f327e2820984927936272cfaa931cfcd",
+  "spec_source": "head",
+  "git_sha": "1111111111111111111111111111111111111111",
+  "profile": "quick",
+  "verdict": "fail",
+  "overlays": [
+    {
+      "path": "change/acceptance.yaml",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  ],
+  "check_results": [
+    {
+      "name": "unit",
+      "kind": "command",
+      "status": "pass",
+      "duration_seconds": 0.1,
+      "covers": [
+        "REQ-1"
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "name": "login/rejects-bad-password",
+      "status": "pass",
+      "covers": [
+        "acme/app#7",
+        "acme/app#7/ac-2"
+      ]
+    },
+    {
+      "name": "acceptance/fixed",
+      "status": "fail",
+      "error": "expected exit code 0, got 1",
+      "overlay": "change/acceptance.yaml",
+      "failed_step": {
+        "phase": "steps",
+        "index": 1,
+        "action": "assert"
+      },
+      "covers": [
+        "acme/app#7"
+      ]
+    }
+  ],
+  "coverage": [
+    {
+      "id": "REQ-1",
+      "status": "pass",
+      "results": [
+        "check:unit"
+      ]
+    },
+    {
+      "id": "acme/app#7",
+      "status": "fail",
+      "results": [
+        "contract:acceptance/fixed",
+        "contract:login/rejects-bad-password"
+      ]
+    },
+    {
+      "id": "acme/app#7/ac-2",
+      "status": "pass",
+      "results": [
+        "contract:login/rejects-bad-password"
+      ]
+    }
+  ]
+}

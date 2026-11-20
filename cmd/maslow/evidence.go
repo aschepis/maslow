@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
+	"unicode"
 
 	"github.com/aschepis/maslow/internal/evidence"
 )
@@ -17,7 +19,7 @@ func cmdEvidence(args []string, stdout io.Writer) int {
 	if len(args) > 0 && args[0] == "summary" {
 		return cmdEvidenceSummary(args[1:], stdout)
 	}
-	fmt.Fprintln(os.Stderr, "Usage: maslow evidence check <file> --head <sha> --spec <file> [--profile <name>] [--overlay <file>] [--overlay-sha256 <hex>] [--base <sha>] [--require-red-green] [--json]")
+	fmt.Fprintln(os.Stderr, "Usage: maslow evidence check <file> --head <sha> --spec <file> [--profile <name>] [--overlay <file>] [--overlay-sha256 <hex>] [--base <sha>] [--require-red-green] [--require-covered <id>] [--json]")
 	fmt.Fprintln(os.Stderr, "       maslow evidence summary <file>")
 	return 2
 }
@@ -44,9 +46,10 @@ func cmdEvidenceCheck(args []string, stdout io.Writer) int {
 	base := fs.String("base", "", "full merge-base SHA the evidence's base_sha must match")
 	requireRedGreen := fs.Bool("require-red-green", false, "decline unless every overlay contract failed on --base and passed on --head")
 	asJSON := fs.Bool("json", false, "print the decision and reasons as JSON")
-	var overlayPaths, overlayHashes stringList
+	var overlayPaths, overlayHashes, requireCovered stringList
 	fs.Var(&overlayPaths, "overlay", "trusted overlay file the run must have used (repeatable)")
 	fs.Var(&overlayHashes, "overlay-sha256", "sha256 of a trusted overlay the run must have used (repeatable)")
+	fs.Var(&requireCovered, "require-covered", "requirement ID that passing results must cover (repeatable)")
 
 	positional, ok := parseInterspersed(fs, args)
 	if !ok {
@@ -68,6 +71,12 @@ func cmdEvidenceCheck(args []string, stdout io.Writer) int {
 		fmt.Fprintln(os.Stderr, "maslow evidence check: --require-red-green requires --overlay or --overlay-sha256")
 		return 2
 	}
+	for _, id := range requireCovered {
+		if id == "" || strings.ContainsFunc(id, unicode.IsSpace) {
+			fmt.Fprintf(os.Stderr, "maslow evidence check: --require-covered %q must be non-empty with no whitespace\n", id)
+			return 2
+		}
+	}
 
 	trusted := evidence.Trusted{
 		Head:            *head,
@@ -75,6 +84,7 @@ func cmdEvidenceCheck(args []string, stdout io.Writer) int {
 		OverlaySHA256s:  overlayHashes,
 		Base:            *base,
 		RequireRedGreen: *requireRedGreen,
+		RequireCovered:  requireCovered,
 	}
 	var err error
 	if trusted.SpecSHA256, err = evidence.FileSHA256(*specPath); err != nil {

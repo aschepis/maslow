@@ -24,6 +24,9 @@ type Trusted struct {
 	Base           string   // full merge-base SHA; empty skips the base_sha check
 	// RequireRedGreen declines unless every overlay contract failed on Base and passed on Head.
 	RequireRedGreen bool
+	// RequireCovered declines unless each ID is covered by results that all
+	// passed; with RequireRedGreen only overlay contracts count.
+	RequireCovered []string
 }
 
 // Decision is the outcome of checking an evidence file against trusted inputs.
@@ -95,6 +98,9 @@ func Check(r *Report, t Trusted) Decision {
 		for _, msg := range redGreenMismatches(r, t.Base) {
 			add("contracts", "%s", msg)
 		}
+	}
+	for _, msg := range coverageMismatches(r, t.RequireCovered, t.RequireRedGreen) {
+		add("covers", "%s", msg)
 	}
 
 	if len(reasons) > 0 {
