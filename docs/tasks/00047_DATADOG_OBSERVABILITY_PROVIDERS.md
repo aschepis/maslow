@@ -37,3 +37,8 @@ implemented". Teams on Datadog cannot use post-deploy assertions until it works.
 - [ ] Datadog metric, log and alerts providers return readings that the existing evaluator judges.
 - [ ] Tests against a stub Datadog API.
 - [ ] ADR 0042 or a new ADR records the query semantics chosen.
+
+## Notes
+
+Review (2026-11-20): stays a draft until a Damocles user needs Datadog. It should then be validated
+against a real Datadog account, not only a stub.

@@ -38,3 +38,6 @@ The evidence's results are trustworthy only if the code under test cannot touch 
 ## Notes
 
 Found while implementing task 35. See ADR 0040, "What this proves and what it does not".
+
+Review (2026-11-20): process-group cleanup is split out as task 49. The isolation design stays a
+draft until Damocles acts on evidence without a human reading the diff.

@@ -33,3 +33,8 @@ Alertmanager, with Datadog to follow (task 47). Other common backends cannot be 
 - Should signing be an option on the existing `prometheus` provider (`auth: sigv4`) rather than a
   new provider?
 - Which of these does Damocles need first?
+
+## Notes
+
+Review (2026-11-20): stays a draft until someone needs one of these. Leaning: AWS Managed Prometheus
+is `auth: sigv4` on the existing `prometheus` provider, not a new provider.

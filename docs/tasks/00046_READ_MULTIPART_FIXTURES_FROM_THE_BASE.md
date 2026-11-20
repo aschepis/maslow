@@ -33,3 +33,7 @@ has to remember.
 ## Notes
 
 Found while implementing task 20. See ADR 0041, "Consequences".
+
+Review (2026-11-20): stays a low-priority draft; `policy.protected` on fixture directories is the
+workaround. If a small step is wanted first, record each `file` part's path and SHA-256 in the
+evidence so a reviewer can see a fixture changed.
