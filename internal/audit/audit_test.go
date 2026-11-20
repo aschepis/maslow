@@ -141,6 +141,39 @@ func TestRun_EndpointFailingContractFailsAudit(t *testing.T) {
 	}
 }
 
+// A metric step queries its own URL, never the target, so a post-deploy audit
+// can judge the deployed service by what its metrics report.
+func TestRun_EndpointRunsMetricStepsAgainstTheirOwnURL(t *testing.T) {
+	app := healthServer(t)
+	var promPaths []string
+	prom := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		promPaths = append(promPaths, r.URL.Path)
+		w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{},"value":[0,"0.001"]}]}}`))
+	}))
+	t.Cleanup(prom.Close)
+
+	maxRatio := 0.01
+	mas := endpointSpec(app.URL, []string{"post-deploy"})
+	mas.Contracts = append(mas.Contracts, spec.Contract{Name: "error-rate", Tags: []string{"post-deploy"}, Scenarios: []spec.Scenario{{
+		Name:  "holds",
+		Steps: []spec.Step{{Action: "metric", Provider: "prometheus", URL: prom.URL, Query: "error_ratio", Expect: &spec.Expectation{Max: &maxRatio}}},
+	}}})
+
+	report, err := Run(mas, Options{Profile: "full"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Verdict != "pass" || len(report.Contracts) != 1 {
+		t.Fatalf("expected the metric contract to pass, got %s: %+v %+v", report.Verdict, report.CheckResults, report.Contracts)
+	}
+	if len(promPaths) != 1 || promPaths[0] != "/api/v1/query" {
+		t.Errorf("expected one query to Prometheus, got %v", promPaths)
+	}
+	if obs := report.Contracts[0].Observations; len(obs) != 1 || obs[0].Query != "error_ratio" {
+		t.Errorf("expected the observation on the audit's contract result, got %+v", obs)
+	}
+}
+
 func TestRun_EndpointPathFromEnvIsNotRecorded(t *testing.T) {
 	srv := healthServer(t)
 	t.Setenv("MASLOW_TEST_DEPLOY_URL", srv.URL)

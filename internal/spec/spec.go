@@ -174,6 +174,15 @@ type Step struct {
 	Do       string `yaml:"do,omitempty"`
 	Selector string `yaml:"selector,omitempty"`
 	Text     string `yaml:"text,omitempty"`
+	// Provider answers a metric, log or alerts step, such as prometheus.
+	Provider string `yaml:"provider,omitempty"`
+	Query    string `yaml:"query,omitempty"`
+	// For is how long a metric, log or alerts step keeps polling; "" queries once.
+	For string `yaml:"for,omitempty"`
+	// Settle extends an alerts step's polling so slow alert rules can fire.
+	Settle            string   `yaml:"settle,omitempty"`
+	Matchers          []string `yaml:"matchers,omitempty"`
+	IgnorePreexisting bool     `yaml:"ignore_preexisting,omitempty"`
 }
 
 // Part is one part of a multipart HTTP body. Exactly one of Value, File and
@@ -206,6 +215,13 @@ type Expectation struct {
 	URLContains  string `yaml:"url_contains,omitempty"`
 	Visible      *bool  `yaml:"visible,omitempty"`
 	Enabled      *bool  `yaml:"enabled,omitempty"`
+	// Metric, log and alerts bounds, all inclusive.
+	Min       *float64 `yaml:"min,omitempty"`
+	Max       *float64 `yaml:"max,omitempty"`
+	MinSeries *int     `yaml:"min_series,omitempty"`
+	MaxSeries *int     `yaml:"max_series,omitempty"`
+	// IfNoData is "pass" to accept an empty or NaN result; otherwise it fails.
+	IfNoData string `yaml:"if_no_data,omitempty"`
 }
 
 type Assertion struct {

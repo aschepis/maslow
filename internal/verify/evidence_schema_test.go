@@ -3,6 +3,8 @@ package verify
 import (
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -59,6 +61,19 @@ func TestEvidenceMatchesSchema(t *testing.T) {
 			Artifacts: []string{"locked.txt"},
 		},
 	}}}
+	prom := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v2/alerts" {
+			w.Write([]byte(`[]`))
+			return
+		}
+		w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"code":"500"},"value":[0,"+Inf"]}]}}`))
+	}))
+	defer prom.Close()
+	maxRatio, noAlerts := 0.01, 0.0
+	mas.Contracts = append(mas.Contracts, spec.Contract{Name: "observe", Scenarios: []spec.Scenario{
+		{Name: "alerts", Steps: []spec.Step{{Action: "alerts", Provider: "alertmanager", URL: prom.URL, Matchers: []string{`service="x"`}, Expect: &spec.Expectation{Max: &noAlerts}}}},
+		{Name: "breach", Steps: []spec.Step{{Action: "metric", Provider: "prometheus", URL: prom.URL, Query: "error_ratio", Expect: &spec.Expectation{Max: &maxRatio}}}},
+	}})
 	mas.Budgets = []spec.Budget{{Name: "size", Kind: "artifact_size", Target: "maslow.yaml", Max: "1MB"}}
 	mas.Refs = []spec.Ref{{Kind: "file", Path: "maslow.yaml", Required: true}}
 	mas.Policy = &spec.Policy{
@@ -100,6 +115,13 @@ func TestEvidenceMatchesSchema(t *testing.T) {
 		if _, ok := fields[key]; !ok {
 			t.Errorf("expected the fixture to exercise %q", key)
 		}
+	}
+	observed := 0
+	for _, c := range report.Contracts {
+		observed += len(c.Observations)
+	}
+	if observed != 2 {
+		t.Errorf("expected the fixture to exercise two observations, got %d", observed)
 	}
 	if last := report.Contracts[len(report.Contracts)-1]; last.Base == nil || last.Status != evidence.StatusNotRed {
 		t.Errorf("expected the fixture to exercise a red-green base run, got %+v", last)
