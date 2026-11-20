@@ -156,6 +156,28 @@ contracts:
 
 Each scenario keeps its own cookie jar across its setup, steps and teardown, so a scenario that signs in stays signed in without hand-built `Cookie` headers.
 
+### Multipart uploads
+
+An `http` step can send a `multipart/form-data` body with `multipart` instead of `body`. Each part has a `field` and exactly one of `value` (a text field), `file` (a fixture's bytes) or `content` (inline text sent as a file, which needs a `filename`):
+
+```yaml
+- action: http
+  method: POST
+  url: /v1/videos
+  headers: { Authorization: "Bearer {{.cap.access_token}}" }
+  multipart:
+    - { field: title, value: "Test Video" }
+    - { field: video, file: testdata/sample.mp4, content_type: video/mp4 }
+    - { field: notes, content: "made by {{.cap.user}}", filename: notes.txt }
+  expect: { status: 201, json_path: "$.id" }
+```
+
+- `file` is a slash-separated path relative to the directory Maslow runs in, with no `.`, `..` or empty segment. Symlinks may not lead outside that directory. Fixtures are always read from the head checkout, even in a red-green base run or with `--spec-from base`, so list fixture directories in `policy.protected` if a change must not edit them.
+- A file part's `filename` defaults to the file's base name, and `content_type` to `application/octet-stream`. Maslow does not guess types from extensions.
+- `value`, `content` and `filename` are templated. `field`, `file` and `content_type` are not.
+- Maslow sets `Content-Type` with a boundary derived from the parts, so the same parts send the same bytes. A step that also sets a `Content-Type` header fails.
+- A missing or escaping fixture, or a body over 10 MiB, gives the scenario status `error`, which is not retried (ADR 0041).
+
 ### Browser steps
 
 A `browser` step drives a headless Chrome, one operation per step. It needs Chrome or Chromium installed: Maslow looks for the usual names and install paths, or uses the binary named by `MASLOW_BROWSER`. Nothing else (Node, Playwright, a driver) is required.

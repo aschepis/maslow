@@ -97,7 +97,7 @@ A valid `maslow.yaml` defines:
 - `toolchain` - required tools and version managers (asdf, mise, nix, custom)
 - `refs` - external references (repos, modules, APIs)
 - `policy` - path allow/deny lists; protected files; gated directories; shrink-only files and test-integrity checks judged on changed lines (ADR 0032); an `observe` block of the same rules reported without enforcement (ADR 0031)
-- `contracts` - scenario-based behavioral contracts (HTTP, CLI and headless-browser steps); each scenario keeps its own cookie jar (ADR 0027), shared with its browser, which `internal/runner/browser.go` drives through chromedp (ADR 0035)
+- `contracts` - scenario-based behavioral contracts (HTTP, CLI and headless-browser steps); each scenario keeps its own cookie jar (ADR 0027), shared with its browser, which `internal/runner/browser.go` drives through chromedp (ADR 0035); an HTTP step's `multipart` parts are encoded by `internal/runner/multipart.go`, reading fixtures from the working directory (ADR 0041)
 - `budgets` - performance, availability, artifact size, complexity limits
 - `checks` - named check definitions and runner configuration; checks and contracts take `retries`,
   capped by the top-level `max_retries` (default 5) (ADR 0039)
