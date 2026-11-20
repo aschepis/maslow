@@ -1,7 +1,7 @@
 ---
 id: 20
 title: Add multipart/form-data support for HTTP contract steps
-status: in_progress
+status: done
 priority: low
 created: 2026-02-20
 updated: 2026-11-19
@@ -27,15 +27,15 @@ File upload is a core feature of many applications (MaslowTok's entire value pro
 
 ## Acceptance Criteria
 
-- [ ] Schema accepts `multipart` field on HTTP steps with file and field parts
-- [ ] Runner constructs valid multipart/form-data requests
-- [ ] File parts read from the specified path relative to the project root
-- [ ] Form field parts are sent as text values
-- [ ] Content-Type header is automatically set to multipart/form-data with boundary
-- [ ] Response expectations work normally after multipart request
-- [ ] Missing file paths produce clear error messages
-- [ ] Unit tests cover: single file upload, multiple files, mixed files and fields, missing file
-- [ ] Update maslow-tok example to include a video upload contract
+- [x] Schema accepts `multipart` field on HTTP steps with file and field parts
+- [x] Runner constructs valid multipart/form-data requests
+- [x] File parts read from the specified path relative to the project root
+- [x] Form field parts are sent as text values
+- [x] Content-Type header is automatically set to multipart/form-data with boundary
+- [x] Response expectations work normally after multipart request
+- [x] Missing file paths produce clear error messages
+- [x] Unit tests cover: single file upload, multiple files, mixed files and fields, missing file
+- [ ] Update maslow-tok example to include a video upload contract (dropped by the Decisions; `testdata/valid/http_multipart.yaml` and the `validate-command` contract replace it)
 
 ## Notes
 
