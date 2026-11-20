@@ -1,12 +1,12 @@
 ---
 id: 20
 title: Add multipart/form-data support for HTTP contract steps
-status: todo
+status: in_progress
 priority: low
 created: 2026-02-20
 updated: 2026-11-19
-assigned_to: ""
-assigned_at: ""
+assigned_to: "claude-subagent"
+assigned_at: "2026-11-20T00:44:09Z"
 depends_on: [13]
 tags: [maslow, verification, contract, http]
 ---
