@@ -42,11 +42,12 @@ func TestEvidenceMatchesSchema(t *testing.T) {
 		t.Fatal(err)
 	}
 	mas := loaded.MAS
-	mas.Checks.Runner = append(mas.Checks.Runner, spec.CheckRunner{Name: "noisy", Kind: "command", Run: "seq 1 5000"})
+	mas.Checks.Runner = append(mas.Checks.Runner, spec.CheckRunner{Name: "noisy", Kind: "command", Run: "seq 1 5000", Covers: []string{"REQ-1"}})
 	mas.Profiles["full"] = spec.Profile{Checks: []string{"gate", "ok", "noisy"}}
-	mas.Contracts = []spec.Contract{{Name: "c", Scenarios: []spec.Scenario{
+	mas.Contracts = []spec.Contract{{Name: "c", Covers: []string{"acme/app#7"}, Scenarios: []spec.Scenario{
 		{
-			Name: "s",
+			Name:   "s",
+			Covers: []string{"acme/app#7/ac-1"},
 			Steps: []spec.Step{
 				{Action: "cli", Command: "true"},
 				{Action: "assert", Expect: &spec.Expectation{ExitCode: &exitZero}},
@@ -111,7 +112,7 @@ func TestEvidenceMatchesSchema(t *testing.T) {
 	if err := json.Unmarshal(data, &fields); err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"contracts", "budgets", "refs", "policy", "base_sha", "git_sha", "overlays"} {
+	for _, key := range []string{"contracts", "budgets", "refs", "policy", "base_sha", "git_sha", "overlays", "coverage"} {
 		if _, ok := fields[key]; !ok {
 			t.Errorf("expected the fixture to exercise %q", key)
 		}
@@ -130,6 +131,12 @@ func TestEvidenceMatchesSchema(t *testing.T) {
 	mutations := map[string]func(m map[string]any){
 		"unknown field": func(m map[string]any) { m["surprise"] = true },
 		"bad verdict":   func(m map[string]any) { m["verdict"] = "maybe" },
+		"covers with whitespace": func(m map[string]any) {
+			m["check_results"].([]any)[0].(map[string]any)["covers"] = []string{"two words"}
+		},
+		"coverage without results": func(m map[string]any) {
+			m["coverage"] = []map[string]any{{"id": "X", "status": "pass"}}
+		},
 	}
 	for name, mutate := range mutations {
 		var m map[string]any

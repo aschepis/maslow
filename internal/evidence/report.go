@@ -39,6 +39,16 @@ type Report struct {
 	Budgets         []BudgetResult   `json:"budgets,omitempty"`
 	Refs            []RefResult      `json:"refs,omitempty"`
 	Policy          []PolicyResult   `json:"policy,omitempty"`
+	// Coverage is derived from each result's Covers; evidence check ignores it.
+	Coverage []CoverageEntry `json:"coverage,omitempty"`
+}
+
+// CoverageEntry is one requirement ID and the results that cover it, named
+// "check:<name>" or "contract:<name>".
+type CoverageEntry struct {
+	ID      string   `json:"id"`
+	Status  string   `json:"status"`
+	Results []string `json:"results"`
 }
 
 // Meta describes what a report is about.
@@ -71,6 +81,7 @@ type CheckResult struct {
 	// Attempts is set only when the check ran more than once; the fields
 	// above then describe the last attempt, and Duration is the total.
 	Attempts []CheckAttempt `json:"attempts,omitempty"`
+	Covers   []string       `json:"covers,omitempty"`
 }
 
 // StatusFlaky marks a check or contract that failed and then passed on a retry.
@@ -167,6 +178,8 @@ type ContractResult struct {
 	// Attempts is set only when the scenario ran more than once; the fields
 	// above then describe the last attempt.
 	Attempts []ContractAttempt `json:"attempts,omitempty"`
+	// Covers joins the contract's and the scenario's requirement IDs.
+	Covers []string `json:"covers,omitempty"`
 }
 
 // StatusNotRed marks an overlay contract that already passed on the base

@@ -167,7 +167,8 @@ func RunContractsWith(contracts []spec.Contract, opts ContractOptions) []evidenc
 	var results []evidence.ContractResult
 	for _, contract := range contracts {
 		cfg := contractConfig{env: allowedEnv(contract.Env), baseURL: opts.BaseURL, dir: opts.Dir, clock: clk}
-		for _, result := range runContract(contract, cfg) {
+		for i, result := range runContract(contract, cfg) {
+			result.Covers = sortedUnion(contract.Covers, contract.Scenarios[i].Covers)
 			results = append(results, redact(result, cfg.env))
 		}
 	}
