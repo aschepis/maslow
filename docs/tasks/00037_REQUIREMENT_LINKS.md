@@ -1,7 +1,7 @@
 ---
 id: 37
 title: Link checks and contracts to the requirements they cover
-status: in_progress
+status: done
 priority: medium
 created: 2026-11-18
 updated: 2026-11-19
@@ -26,9 +26,9 @@ no contract, and which contract proves issue N is fixed.
 
 ## Acceptance Criteria
 
-- [ ] Schema and fixtures for `covers`.
-- [ ] Tests: covered references appear in the evidence with the right status.
-- [ ] Evidence schema updated; ADR records the reference format.
+- [x] Schema and fixtures for `covers`.
+- [x] Tests: covered references appear in the evidence with the right status.
+- [x] Evidence schema updated; ADR records the reference format.
 
 ## Notes
 
