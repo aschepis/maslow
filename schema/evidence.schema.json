@@ -103,11 +103,60 @@
         "artifacts": { "type": "array", "items": { "type": "string" } },
         "head_status": { "$ref": "#/$defs/resultStatus", "description": "red-green runs only: the contract's own result on the head" },
         "base": { "$ref": "#/$defs/baseRun" },
+        "observations": { "type": "array", "items": { "$ref": "#/$defs/observation" } },
         "attempts": {
           "type": "array",
           "items": { "$ref": "#/$defs/contractAttempt" },
           "description": "set only when the scenario ran more than once; the other fields describe the last attempt"
         }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "what one metric, log or alerts step asked its provider and saw",
+      "required": ["phase", "index", "action", "provider", "url", "expect", "samples"],
+      "properties": {
+        "phase": { "enum": ["setup", "steps"] },
+        "index": { "type": "integer", "minimum": 0 },
+        "action": { "enum": ["metric", "log", "alerts"] },
+        "provider": { "type": "string" },
+        "url": { "type": "string", "description": "as written in the spec, before templating" },
+        "query": { "type": "string" },
+        "matchers": { "type": "array", "items": { "type": "string" } },
+        "ignore_preexisting": { "type": "boolean" },
+        "for": { "type": "string" },
+        "interval": { "type": "string" },
+        "settle": { "type": "string" },
+        "expect": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "min": { "type": "number" },
+            "max": { "type": "number" },
+            "min_series": { "type": "integer", "minimum": 0 },
+            "max_series": { "type": "integer", "minimum": 0 },
+            "if_no_data": { "enum": ["fail", "pass"] }
+          }
+        },
+        "samples": { "type": "array", "items": { "$ref": "#/$defs/sample" } },
+        "breach": { "type": "string" }
+      }
+    },
+    "sample": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "one query at one evaluation time; min and max are strings so +Inf and NaN survive JSON",
+      "required": ["at", "ok"],
+      "properties": {
+        "at": { "type": "string" },
+        "series": { "type": "integer", "minimum": 0 },
+        "alerts": { "type": "integer", "minimum": 0 },
+        "min": { "type": "string" },
+        "max": { "type": "string" },
+        "no_data": { "type": "boolean" },
+        "ok": { "type": "boolean" },
+        "error": { "type": "string" }
       }
     },
     "contractAttempt": {
@@ -121,7 +170,8 @@
         "output": { "type": "string" },
         "output_bytes": { "type": "integer", "minimum": 0 },
         "output_truncated": { "type": "boolean" },
-        "artifacts": { "type": "array", "items": { "type": "string" } }
+        "artifacts": { "type": "array", "items": { "type": "string" } },
+        "observations": { "type": "array", "items": { "$ref": "#/$defs/observation" } }
       }
     },
     "baseRun": {
