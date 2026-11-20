@@ -1,12 +1,12 @@
 ---
 id: 36
 title: Add contract steps that assert on metrics, logs and alerts through pluggable providers
-status: todo
+status: in_progress
 priority: medium
 created: 2026-11-18
 updated: 2026-11-19
-assigned_to: ""
-assigned_at: ""
+assigned_to: "claude-subagent"
+assigned_at: "2026-11-20T00:50:52Z"
 depends_on: []
 tags: [kind:gap, contracts, audit]
 ---
