@@ -171,6 +171,21 @@ Use what the schema can express today. When you hit something you can't express 
 8. Update `maslow.yaml` if new checks, contracts, or budgets apply
 9. Write an ADR if the change involves a material decision
 10. Update `docs/MAP.md` if architecture changed
+11. Add an entry under `## [Unreleased]` in `CHANGELOG.md` for any user-visible change
+
+## Cutting a Release
+
+Every new version must have a `CHANGELOG.md` section. Never tag a version without one.
+
+1. On a branch, rename `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD` and add a fresh empty
+   `## [Unreleased]` above it.
+2. Check the section against every PR merged since the last tag (`git log vPREV..main --merges`):
+   each user-visible change has an entry, and each entry names its PR and ADR, e.g. `(#38, ADR 0043)`.
+3. Put changes under `### Breaking`, `### Added`, `### Changed` or `### Fixed`. If evidence gained
+   fields or status values, add an `### Evidence format` note saying what consumers must handle.
+4. Add the compare link at the bottom: `[X.Y.Z]: https://github.com/aschepis/maslow/compare/vPREV...vX.Y.Z`.
+5. Merge the changelog PR, then tag `vX.Y.Z` on `main` and push the tag. `release.yml` builds and
+   publishes the GitHub release.
 
 ## Scope
 
