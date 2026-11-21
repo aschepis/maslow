@@ -4,9 +4,15 @@ Notable changes to Maslow, newest first. Versions follow [semantic versioning](h
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-20
+
+### Breaking
+
+- **A contract's `setup` step can no longer leave a server running for its scenarios.** Anything a setup step starts in the background is killed when that step ends (see below). Start the server outside Maslow instead, for example in an earlier CI step. Unix only. (#42, ADR 0044)
+
 ### Changed
 
-- **Checks and CLI steps can no longer leave processes running.** On Unix each check and CLI contract step runs in its own process group, and Maslow kills the group when the step ends, normally or at its timeout. A background child holding the output open no longer hangs the step: it fails at its timeout, or 3s after the command exits. **A contract's `setup` step can no longer leave a server running for its scenarios**; start the server outside Maslow instead. A process that calls `setsid` or uses `sudo` still escapes. Windows is unchanged. (#42, ADR 0044)
+- **Checks and CLI steps can no longer leave processes running.** On Unix each check and CLI contract step runs in its own process group, and Maslow kills the group when the step ends, normally or at its timeout. A background child holding the output open no longer hangs the step: it fails at its timeout, or 3s after the command exits. A process that calls `setsid` or uses `sudo` still escapes. Windows is unchanged. (#42, ADR 0044)
 - **Ctrl-C stops the running step.** On SIGINT or SIGTERM, `maslow verify` and `maslow audit` kill every running step's process group, print `maslow: interrupted`, and exit 130 or 143. No evidence file is written for an interrupted run. (#44, ADR 0044)
 
 ### Added
@@ -76,6 +82,7 @@ The format is still `evidence_version: "2"`. All new fields are optional and add
 
 Maslow became a verifier. The agent harness was removed and the module moved to `github.com/aschepis/maslow`. The verdict and `**` policy glob bugs were fixed. This release added base-ref policy (`--base`), `--spec-from base`, evidence format 2, `gated` paths with a `needs_review` verdict, profile scoping of contracts and budgets, a release pipeline and the GitHub Action. See ADRs 0016 to 0024.
 
+[0.10.0]: https://github.com/aschepis/maslow/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/aschepis/maslow/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/aschepis/maslow/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/aschepis/maslow/compare/v0.6.0...v0.7.0
