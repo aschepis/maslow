@@ -1,12 +1,12 @@
 ---
 id: 41
 title: Run checks with a scrubbed environment and an env allow-list
-status: draft
+status: in_progress
 priority: low
 created: 2026-11-18
-updated: 2026-11-18
-assigned_to: ""
-assigned_at: ""
+updated: 2026-11-21
+assigned_to: "claude"
+assigned_at: "2026-11-21"
 depends_on: []
 tags: [kind:gap, checks, security]
 ---
@@ -34,3 +34,5 @@ checks do not.
 
 Source: Damocles reconciler design note (18 Nov 2026), feature V10. This is a breaking change for
 checks that rely on inherited variables, so it needs a release note.
+
+Approved by the human on 2026-11-21.
