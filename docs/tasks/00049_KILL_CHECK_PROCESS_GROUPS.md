@@ -1,7 +1,7 @@
 ---
 id: 49
 title: Run each check and CLI step in its own process group and kill it when done
-status: in_progress
+status: done
 priority: medium
 created: 2026-11-20
 updated: 2026-11-20
@@ -31,10 +31,10 @@ and the evidence upload.
 
 ## Acceptance Criteria
 
-- [ ] Tests: a check that backgrounds a sleeping child leaves no process behind; a check whose
+- [x] Tests: a check that backgrounds a sleeping child leaves no process behind; a check whose
       background child holds stdout open ends at its timeout; a normal check is unaffected.
-- [ ] Same for CLI contract steps.
-- [ ] ADR records what this does and does not stop (a process that calls `setsid` or uses sudo
+- [x] Same for CLI contract steps.
+- [x] ADR records what this does and does not stop (a process that calls `setsid` or uses sudo
       escapes the group; real isolation is task 45).
 
 ## Notes

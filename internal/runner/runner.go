@@ -104,7 +104,7 @@ func runCheck(check spec.CheckRunner) evidence.CheckResult {
 	}
 
 	cmd := exec.CommandContext(ctx, parts[0], parts[1:]...)
-	output, err := cmd.CombinedOutput()
+	output, err := combinedOutput(cmd)
 	duration := time.Since(start).Seconds()
 
 	if err != nil {

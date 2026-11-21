@@ -626,7 +626,7 @@ func runCLIStep(step spec.Step, dir string) (exitCode int, output string, err er
 		cmd.Stdin = strings.NewReader(step.Stdin)
 	}
 
-	out, runErr := cmd.CombinedOutput()
+	out, runErr := combinedOutput(cmd)
 	output = string(out)
 
 	if runErr != nil {
