@@ -1,12 +1,12 @@
 ---
 id: 52
 title: Run CLI contract steps and audit binaries with a scrubbed environment
-status: todo
+status: in_progress
 priority: medium
 created: 2026-11-21
 updated: 2026-11-21
-assigned_to: ""
-assigned_at: ""
+assigned_to: "claude"
+assigned_at: "2026-11-21"
 depends_on: [41]
 tags: [kind:gap, contracts, audit, security]
 ---
