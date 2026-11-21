@@ -33,6 +33,7 @@ internal/
      +-- runner/            <- orchestrates check runners in defined order
      +-- audit/             <- black-box audit execution; target abstraction layer
      +-- evidence/          <- builds and writes the evidence file; output capping
+     +-- progress/          <- start/finish events verify and audit report; the CLI prints them
      +-- gitrepo/           <- git queries: changed files, merge base, file at a commit
      +-- buildinfo/         <- version stamped into the binary and the evidence
      |
@@ -49,9 +50,10 @@ reports/verify.json         <- verify evidence (reports/audit.json for audit)
 | Path | Role |
 |---|---|
 | `cmd/maslow/main.go` | CLI entrypoint; command dispatch |
+| `cmd/maslow/progress.go` | `--progress=auto\|always\|never` for verify and audit; prints `internal/progress` events to stderr only (ADR 0045) |
 | `internal/spec/` | Parses `maslow.yaml`; exposes typed MAS struct |
 | `internal/schema/` | Loads `schema/maslow.cue`; validates spec using CUE Go library |
-| `internal/verify/` | Executes verification: profile selection, check sequencing, result collection; `--red-green` reruns overlay contracts in a base worktree (ADR 0034) |
+| `internal/verify/` | Executes verification: profile selection, check sequencing, result collection; `--red-green` reruns overlay contracts in a base worktree (ADR 0034); reports each item to `Options.Progress` (ADR 0045) |
 | `internal/runner/` | Runs individual checks (shell, HTTP, CLI); abstracts runner kinds; `retry.go` reruns failing checks and scenarios and folds the attempts into `pass`, `flaky`, `fail` or `error` (ADR 0039); `procgroup*.go` runs each check and CLI step in its own process group on Unix and kills the group when the step ends (ADR 0044) |
 | `internal/audit/` | Black-box audit mode; binary targets, endpoint targets that run contracts against a base URL (ADR 0028), container stub |
 | `internal/evidence/` | Builds the evidence report, computes the verdict, caps output, writes JSON; `Check` decides pass, needs_review or decline for a report against trusted inputs (ADR 0033); `coverage.go` derives `coverage` from per-result `covers` and holds the `--require-covered` rule (ADR 0043); `Summary` (`summary.go`) renders the job summary, requirements, flaky results and observed policy findings in their own sections (ADR 0036, ADR 0039) |

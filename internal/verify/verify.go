@@ -7,6 +7,7 @@ import (
 
 	"github.com/aschepis/maslow/internal/evidence"
 	"github.com/aschepis/maslow/internal/gitrepo"
+	"github.com/aschepis/maslow/internal/progress"
 	"github.com/aschepis/maslow/internal/runner"
 	"github.com/aschepis/maslow/internal/spec"
 )
@@ -33,6 +34,8 @@ type Options struct {
 	// RedGreen also runs overlay contracts on BaseSHA and passes only those
 	// that fail there, so an overlay cannot pass without the change.
 	RedGreen bool
+	// Progress, when set, hears each item start and finish. It never changes the evidence.
+	Progress progress.Func
 }
 
 // ReadSpec loads the spec opts asks for. When the spec comes from the base
@@ -112,14 +115,34 @@ func Run(mas *spec.MAS, opts Options) (*evidence.Report, error) {
 		return nil, err
 	}
 
-	results, err := runner.RunProfileChecks(mas, opts.Profile)
+	checks, err := runner.ProfileChecks(mas, opts.Profile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to run checks: %w", err)
 	}
-	report.CheckResults = results
+	var refs []spec.Ref
+	if enabled(profile.Refs) {
+		refs = mas.Refs
+	}
+	emit := opts.Progress
+	emit.Emit(progress.Event{Phase: progress.Plan, Total: planned(checks, contracts, opts.Overlays, budgets, refs)})
 
-	if len(contracts) > 0 {
-		report.Contracts = runner.RunContracts(contracts)
+	if mas.Checks != nil {
+		report.CheckResults = make([]evidence.CheckResult, 0, len(checks))
+	}
+	for _, check := range checks {
+		emit.Step("check", check.Name, func() ([]string, int) {
+			result := runner.RunChecks([]spec.CheckRunner{check})[0]
+			report.CheckResults = append(report.CheckResults, result)
+			return []string{result.Status}, max(1, len(result.Attempts))
+		})
+	}
+
+	for _, contract := range contracts {
+		emit.Step("contract", contract.Name, func() ([]string, int) {
+			results := runner.RunContracts([]spec.Contract{contract})
+			report.Contracts = append(report.Contracts, results...)
+			return contractOutcome(results)
+		})
 	}
 	var base *baseTree
 	if opts.RedGreen && len(opts.Overlays) > 0 {
@@ -128,22 +151,36 @@ func Run(mas *spec.MAS, opts Options) (*evidence.Report, error) {
 	}
 	for _, o := range opts.Overlays {
 		report.Overlays = append(report.Overlays, evidence.OverlayRef{Path: o.Path, SHA256: o.SHA256})
-		results := runner.RunContracts(o.Overlay.Contracts)
-		if base != nil {
-			judgeRedGreen(o.Overlay.Contracts, results, base)
-		}
-		for _, result := range results {
-			result.Overlay = o.Path
-			report.Contracts = append(report.Contracts, result)
+		for _, contract := range o.Overlay.Contracts {
+			emit.Step("contract", contract.Name, func() ([]string, int) {
+				one := []spec.Contract{contract}
+				results := runner.RunContracts(one)
+				if base != nil {
+					judgeRedGreen(one, results, base)
+				}
+				for _, result := range results {
+					result.Overlay = o.Path
+					report.Contracts = append(report.Contracts, result)
+				}
+				return contractOutcome(results)
+			})
 		}
 	}
 
-	if len(budgets) > 0 {
-		report.Budgets = runner.RunBudgets(budgets)
+	for _, budget := range budgets {
+		emit.Step("budget", budget.Name, func() ([]string, int) {
+			result := runner.RunBudgets([]spec.Budget{budget})[0]
+			report.Budgets = append(report.Budgets, result)
+			return []string{result.Status}, 1
+		})
 	}
 
-	if len(mas.Refs) > 0 && enabled(profile.Refs) {
-		report.Refs = runner.RunRefs(mas.Refs)
+	for _, ref := range refs {
+		emit.Step("ref", runner.RefPath(ref), func() ([]string, int) {
+			result := runner.RunRefs([]spec.Ref{ref})[0]
+			report.Refs = append(report.Refs, result)
+			return []string{result.Status}, 1
+		})
 	}
 
 	// policy: false turns off the spec's rules, never the spec-change check.
@@ -151,16 +188,44 @@ func Run(mas *spec.MAS, opts Options) (*evidence.Report, error) {
 	if !enabled(profile.Policy) {
 		rules = nil
 	}
-	report.Policy = runner.RunPolicy(rules, runner.PolicyScope{
-		BaseSHA:           opts.BaseSHA,
-		SpecPath:          opts.SpecPath,
-		SpecFromBase:      opts.SpecFromBase,
-		SpecAddedOnBranch: opts.SpecAddedOnBranch,
+	emit.Step("policy", "", func() ([]string, int) {
+		report.Policy = runner.RunPolicy(rules, runner.PolicyScope{
+			BaseSHA:           opts.BaseSHA,
+			SpecPath:          opts.SpecPath,
+			SpecFromBase:      opts.SpecFromBase,
+			SpecAddedOnBranch: opts.SpecAddedOnBranch,
+		})
+		var statuses []string
+		for _, p := range report.Policy {
+			statuses = append(statuses, p.Status)
+		}
+		return statuses, 1
 	})
 
 	report.ComputeVerdict()
 	report.ComputeCoverage()
 	return report, nil
+}
+
+// planned counts the items a run reports: each check, contract, budget and
+// ref, and the policy rules as one.
+func planned(checks []spec.CheckRunner, contracts []spec.Contract, overlays []*spec.LoadedOverlay, budgets []spec.Budget, refs []spec.Ref) int {
+	total := len(checks) + len(contracts) + len(budgets) + len(refs) + 1
+	for _, o := range overlays {
+		total += len(o.Overlay.Contracts)
+	}
+	return total
+}
+
+// contractOutcome is each scenario's status and the most attempts any scenario took.
+func contractOutcome(results []evidence.ContractResult) ([]string, int) {
+	statuses := make([]string, 0, len(results))
+	attempts := 1
+	for _, r := range results {
+		statuses = append(statuses, r.Status)
+		attempts = max(attempts, len(r.Attempts))
+	}
+	return statuses, attempts
 }
 
 // enabled treats an unset profile switch as on.

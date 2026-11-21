@@ -56,6 +56,18 @@ func RunProfileChecks(mas *spec.MAS, profileName string) ([]evidence.CheckResult
 	if mas.Checks == nil {
 		return nil, nil
 	}
+	selected, err := ProfileChecks(mas, profileName)
+	if err != nil {
+		return nil, err
+	}
+	return RunChecks(selected), nil
+}
+
+// ProfileChecks returns the spec's checks that the profile selects, in spec order.
+func ProfileChecks(mas *spec.MAS, profileName string) ([]spec.CheckRunner, error) {
+	if mas.Checks == nil {
+		return nil, nil
+	}
 
 	profile, ok := mas.Profiles[profileName]
 	if !ok {
@@ -75,8 +87,7 @@ func RunProfileChecks(mas *spec.MAS, profileName string) ([]evidence.CheckResult
 			selected = append(selected, runner)
 		}
 	}
-
-	return RunChecks(selected), nil
+	return selected, nil
 }
 
 func runCheck(check spec.CheckRunner) evidence.CheckResult {

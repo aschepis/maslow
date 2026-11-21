@@ -30,14 +30,14 @@ func runRef(ref spec.Ref) evidence.RefResult {
 		return checkURLRef(ref)
 	case "package", "container", "endpoint", "mcp":
 		return evidence.RefResult{
-			Path:   refPath(ref),
+			Path:   RefPath(ref),
 			Kind:   ref.Kind,
 			Status: "skip",
 			Error:  fmt.Sprintf("%s ref verification not yet implemented", ref.Kind),
 		}
 	default:
 		return evidence.RefResult{
-			Path:   refPath(ref),
+			Path:   RefPath(ref),
 			Kind:   ref.Kind,
 			Status: "skip",
 			Error:  fmt.Sprintf("unknown ref kind: %s", ref.Kind),
@@ -157,7 +157,8 @@ func checkURLRef(ref spec.Ref) evidence.RefResult {
 }
 
 // refPath returns the best path/identifier for a ref.
-func refPath(ref spec.Ref) string {
+// RefPath names a ref the way its result does in the evidence.
+func RefPath(ref spec.Ref) string {
 	if ref.Path != "" {
 		return ref.Path
 	}

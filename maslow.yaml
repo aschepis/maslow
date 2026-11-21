@@ -422,6 +422,18 @@ contracts:
             expect:
               exit_code: 2
               body_contains: "requires --base"
+      - name: invalid-progress-mode
+        steps:
+          - action: cli
+            command: bin/maslow
+            args:
+              - verify
+              - --progress
+              - sometimes
+          - action: assert
+            expect:
+              exit_code: 2
+              body_contains: "--progress must be auto, always or never"
       - name: removed-scaffold-command
         steps:
           - action: cli
