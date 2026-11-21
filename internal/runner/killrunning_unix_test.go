@@ -31,13 +31,14 @@ func waitForPID(t *testing.T, path string) int {
 }
 
 func TestKillRunning_KillsTheGroupOfARunningCheck(t *testing.T) {
+	resetRunning(t)
 	pidFile := filepath.Join(t.TempDir(), "child.pid")
 	script := writeScript(t, "sleep 30 >/dev/null 2>&1 &\necho $! > "+pidFile+"\nwait\n")
 
 	done := make(chan time.Duration, 1)
 	start := time.Now()
 	go func() {
-		runOneCheck(t, script, "30s")
+		runOneCheck(t, "sh "+script, "30s")
 		done <- time.Since(start)
 	}()
 
@@ -52,10 +53,20 @@ func TestKillRunning_KillsTheGroupOfARunningCheck(t *testing.T) {
 	assertGone(t, pid)
 }
 
-func TestKillRunning_NothingRunningIsANoOp(t *testing.T) {
+func TestKillRunning_KillsAStepThatStartsAfterward(t *testing.T) {
+	resetRunning(t)
 	KillRunning()
-	status, _, _ := runOneCheck(t, writeScript(t, "exit 0\n"), "5s")
-	if status != "pass" {
-		t.Errorf("expected a normal check to pass after KillRunning, got %s", status)
+	status, _, elapsed := runOneCheck(t, "sh "+writeScript(t, "sleep 30\n"), "30s")
+	if status != "fail" || elapsed > 5*time.Second {
+		t.Errorf("expected a step started after KillRunning to be killed at once, got %s after %s", status, elapsed)
 	}
+}
+
+// resetRunning undoes KillRunning, which in Maslow is followed by exit and never undone.
+func resetRunning(t *testing.T) {
+	t.Cleanup(func() {
+		running.Lock()
+		running.stopping = false
+		running.Unlock()
+	})
 }
