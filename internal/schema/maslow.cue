@@ -191,8 +191,10 @@ import (
 	tags?: [...string]
 	// Every scenario covers these as well as its own.
 	covers?: #Covers
-	// Environment variables templates may read as {{.env.NAME}}; their values are redacted from evidence.
+	// Variables templates may read as {{.env.NAME}} and CLI steps get beyond the base set; their values are redacted from evidence.
 	env?: #EnvNames
+	// Gives the contract's CLI steps Maslow's whole environment, as before ADR 0048; recorded in evidence.
+	inherit_env?: bool
 	// Base for step URLs starting with "/"; an endpoint audit target replaces it.
 	base_url?: string
 	// Reruns of each failing scenario, inside the contract's setup and teardown.
@@ -466,7 +468,10 @@ import (
 #AuditTarget: {
 	kind: "binary" | "container" | "endpoint"
 	path: string
+	// Set for a binary on top of the base set of ADR 0046.
 	env?: [string]: string
+	// Gives a binary Maslow's whole environment, as before ADR 0048; recorded in evidence.
+	inherit_env?: bool
 	timeout?: string & =~"^[0-9]+(s|m|h)$"
 	retries?: int & >=0
 	checks?: [...string]

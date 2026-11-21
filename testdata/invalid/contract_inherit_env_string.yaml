@@ -1,0 +1,16 @@
+mas: "1.0"
+project:
+  name: contract-inherit-env-string
+checks:
+  runner:
+    - name: build
+      kind: command
+      run: "go build ./..."
+contracts:
+  - name: legacy-cli
+    inherit_env: "yes"
+    scenarios:
+      - name: help
+        steps:
+          - action: cli
+            command: bin/app

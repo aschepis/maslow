@@ -19,6 +19,19 @@ func TestLoad_ValidMinimal(t *testing.T) {
 	}
 }
 
+func TestLoad_ContractAndAuditInheritEnv(t *testing.T) {
+	mas, err := Load(filepath.Join("..", "..", "testdata", "valid", "inherit_env.yaml"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !mas.Contracts[0].InheritEnv {
+		t.Error("expected contracts[0].inherit_env to be true")
+	}
+	if target := mas.Audit.Targets[0]; !target.InheritEnv || len(target.Env) != 2 {
+		t.Errorf("expected audit.targets[0] to inherit the environment with two env entries, got %+v", target)
+	}
+}
+
 func TestLoad_CheckEnv(t *testing.T) {
 	mas, err := Load(filepath.Join("..", "..", "testdata", "valid", "check_env.yaml"))
 	if err != nil {

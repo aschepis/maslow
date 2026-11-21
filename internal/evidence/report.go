@@ -182,6 +182,8 @@ type ContractResult struct {
 	Attempts []ContractAttempt `json:"attempts,omitempty"`
 	// Covers joins the contract's and the scenario's requirement IDs.
 	Covers []string `json:"covers,omitempty"`
+	// InheritedEnv records that the contract's inherit_env gave its CLI steps Maslow's whole environment.
+	InheritedEnv bool `json:"inherited_env,omitempty"`
 }
 
 // StatusNotRed marks an overlay contract that already passed on the base

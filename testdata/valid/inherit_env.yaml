@@ -1,0 +1,29 @@
+mas: "1.0"
+project:
+  name: inherit-env
+checks:
+  runner:
+    - name: build
+      kind: command
+      run: "go build ./..."
+contracts:
+  - name: legacy-cli
+    env:
+      - DEPLOY_TOKEN
+    inherit_env: true
+    scenarios:
+      - name: help
+        steps:
+          - action: cli
+            command: bin/app
+            args: ["--help"]
+audit:
+  targets:
+    - kind: binary
+      path: bin/app
+      inherit_env: true
+      env:
+        APP_MODE: audit
+        APP_REGION: test
+      checks:
+        - version-check

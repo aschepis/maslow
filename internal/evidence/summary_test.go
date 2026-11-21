@@ -78,6 +78,19 @@ func TestSummaryNamesChecksThatInheritedEnv(t *testing.T) {
 	}
 }
 
+func TestSummaryNamesContractsAndAuditBinariesThatInheritedEnv(t *testing.T) {
+	r := &Report{Verdict: "pass",
+		CheckResults: []CheckResult{{Name: "bin/app/version", Kind: "binary", Status: "pass", InheritedEnv: true}},
+		Contracts:    []ContractResult{{Name: "cli/help", Status: "pass", InheritedEnv: true}},
+	}
+	got := Summary(r)
+	for _, want := range []string{"### Inherited environment", "`bin/app/version`", "`cli/help`", "inherit_env"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("expected %q in the summary:\n%s", want, got)
+		}
+	}
+}
+
 func TestSummaryOmitsInheritedEnvSectionForScrubbedChecks(t *testing.T) {
 	r, err := ReadReport("../../testdata/evidence/pass.json")
 	if err != nil {

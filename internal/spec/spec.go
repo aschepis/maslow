@@ -141,6 +141,8 @@ type Contract struct {
 	Covers []string `yaml:"covers,omitempty"`
 	// Env lists the environment variables templates may read as {{.env.NAME}}.
 	Env []string `yaml:"env,omitempty"`
+	// InheritEnv gives the contract's CLI steps Maslow's full environment instead of the scrubbed one (ADR 0048).
+	InheritEnv bool `yaml:"inherit_env,omitempty"`
 	// BaseURL resolves step URLs that start with "/"; an endpoint audit replaces it.
 	BaseURL string `yaml:"base_url,omitempty"`
 	// Retries reruns each failing scenario, with the contract's setup and teardown.
@@ -263,12 +265,14 @@ type Audit struct {
 }
 
 type AuditTarget struct {
-	Kind    string            `yaml:"kind"`
-	Path    string            `yaml:"path"`
-	Env     map[string]string `yaml:"env,omitempty"`
-	Timeout string            `yaml:"timeout,omitempty"`
-	Retries *int              `yaml:"retries,omitempty"`
-	Checks  []string          `yaml:"checks,omitempty"`
+	Kind string            `yaml:"kind"`
+	Path string            `yaml:"path"`
+	Env  map[string]string `yaml:"env,omitempty"`
+	// InheritEnv gives a binary target Maslow's full environment instead of the scrubbed one (ADR 0048).
+	InheritEnv bool     `yaml:"inherit_env,omitempty"`
+	Timeout    string   `yaml:"timeout,omitempty"`
+	Retries    *int     `yaml:"retries,omitempty"`
+	Checks     []string `yaml:"checks,omitempty"`
 }
 
 type Package struct {

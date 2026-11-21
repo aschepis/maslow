@@ -131,7 +131,7 @@ contracts:
 
 Each result in the evidence lists what it covers, and a top-level `coverage` lists every ID with the combined status of the results covering it. `covers` never changes the verdict; `maslow evidence check --require-covered` is how a gate requires coverage (ADR 0043).
 
-Results are written to `reports/verify.json` (or `--report <path>`) as structured evidence. `schema/evidence.schema.json` describes the format. `maslow audit` writes `reports/audit.json`; an `endpoint` audit target runs the contracts it selects against a deployed base URL, resolving step URLs that start with `/`, so the same scenarios work as a post-deploy smoke test.
+Results are written to `reports/verify.json` (or `--report <path>`) as structured evidence. `schema/evidence.schema.json` describes the format. `maslow audit` writes `reports/audit.json`; an `endpoint` audit target runs the contracts it selects against a deployed base URL, resolving step URLs that start with `/`, so the same scenarios work as a post-deploy smoke test. A `binary` target's `version-check` runs with the base set of a check plus every entry of the target's `env` map; `inherit_env: true` on the target gives it Maslow's whole environment instead and is recorded as `inherited_env: true` on its result (ADR 0048).
 
 ## Checking Evidence
 
@@ -168,7 +168,7 @@ Grow the spec alongside the code rather than writing it all up front:
 | Add a dependency or config file | A ref for it |
 | Create a file that a change must not touch | A `policy.deny` or `policy.protected` entry |
 
-Contract templates read captured values as `{{.cap.NAME}}` and environment variables as `{{.env.NAME}}`. A contract can read only the variables listed in its `env`, and their values are redacted from the evidence:
+Contract templates read captured values as `{{.cap.NAME}}` and environment variables as `{{.env.NAME}}`. A contract can read only the variables listed in its `env`, and their values are redacted from the evidence. A `cli` step runs with the same scrubbed environment as a check: the base set plus the contract's `env` names (ADR 0048). `inherit_env: true` on a contract gives its CLI steps Maslow's whole environment while migrating; its scenario results then have `inherited_env: true` and `maslow evidence summary` names them:
 
 ```yaml
 contracts:
