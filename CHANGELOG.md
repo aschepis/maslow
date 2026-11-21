@@ -6,7 +6,7 @@ Notable changes to Maslow, newest first. Versions follow [semantic versioning](h
 
 ### Breaking
 
-- **Checks no longer inherit Maslow's environment.** A check gets only a base set (`PATH`, `HOME`, `TMPDIR`, `USER`, `LOGNAME`, `LANG`, `LC_ALL`, `LC_CTYPE`, `XDG_CACHE_HOME`, `XDG_CONFIG_HOME`, `CI`, and the Windows system variables) plus the names in its new `env` list, so a CI token no longer reaches the change's code. Listed values of 4 bytes or more are redacted from the check's output and error, as for contracts. A check that read any other variable must list it, or the spec can set `checks.inherit_env: true` while migrating. CLI contract steps are unchanged. (ADR 0046)
+- **Checks no longer inherit Maslow's environment.** A check gets only a base set (`PATH`, `HOME`, `TMPDIR`, `USER`, `LOGNAME`, `LANG`, `LC_ALL`, `LC_CTYPE`, `XDG_CACHE_HOME`, `XDG_CONFIG_HOME`, `CI`, and the Windows system variables) plus the names in its new `env` list, so a CI token no longer reaches the change's code. Listed values of 4 bytes or more are redacted from the check's output and error, as for contracts. A check that read any other variable must list it, or the spec can set `checks.inherit_env: true` while migrating. CLI contract steps are unchanged. (#46, ADR 0046)
 
 ### Evidence format
 

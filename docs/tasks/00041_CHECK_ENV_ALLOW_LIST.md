@@ -1,7 +1,7 @@
 ---
 id: 41
 title: Run checks with a scrubbed environment and an env allow-list
-status: in_progress
+status: done
 priority: low
 created: 2026-11-18
 updated: 2026-11-21
@@ -26,9 +26,9 @@ checks do not.
 
 ## Acceptance Criteria
 
-- [ ] Schema and fixtures for `env` on checks.
-- [ ] Tests: an unlisted variable is absent; a listed one is present and redacted.
-- [ ] `maslow.yaml` updated so Maslow's own checks still pass; ADR records the default and opt-out.
+- [x] Schema and fixtures for `env` on checks.
+- [x] Tests: an unlisted variable is absent; a listed one is present and redacted.
+- [x] `maslow.yaml` updated so Maslow's own checks still pass; ADR records the default and opt-out.
 
 ## Notes
 
