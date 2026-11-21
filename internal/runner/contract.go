@@ -612,8 +612,11 @@ func applyTemplate(s string, sc *scope) (string, error) {
 	return buf.String(), nil
 }
 
+// cliStepTimeout is a variable so tests can shorten it.
+var cliStepTimeout = 30 * time.Second
+
 func runCLIStep(step spec.Step, dir string) (exitCode int, output string, err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), cliStepTimeout)
 	defer cancel()
 
 	args := step.Args
@@ -623,7 +626,7 @@ func runCLIStep(step spec.Step, dir string) (exitCode int, output string, err er
 		cmd.Stdin = strings.NewReader(step.Stdin)
 	}
 
-	out, runErr := cmd.CombinedOutput()
+	out, runErr := combinedOutput(cmd)
 	output = string(out)
 
 	if runErr != nil {

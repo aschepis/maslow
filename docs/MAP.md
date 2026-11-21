@@ -52,7 +52,7 @@ reports/verify.json         <- verify evidence (reports/audit.json for audit)
 | `internal/spec/` | Parses `maslow.yaml`; exposes typed MAS struct |
 | `internal/schema/` | Loads `schema/maslow.cue`; validates spec using CUE Go library |
 | `internal/verify/` | Executes verification: profile selection, check sequencing, result collection; `--red-green` reruns overlay contracts in a base worktree (ADR 0034) |
-| `internal/runner/` | Runs individual checks (shell, HTTP, CLI); abstracts runner kinds; `retry.go` reruns failing checks and scenarios and folds the attempts into `pass`, `flaky`, `fail` or `error` (ADR 0039) |
+| `internal/runner/` | Runs individual checks (shell, HTTP, CLI); abstracts runner kinds; `retry.go` reruns failing checks and scenarios and folds the attempts into `pass`, `flaky`, `fail` or `error` (ADR 0039); `procgroup*.go` runs each check and CLI step in its own process group on Unix and kills the group when the step ends (ADR 0044) |
 | `internal/audit/` | Black-box audit mode; binary targets, endpoint targets that run contracts against a base URL (ADR 0028), container stub |
 | `internal/evidence/` | Builds the evidence report, computes the verdict, caps output, writes JSON; `Check` decides pass, needs_review or decline for a report against trusted inputs (ADR 0033); `coverage.go` derives `coverage` from per-result `covers` and holds the `--require-covered` rule (ADR 0043); `Summary` (`summary.go`) renders the job summary, requirements, flaky results and observed policy findings in their own sections (ADR 0036, ADR 0039) |
 | `internal/gitrepo/` | Git queries shared by policy and spec loading, including line-level diffs against a base and temporary worktrees |
