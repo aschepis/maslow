@@ -10,7 +10,7 @@ Notable changes to Maslow, newest first. Versions follow [semantic versioning](h
 
 ### Added
 
-- **Live progress on stderr.** `maslow verify` and `maslow audit` print a line when each item starts and finishes, such as `[3/12] check go-test pass (14.2s)` or `[4/12] contract cli flaky (2 attempts, 3.1s)`. Items are checks, contracts, budgets, refs and the policy rules for verify, and targets for audit. `--progress=auto|always|never` controls it; `auto`, the default, prints only when stderr is a terminal. stdout, the printed report and the evidence file are unchanged. (ADR 0045)
+- **Live progress on stderr.** `maslow verify` and `maslow audit` print a line when each item starts and finishes, such as `[3/12] check go-test pass (14.2s)` or `[4/12] contract cli flaky (2 attempts, 3.1s)`. Items are checks, contracts, budgets, refs and the policy rules for verify, and targets for audit. `--progress=auto|always|never` controls it; `auto`, the default, prints only when stderr is a terminal. stdout, the printed report and the evidence file are unchanged. (#43, ADR 0045)
 
 ## [0.9.0] - 2026-11-19
 
