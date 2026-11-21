@@ -1,12 +1,12 @@
 ---
 id: 49
 title: Run each check and CLI step in its own process group and kill it when done
-status: todo
+status: in_progress
 priority: medium
 created: 2026-11-20
 updated: 2026-11-20
-assigned_to: ""
-assigned_at: ""
+assigned_to: "claude"
+assigned_at: "2026-11-20"
 depends_on: []
 tags: [kind:gap, checks, contracts, security]
 ---
