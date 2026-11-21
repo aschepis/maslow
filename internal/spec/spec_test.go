@@ -19,6 +19,19 @@ func TestLoad_ValidMinimal(t *testing.T) {
 	}
 }
 
+func TestLoad_CheckEnv(t *testing.T) {
+	mas, err := Load(filepath.Join("..", "..", "testdata", "valid", "check_env.yaml"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !mas.Checks.InheritEnv {
+		t.Error("expected checks.inherit_env to be true")
+	}
+	if got := mas.Checks.Runner[0].Env; len(got) != 2 || got[0] != "DEPLOY_TOKEN" || got[1] != "GOFLAGS" {
+		t.Errorf("expected env [DEPLOY_TOKEN GOFLAGS], got %v", got)
+	}
+}
+
 func TestLoad_ValidFull(t *testing.T) {
 	path := filepath.Join("..", "..", "testdata", "valid", "full.yaml")
 	mas, err := Load(path)

@@ -103,7 +103,8 @@ A valid `maslow.yaml` defines:
 - `budgets` - performance, availability, artifact size, complexity limits
 - `checks` - named check definitions and runner configuration; checks and contracts take `retries`,
   capped by the top-level `max_retries` (default 5) (ADR 0039); checks, contracts and scenarios take
-  `covers`, the requirement IDs they prove (ADR 0043)
+  `covers`, the requirement IDs they prove (ADR 0043); a check runs with a base environment plus its
+  `env` list, unless `checks.inherit_env` is set (`internal/runner/check_env.go`, ADR 0046)
 - `profiles` - named subsets of checks, contracts and budgets (`quick`, `full`, custom); refs and policy run unless a profile turns them off
 - `audit` - black-box audit targets; an `endpoint` target runs selected contracts against its base URL
 - `extensions` - domain overlays (web, game, cli, service)

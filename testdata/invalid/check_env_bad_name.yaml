@@ -1,0 +1,10 @@
+mas: "1.0"
+project:
+  name: check-env-bad-name
+checks:
+  runner:
+    - name: smoke
+      kind: command
+      run: "scripts/smoke.sh"
+      env:
+        - "DEPLOY-TOKEN"

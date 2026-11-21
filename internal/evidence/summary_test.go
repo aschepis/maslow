@@ -67,6 +67,27 @@ func TestSummaryListsNotRedContracts(t *testing.T) {
 	}
 }
 
+func TestSummaryNamesChecksThatInheritedEnv(t *testing.T) {
+	r := &Report{Verdict: "pass", CheckResults: []CheckResult{
+		{Name: "build", Status: "pass", InheritedEnv: true},
+		{Name: "lint", Status: "pass", InheritedEnv: true},
+	}}
+	got := Summary(r)
+	if !strings.Contains(got, "### Inherited environment") || !strings.Contains(got, "`build`, `lint`") {
+		t.Errorf("expected the summary to name the checks that inherited the environment:\n%s", got)
+	}
+}
+
+func TestSummaryOmitsInheritedEnvSectionForScrubbedChecks(t *testing.T) {
+	r, err := ReadReport("../../testdata/evidence/pass.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := Summary(r); strings.Contains(got, "Inherited environment") {
+		t.Errorf("summary of scrubbed checks has an inherited-environment section:\n%s", got)
+	}
+}
+
 func TestSummaryObservedPassesOnly(t *testing.T) {
 	r := &Report{
 		Verdict: "pass",

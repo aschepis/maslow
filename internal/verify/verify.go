@@ -131,7 +131,7 @@ func Run(mas *spec.MAS, opts Options) (*evidence.Report, error) {
 	}
 	for _, check := range checks {
 		emit.Step("check", check.Name, func() ([]string, int) {
-			result := runner.RunChecks([]spec.CheckRunner{check})[0]
+			result := runner.RunChecks([]spec.CheckRunner{check}, mas.Checks.InheritEnv)[0]
 			report.CheckResults = append(report.CheckResults, result)
 			return []string{result.Status}, max(1, len(result.Attempts))
 		})

@@ -55,7 +55,7 @@ func checkStatuses(r evidence.CheckResult) string {
 
 func TestRetries_CheckPassingFirstTimeRunsOnce(t *testing.T) {
 	check, dir := scriptCheck(t, passScript, 2)
-	got := RunChecks([]spec.CheckRunner{check})[0]
+	got := RunChecks([]spec.CheckRunner{check}, false)[0]
 
 	if got.Status != "pass" || got.Attempts != nil {
 		t.Errorf("expected pass with no attempts, got %+v", got)
@@ -67,7 +67,7 @@ func TestRetries_CheckPassingFirstTimeRunsOnce(t *testing.T) {
 
 func TestRetries_CheckFailingThenPassingIsFlaky(t *testing.T) {
 	check, dir := scriptCheck(t, failOnceScript, 2)
-	got := RunChecks([]spec.CheckRunner{check})[0]
+	got := RunChecks([]spec.CheckRunner{check}, false)[0]
 
 	if got.Status != evidence.StatusFlaky {
 		t.Errorf("expected flaky, got %q", got.Status)
@@ -91,7 +91,7 @@ func TestRetries_CheckFailingThenPassingIsFlaky(t *testing.T) {
 
 func TestRetries_CheckFailingEveryTimeFails(t *testing.T) {
 	check, dir := scriptCheck(t, failScript, 2)
-	got := RunChecks([]spec.CheckRunner{check})[0]
+	got := RunChecks([]spec.CheckRunner{check}, false)[0]
 
 	if got.Status != "fail" {
 		t.Errorf("expected fail, got %q", got.Status)
@@ -111,7 +111,7 @@ func TestRetries_CheckFailingEveryTimeFails(t *testing.T) {
 
 func TestRetries_CheckWithoutRetriesIsUnchanged(t *testing.T) {
 	check, dir := scriptCheck(t, failScript, 0)
-	got := RunChecks([]spec.CheckRunner{check})[0]
+	got := RunChecks([]spec.CheckRunner{check}, false)[0]
 
 	if got.Status != "fail" || got.Attempts != nil {
 		t.Errorf("expected fail with no attempts, got %+v", got)
@@ -123,7 +123,7 @@ func TestRetries_CheckWithoutRetriesIsUnchanged(t *testing.T) {
 
 // An error is a configuration problem a retry cannot fix.
 func TestRetries_CheckErrorIsNotRetried(t *testing.T) {
-	got := RunChecks([]spec.CheckRunner{{Name: "empty", Kind: "command", Run: "", Retries: 2}})[0]
+	got := RunChecks([]spec.CheckRunner{{Name: "empty", Kind: "command", Run: "", Retries: 2}}, false)[0]
 
 	if got.Status != "error" || got.Attempts != nil {
 		t.Errorf("expected one error with no attempts, got %+v", got)

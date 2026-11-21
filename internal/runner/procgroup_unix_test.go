@@ -67,7 +67,7 @@ func shortCLITimeout(t *testing.T) {
 func runOneCheck(t *testing.T, run, timeout string) (status, output string, elapsed time.Duration) {
 	t.Helper()
 	start := time.Now()
-	result := runCheck(spec.CheckRunner{Name: "c", Kind: "command", Run: run, Timeout: timeout})
+	result := runCheck(spec.CheckRunner{Name: "c", Kind: "command", Run: run, Timeout: timeout}, false)
 	return result.Status, result.Output, time.Since(start)
 }
 

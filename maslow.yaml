@@ -101,6 +101,10 @@ checks:
       kind: command
       run: "go test ./..."
       timeout: 300s
+      # Checks get a scrubbed environment (ADR 0046); CI sets the first so a missing Chrome fails the browser tests.
+      env:
+        - MASLOW_REQUIRE_BROWSER
+        - MASLOW_BROWSER
       tags:
         - test
     - name: go-vet
