@@ -7,11 +7,11 @@ Notable changes to Maslow, newest first. Versions follow [semantic versioning](h
 ### Breaking
 
 - **Checks no longer inherit Maslow's environment.** A check gets only a base set (`PATH`, `HOME`, `TMPDIR`, `USER`, `LOGNAME`, `LANG`, `LC_ALL`, `LC_CTYPE`, `XDG_CACHE_HOME`, `XDG_CONFIG_HOME`, `CI`, and the Windows system variables) plus the names in its new `env` list, so a CI token no longer reaches the change's code. Listed values of 4 bytes or more are redacted from the check's output and error, as for contracts. A check that read any other variable must list it, or the spec can set `checks.inherit_env: true` while migrating. (#46, ADR 0046)
-- **CLI contract steps and binary audit targets no longer inherit Maslow's environment.** A `cli` step gets the same base set as a check plus its contract's `env` names, which were already redacted from the evidence; a binary audit target's `version-check` gets the base set plus its `env` map. A step or binary that read any other variable must have it listed, or the contract or target can set `inherit_env: true` while migrating. HTTP, browser and observability steps are unchanged. (ADR 0048)
+- **CLI contract steps and binary audit targets no longer inherit Maslow's environment.** A `cli` step gets the same base set as a check plus its contract's `env` names, which were already redacted from the evidence; a binary audit target's `version-check` gets the base set plus its `env` map. A step or binary that read any other variable must have it listed, or the contract or target can set `inherit_env: true` while migrating. HTTP, browser and observability steps are unchanged. (#47, ADR 0048)
 
 ### Fixed
 
-- **A binary audit target received only one entry of its `env` map.** Every entry now reaches the binary. (ADR 0048)
+- **A binary audit target received only one entry of its `env` map.** Every entry now reaches the binary. (#47, ADR 0048)
 
 ### Evidence format
 
