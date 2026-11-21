@@ -8,3 +8,6 @@ import "os/exec"
 func combinedOutputInGroup(cmd *exec.Cmd) ([]byte, error) {
 	return cmd.CombinedOutput()
 }
+
+// KillRunning does nothing on Windows: steps share Maslow's console and get its Ctrl-C directly.
+func KillRunning() {}

@@ -25,8 +25,10 @@ func main() {
 	case "validate":
 		os.Exit(cmdValidate(os.Args[2:]))
 	case "verify":
+		exitOnInterrupt()
 		os.Exit(cmdVerify(os.Args[2:]))
 	case "audit":
+		exitOnInterrupt()
 		os.Exit(cmdAudit(os.Args[2:]))
 	case "evidence":
 		os.Exit(cmdEvidence(os.Args[2:], os.Stdout))
