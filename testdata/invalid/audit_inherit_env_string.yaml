@@ -1,0 +1,13 @@
+mas: "1.0"
+project:
+  name: audit-inherit-env-string
+checks:
+  runner:
+    - name: build
+      kind: command
+      run: "go build ./..."
+audit:
+  targets:
+    - kind: binary
+      path: bin/app
+      inherit_env: "yes"

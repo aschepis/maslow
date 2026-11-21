@@ -126,7 +126,7 @@ func cliStep(script string) spec.Step {
 }
 
 func TestRunCLIStep_BackgroundChildIsKilledWhenStepExits(t *testing.T) {
-	exitCode, output, err := runCLIStep(cliStep(writeScript(t, detachedChild)), t.TempDir())
+	exitCode, output, err := runCLIStep(cliStep(writeScript(t, detachedChild)), t.TempDir(), nil)
 
 	if err != nil || exitCode != 0 {
 		t.Fatalf("expected exit 0, got %d, %v", exitCode, err)
@@ -137,7 +137,7 @@ func TestRunCLIStep_BackgroundChildIsKilledWhenStepExits(t *testing.T) {
 func TestRunCLIStep_ChildHoldingOutputEndsAtTimeout(t *testing.T) {
 	shortCLITimeout(t)
 	start := time.Now()
-	exitCode, output, _ := runCLIStep(cliStep(writeScript(t, childHoldsOutputWhileRunning)), t.TempDir())
+	exitCode, output, _ := runCLIStep(cliStep(writeScript(t, childHoldsOutputWhileRunning)), t.TempDir(), nil)
 
 	if exitCode == 0 {
 		t.Errorf("expected a nonzero exit code after the timeout")
@@ -151,7 +151,7 @@ func TestRunCLIStep_ChildHoldingOutputEndsAtTimeout(t *testing.T) {
 func TestRunCLIStep_ChildHoldingOutputAfterExitDoesNotHang(t *testing.T) {
 	shortWaitDelay(t)
 	start := time.Now()
-	_, output, err := runCLIStep(cliStep(writeScript(t, childHoldsOutputAfterExit)), t.TempDir())
+	_, output, err := runCLIStep(cliStep(writeScript(t, childHoldsOutputAfterExit)), t.TempDir(), nil)
 
 	if err == nil {
 		t.Errorf("expected an error for output held open after exit")
@@ -164,7 +164,7 @@ func TestRunCLIStep_ChildHoldingOutputAfterExitDoesNotHang(t *testing.T) {
 
 func TestRunCLIStep_NormalStepIsUnaffected(t *testing.T) {
 	step := spec.Step{Action: "cli", Command: "sh", Args: []string{"-c", "cat; exit 3"}, Stdin: "hi"}
-	exitCode, output, err := runCLIStep(step, t.TempDir())
+	exitCode, output, err := runCLIStep(step, t.TempDir(), nil)
 
 	if err != nil || exitCode != 3 || output != "hi" {
 		t.Errorf("expected exit 3 with output hi, got %d %q %v", exitCode, output, err)

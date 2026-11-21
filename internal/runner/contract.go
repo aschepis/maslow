@@ -100,6 +100,8 @@ func stepTarget(step spec.Step) string {
 type contractConfig struct {
 	// env holds only the environment variables the contract allow-lists.
 	env map[string]string
+	// processEnv is what CLI steps run with; nil gives them Maslow's whole environment.
+	processEnv []string
 	// baseURL is what HTTP and poll URLs starting with "/" are resolved against.
 	baseURL string
 	// dir is where CLI steps run; "" means the current directory.
@@ -167,8 +169,12 @@ func RunContractsWith(contracts []spec.Contract, opts ContractOptions) []evidenc
 	var results []evidence.ContractResult
 	for _, contract := range contracts {
 		cfg := contractConfig{env: allowedEnv(contract.Env), baseURL: opts.BaseURL, dir: opts.Dir, clock: clk}
+		if !contract.InheritEnv {
+			cfg.processEnv = ScrubbedEnv(contract.Env)
+		}
 		for i, result := range runContract(contract, cfg) {
 			result.Covers = sortedUnion(contract.Covers, contract.Scenarios[i].Covers)
+			result.InheritedEnv = contract.InheritEnv
 			results = append(results, redact(result, cfg.env))
 		}
 	}
@@ -338,7 +344,7 @@ func runStep(phase string, index int, step spec.Step, state *stepState, sc *scop
 
 	switch step.Action {
 	case "cli":
-		exitCode, output, err := runCLIStep(step, sc.dir)
+		exitCode, output, err := runCLIStep(step, sc.dir, sc.processEnv)
 		if err != nil {
 			return fmt.Errorf("step cli %q: %v", step.Command, err)
 		}
@@ -615,13 +621,14 @@ func applyTemplate(s string, sc *scope) (string, error) {
 // cliStepTimeout is a variable so tests can shorten it.
 var cliStepTimeout = 30 * time.Second
 
-func runCLIStep(step spec.Step, dir string) (exitCode int, output string, err error) {
+func runCLIStep(step spec.Step, dir string, env []string) (exitCode int, output string, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), cliStepTimeout)
 	defer cancel()
 
 	args := step.Args
 	cmd := exec.CommandContext(ctx, step.Command, args...)
 	cmd.Dir = dir
+	cmd.Env = env
 	if step.Stdin != "" {
 		cmd.Stdin = strings.NewReader(step.Stdin)
 	}

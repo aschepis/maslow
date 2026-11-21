@@ -27,11 +27,16 @@ func writeInheritedEnv(b *strings.Builder, r *Report) {
 			names = append(names, "`"+c.Name+"`")
 		}
 	}
+	for _, c := range r.Contracts {
+		if c.InheritedEnv {
+			names = append(names, "`"+c.Name+"`")
+		}
+	}
 	if len(names) == 0 {
 		return
 	}
 	b.WriteString("\n### Inherited environment\n\n")
-	fmt.Fprintf(b, "The spec sets `checks.inherit_env`, so these checks could read every variable in Maslow's environment, including any tokens in it: %s.\n", strings.Join(names, ", "))
+	fmt.Fprintf(b, "The spec sets `inherit_env` (on `checks`, a contract or an audit target), so these checks, contract scenarios and audit binaries could read every variable in Maslow's environment, including any tokens in it: %s.\n", strings.Join(names, ", "))
 }
 
 func writeRequirements(b *strings.Builder, r *Report) {

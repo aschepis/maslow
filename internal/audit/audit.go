@@ -5,8 +5,10 @@ package audit
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"text/template"
 	"time"
@@ -141,31 +143,44 @@ func runVersionCheck(target spec.AuditTarget) evidence.CheckResult {
 
 	start := time.Now()
 	cmd := exec.CommandContext(ctx, target.Path, "version")
-	for k, v := range target.Env {
-		cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", k, v))
-	}
+	cmd.Env = binaryEnv(target)
 
 	output, err := cmd.CombinedOutput()
 	duration := time.Since(start).Seconds()
 
 	if err != nil {
 		return evidence.CheckResult{
-			Name:     target.Path + "/version",
-			Kind:     "binary",
-			Status:   "fail",
-			Duration: duration,
-			Output:   string(output),
-			Error:    err.Error(),
+			Name:         target.Path + "/version",
+			Kind:         "binary",
+			Status:       "fail",
+			Duration:     duration,
+			Output:       string(output),
+			Error:        err.Error(),
+			InheritedEnv: target.InheritEnv,
 		}
 	}
 
 	return evidence.CheckResult{
-		Name:     target.Path + "/version",
-		Kind:     "binary",
-		Status:   "pass",
-		Duration: duration,
-		Output:   strings.TrimSpace(string(output)),
+		Name:         target.Path + "/version",
+		Kind:         "binary",
+		Status:       "pass",
+		Duration:     duration,
+		Output:       strings.TrimSpace(string(output)),
+		InheritedEnv: target.InheritEnv,
 	}
+}
+
+// binaryEnv is the base set, or Maslow's whole environment under inherit_env, followed by
+// every target.Env entry in name order; exec keeps the last value of a repeated name.
+func binaryEnv(target spec.AuditTarget) []string {
+	env := runner.ScrubbedEnv(nil)
+	if target.InheritEnv {
+		env = os.Environ()
+	}
+	for _, name := range slices.Sorted(maps.Keys(target.Env)) {
+		env = append(env, name+"="+target.Env[name])
+	}
+	return env
 }
 
 func auditContainer(target spec.AuditTarget) []evidence.CheckResult {

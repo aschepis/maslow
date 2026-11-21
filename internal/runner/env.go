@@ -5,9 +5,9 @@ import (
 	"slices"
 )
 
-// baseCheckEnv is what every check gets without listing it: where to find tools, home, temp and
-// cache directories, locale and the CI flag. None of these normally carry a secret (ADR 0046).
-var baseCheckEnv = []string{
+// baseEnv is what every check, CLI step and audit binary gets without listing it: where to find
+// tools, home, temp and cache directories, locale and the CI flag. None normally carry a secret (ADR 0046).
+var baseEnv = []string{
 	"PATH", "HOME", "TMPDIR", "USER", "LOGNAME",
 	"LANG", "LC_ALL", "LC_CTYPE",
 	"XDG_CACHE_HOME", "XDG_CONFIG_HOME",
@@ -16,10 +16,10 @@ var baseCheckEnv = []string{
 	"SystemRoot", "ComSpec", "PATHEXT", "TEMP", "TMP", "USERPROFILE", "LOCALAPPDATA", "APPDATA",
 }
 
-// checkEnv returns the environment for a check: the set variables among the
-// base set and the check's env list, in NAME=value form.
-func checkEnv(listed []string) []string {
-	names := slices.Concat(baseCheckEnv, listed)
+// ScrubbedEnv returns the set variables among the base set and listed, in NAME=value form,
+// for a process that must not see the rest of Maslow's environment (ADRs 0046 and 0048).
+func ScrubbedEnv(listed []string) []string {
+	names := slices.Concat(baseEnv, listed)
 	slices.Sort(names)
 	names = slices.Compact(names)
 

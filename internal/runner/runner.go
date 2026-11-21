@@ -127,7 +127,7 @@ func execCheck(check spec.CheckRunner, inheritEnv bool) evidence.CheckResult {
 
 	cmd := exec.CommandContext(ctx, parts[0], parts[1:]...)
 	if !inheritEnv {
-		cmd.Env = checkEnv(check.Env)
+		cmd.Env = ScrubbedEnv(check.Env)
 	}
 	output, err := combinedOutput(cmd)
 	duration := time.Since(start).Seconds()

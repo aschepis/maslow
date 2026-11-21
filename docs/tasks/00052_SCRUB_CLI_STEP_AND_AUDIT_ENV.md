@@ -1,7 +1,7 @@
 ---
 id: 52
 title: Run CLI contract steps and audit binaries with a scrubbed environment
-status: in_progress
+status: done
 priority: medium
 created: 2026-11-21
 updated: 2026-11-21
@@ -36,11 +36,11 @@ places still run the change's code with Maslow's whole environment, CI tokens in
 
 ## Acceptance Criteria
 
-- [ ] Tests: an unlisted variable is absent from a CLI step and from an audit binary; a listed one
+- [x] Tests: an unlisted variable is absent from a CLI step and from an audit binary; a listed one
       is present; every `target.Env` entry reaches the audit binary; the opt-out restores
       inheritance and shows in the evidence.
-- [ ] `maslow.yaml` and `examples/` still pass, with `env` lists added where a CLI step needs one.
-- [ ] CHANGELOG `### Breaking` entry for CLI steps, `### Fixed` for the audit `Env` bug.
+- [x] `maslow.yaml` and `examples/` still pass, with `env` lists added where a CLI step needs one.
+- [x] CHANGELOG `### Breaking` entry for CLI steps, `### Fixed` for the audit `Env` bug.
 
 ## Notes
 

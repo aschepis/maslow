@@ -30,4 +30,4 @@ Left out on purpose, so a check lists them when it needs them: `TERM` and `SHELL
 
 - Breaking: a check that read an inherited variable now sees it unset until the spec lists it in `env` or sets `checks.inherit_env: true`. A toolchain variable a user set by hand, such as a custom `GOCACHE`, falls back to its default, which costs cache hits rather than failing.
 - A listed variable's value is redacted wherever it appears in output, so a listed path such as `GOPATH` shows as `[redacted:GOPATH]` in check output. Base-set values are not redacted.
-- CLI contract steps are unchanged and still inherit Maslow's environment; only their templates are limited to the contract's `env` list. Scrubbing them is separate work.
+- CLI contract steps are unchanged and still inherit Maslow's environment; only their templates are limited to the contract's `env` list. ADR 0048 later scrubbed them and audit binaries with the same base set.
