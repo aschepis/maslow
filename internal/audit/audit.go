@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/aschepis/maslow/internal/evidence"
+	"github.com/aschepis/maslow/internal/progress"
 	"github.com/aschepis/maslow/internal/runner"
 	"github.com/aschepis/maslow/internal/spec"
 )
@@ -23,6 +24,8 @@ type Options struct {
 	Profile    string
 	SpecPath   string
 	SpecSHA256 string
+	// Progress, when set, hears each target start and finish. It never changes the evidence.
+	Progress progress.Func
 }
 
 // Run executes audit checks against the configured targets.
@@ -40,20 +43,42 @@ func Run(mas *spec.MAS, opts Options) (*evidence.Report, error) {
 		return report, nil
 	}
 
+	emit := opts.Progress
+	emit.Emit(progress.Event{Phase: progress.Plan, Total: len(mas.Audit.Targets)})
 	for _, target := range mas.Audit.Targets {
-		if target.Kind == "endpoint" {
-			checks, contracts := auditEndpoint(target, mas.Contracts)
+		emit.Step(target.Kind, target.Path, func() ([]string, int) {
+			var checks []evidence.CheckResult
+			var contracts []evidence.ContractResult
+			if target.Kind == "endpoint" {
+				checks, contracts = auditEndpoint(target, mas.Contracts)
+			} else {
+				checks = auditTarget(target)
+			}
 			report.CheckResults = append(report.CheckResults, checks...)
 			report.Contracts = append(report.Contracts, contracts...)
-			continue
-		}
-		results := auditTarget(target)
-		report.CheckResults = append(report.CheckResults, results...)
+			return targetOutcome(checks, contracts)
+		})
 	}
 
 	report.ComputeVerdict()
 	report.ComputeCoverage()
 	return report, nil
+}
+
+// targetOutcome is the status of every result a target produced and the most
+// attempts any of them took.
+func targetOutcome(checks []evidence.CheckResult, contracts []evidence.ContractResult) ([]string, int) {
+	var statuses []string
+	attempts := 1
+	for _, c := range checks {
+		statuses = append(statuses, c.Status)
+		attempts = max(attempts, len(c.Attempts))
+	}
+	for _, c := range contracts {
+		statuses = append(statuses, c.Status)
+		attempts = max(attempts, len(c.Attempts))
+	}
+	return statuses, attempts
 }
 
 func auditTarget(target spec.AuditTarget) []evidence.CheckResult {

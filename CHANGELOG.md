@@ -8,6 +8,10 @@ Notable changes to Maslow, newest first. Versions follow [semantic versioning](h
 
 - **Checks and CLI steps can no longer leave processes running.** On Unix each check and CLI contract step runs in its own process group, and Maslow kills the group when the step ends, normally or at its timeout. A background child holding the output open no longer hangs the step: it fails at its timeout, or 3s after the command exits. **A contract's `setup` step can no longer leave a server running for its scenarios**; start the server outside Maslow instead. A process that calls `setsid` or uses `sudo` still escapes. Windows is unchanged. (#42, ADR 0044)
 
+### Added
+
+- **Live progress on stderr.** `maslow verify` and `maslow audit` print a line when each item starts and finishes, such as `[3/12] check go-test pass (14.2s)` or `[4/12] contract cli flaky (2 attempts, 3.1s)`. Items are checks, contracts, budgets, refs and the policy rules for verify, and targets for audit. `--progress=auto|always|never` controls it; `auto`, the default, prints only when stderr is a terminal. stdout, the printed report and the evidence file are unchanged. (ADR 0045)
+
 ## [0.9.0] - 2026-11-19
 
 ### Added

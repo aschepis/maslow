@@ -57,7 +57,10 @@ Commands:
            [--report <path>]   Evidence file (default reports/verify.json)
            [--output-limit n]  Bytes of each check's output to keep (default 4096)
            [--strict]          Exit 1 on needs_review too (default: only fail and inconclusive)
+           [--progress <mode>] Print each item as it runs to stderr: auto (default, when
+                               stderr is a terminal), always or never
   audit    --profile <name>    Run black-box audit (default report reports/audit.json)
+           [--progress <mode>] Same as verify
   evidence check <file>        Decide pass, needs_review or decline for an evidence file
            --head <sha>        Commit the evidence must describe
            --spec <file>       Trusted spec whose hash the evidence must carry
@@ -125,6 +128,7 @@ func cmdVerify(args []string) int {
 	outputLimit := fs.Int("output-limit", evidence.DefaultOutputLimit, "bytes of each check's output to keep (0 keeps everything)")
 	strict := fs.Bool("strict", false, "exit non-zero on needs_review as well as fail and inconclusive")
 	redGreen := fs.Bool("red-green", false, "also run overlay contracts on the merge base; fail any that already pass there")
+	progressMode := fs.String("progress", "auto", progressUsage)
 	var overlayPaths stringList
 	fs.Var(&overlayPaths, "overlay", "file of extra contracts to run beside the spec's (repeatable)")
 	if err := fs.Parse(args); err != nil {
@@ -132,6 +136,11 @@ func cmdVerify(args []string) int {
 	}
 	if fs.NArg() > 0 {
 		fmt.Fprintf(os.Stderr, "maslow verify: unexpected argument %q\n", fs.Arg(0))
+		return 2
+	}
+	showProgress, err := progressFor(*progressMode, os.Stderr)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "maslow verify: %v\n", err)
 		return 2
 	}
 
@@ -149,7 +158,7 @@ func cmdVerify(args []string) int {
 		return 2
 	}
 
-	opts := verify.Options{Profile: *profile, SpecPath: *specPath, SpecFromBase: *specFrom == "base", RedGreen: *redGreen}
+	opts := verify.Options{Profile: *profile, SpecPath: *specPath, SpecFromBase: *specFrom == "base", RedGreen: *redGreen, Progress: showProgress}
 	if *base != "" {
 		sha, err := verify.ResolveBase(*base)
 		if err != nil {
@@ -199,11 +208,17 @@ func cmdAudit(args []string) int {
 	specPath := fs.String("spec", "maslow.yaml", "path to the spec")
 	reportPath := fs.String("report", audit.DefaultReportPath, "where to write the evidence file")
 	outputLimit := fs.Int("output-limit", evidence.DefaultOutputLimit, "bytes of each check's output to keep (0 keeps everything)")
+	progressMode := fs.String("progress", "auto", progressUsage)
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 	if fs.NArg() > 0 {
 		fmt.Fprintf(os.Stderr, "maslow audit: unexpected argument %q\n", fs.Arg(0))
+		return 2
+	}
+	showProgress, err := progressFor(*progressMode, os.Stderr)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "maslow audit: %v\n", err)
 		return 2
 	}
 
@@ -213,7 +228,7 @@ func cmdAudit(args []string) int {
 		return 1
 	}
 
-	report, err := audit.Run(loaded.MAS, audit.Options{Profile: *profile, SpecPath: *specPath, SpecSHA256: loaded.SHA256})
+	report, err := audit.Run(loaded.MAS, audit.Options{Profile: *profile, SpecPath: *specPath, SpecSHA256: loaded.SHA256, Progress: showProgress})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "maslow audit: %v\n", err)
 		return 1
