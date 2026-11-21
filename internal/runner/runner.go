@@ -13,21 +13,22 @@ import (
 	"github.com/aschepis/maslow/internal/spec"
 )
 
-// RunChecks executes the given check runners and returns results.
-func RunChecks(checks []spec.CheckRunner) []evidence.CheckResult {
+// RunChecks executes the given check runners and returns results. Each check
+// gets the base environment and its env list, or all of Maslow's when inheritEnv is set.
+func RunChecks(checks []spec.CheckRunner, inheritEnv bool) []evidence.CheckResult {
 	results := make([]evidence.CheckResult, 0, len(checks))
 
 	for _, check := range checks {
-		results = append(results, runCheckWithRetries(check))
+		results = append(results, runCheckWithRetries(check, inheritEnv))
 	}
 
 	return results
 }
 
-func runCheckWithRetries(check spec.CheckRunner) evidence.CheckResult {
+func runCheckWithRetries(check spec.CheckRunner, inheritEnv bool) evidence.CheckResult {
 	var attempts []evidence.CheckResult
 	for range 1 + check.Retries {
-		result := runCheck(check)
+		result := runCheck(check, inheritEnv)
 		attempts = append(attempts, result)
 		if !shouldRetry(result.Status) {
 			break
@@ -35,6 +36,7 @@ func runCheckWithRetries(check spec.CheckRunner) evidence.CheckResult {
 	}
 	result := foldCheckAttempts(attempts)
 	result.Covers = sortedUnion(check.Covers)
+	result.InheritedEnv = inheritEnv
 	return result
 }
 
@@ -60,7 +62,7 @@ func RunProfileChecks(mas *spec.MAS, profileName string) ([]evidence.CheckResult
 	if err != nil {
 		return nil, err
 	}
-	return RunChecks(selected), nil
+	return RunChecks(selected, mas.Checks.InheritEnv), nil
 }
 
 // ProfileChecks returns the spec's checks that the profile selects, in spec order.
@@ -90,7 +92,16 @@ func ProfileChecks(mas *spec.MAS, profileName string) ([]spec.CheckRunner, error
 	return selected, nil
 }
 
-func runCheck(check spec.CheckRunner) evidence.CheckResult {
+func runCheck(check spec.CheckRunner, inheritEnv bool) evidence.CheckResult {
+	result := execCheck(check, inheritEnv)
+	if r := redactor(allowedEnv(check.Env)); r != nil {
+		result.Output = r.Replace(result.Output)
+		result.Error = r.Replace(result.Error)
+	}
+	return result
+}
+
+func execCheck(check spec.CheckRunner, inheritEnv bool) evidence.CheckResult {
 	start := time.Now()
 
 	timeout := 2 * time.Minute
@@ -115,6 +126,9 @@ func runCheck(check spec.CheckRunner) evidence.CheckResult {
 	}
 
 	cmd := exec.CommandContext(ctx, parts[0], parts[1:]...)
+	if !inheritEnv {
+		cmd.Env = checkEnv(check.Env)
+	}
 	output, err := combinedOutput(cmd)
 	duration := time.Since(start).Seconds()
 

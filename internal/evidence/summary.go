@@ -15,8 +15,23 @@ func Summary(r *Report) string {
 	writeEnforced(&b, r)
 	writeRequirements(&b, r)
 	writeFlaky(&b, r)
+	writeInheritedEnv(&b, r)
 	writeObserved(&b, r)
 	return b.String()
+}
+
+func writeInheritedEnv(b *strings.Builder, r *Report) {
+	var names []string
+	for _, c := range r.CheckResults {
+		if c.InheritedEnv {
+			names = append(names, "`"+c.Name+"`")
+		}
+	}
+	if len(names) == 0 {
+		return
+	}
+	b.WriteString("\n### Inherited environment\n\n")
+	fmt.Fprintf(b, "The spec sets `checks.inherit_env`, so these checks could read every variable in Maslow's environment, including any tokens in it: %s.\n", strings.Join(names, ", "))
 }
 
 func writeRequirements(b *strings.Builder, r *Report) {

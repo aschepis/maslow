@@ -1,0 +1,9 @@
+mas: "1.0"
+project:
+  name: check-inherit-env-string
+checks:
+  inherit_env: "yes"
+  runner:
+    - name: smoke
+      kind: command
+      run: "scripts/smoke.sh"

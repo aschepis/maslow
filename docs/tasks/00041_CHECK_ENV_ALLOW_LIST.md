@@ -1,12 +1,12 @@
 ---
 id: 41
 title: Run checks with a scrubbed environment and an env allow-list
-status: draft
+status: done
 priority: low
 created: 2026-11-18
-updated: 2026-11-18
-assigned_to: ""
-assigned_at: ""
+updated: 2026-11-21
+assigned_to: "claude"
+assigned_at: "2026-11-21"
 depends_on: []
 tags: [kind:gap, checks, security]
 ---
@@ -26,11 +26,13 @@ checks do not.
 
 ## Acceptance Criteria
 
-- [ ] Schema and fixtures for `env` on checks.
-- [ ] Tests: an unlisted variable is absent; a listed one is present and redacted.
-- [ ] `maslow.yaml` updated so Maslow's own checks still pass; ADR records the default and opt-out.
+- [x] Schema and fixtures for `env` on checks.
+- [x] Tests: an unlisted variable is absent; a listed one is present and redacted.
+- [x] `maslow.yaml` updated so Maslow's own checks still pass; ADR records the default and opt-out.
 
 ## Notes
 
 Source: Damocles reconciler design note (18 Nov 2026), feature V10. This is a breaking change for
 checks that rely on inherited variables, so it needs a release note.
+
+Approved by the human on 2026-11-21.

@@ -10,7 +10,7 @@ func TestRunChecks_PassingCommand(t *testing.T) {
 	checks := []spec.CheckRunner{
 		{Name: "echo-test", Kind: "command", Run: "echo hello"},
 	}
-	results := RunChecks(checks)
+	results := RunChecks(checks, false)
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
@@ -23,7 +23,7 @@ func TestRunChecks_FailingCommand(t *testing.T) {
 	checks := []spec.CheckRunner{
 		{Name: "fail-test", Kind: "command", Run: "false"},
 	}
-	results := RunChecks(checks)
+	results := RunChecks(checks, false)
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
@@ -36,7 +36,7 @@ func TestRunChecks_EmptyCommand(t *testing.T) {
 	checks := []spec.CheckRunner{
 		{Name: "empty", Kind: "command", Run: ""},
 	}
-	results := RunChecks(checks)
+	results := RunChecks(checks, false)
 	if results[0].Status != "error" {
 		t.Errorf("expected error, got %s", results[0].Status)
 	}
@@ -46,7 +46,7 @@ func TestRunChecks_WithTimeout(t *testing.T) {
 	checks := []spec.CheckRunner{
 		{Name: "fast", Kind: "command", Run: "echo fast", Timeout: "10s"},
 	}
-	results := RunChecks(checks)
+	results := RunChecks(checks, false)
 	if results[0].Status != "pass" {
 		t.Errorf("expected pass, got %s", results[0].Status)
 	}

@@ -103,6 +103,20 @@ contracts:
 
 Only `fail` is retried, never `error`, and there is no delay between attempts. A result that fails and then passes has status `flaky` and lists every run in `attempts`. A flaky check or spec contract counts as a pass; a flaky overlay contract makes the verdict `needs_review`, and under `--red-green` a base run that fails and then passes is `not_red`. `maslow evidence summary` lists flaky results in their own section.
 
+A check runs with a scrubbed environment, so a token in the CI job does not reach the change's code (ADR 0046). It gets only `PATH`, `HOME`, `TMPDIR`, `USER`, `LOGNAME`, `LANG`, `LC_ALL`, `LC_CTYPE`, `XDG_CACHE_HOME`, `XDG_CONFIG_HOME` and `CI`, plus on Windows `SystemRoot`, `ComSpec`, `PATHEXT`, `TEMP`, `TMP`, `USERPROFILE`, `LOCALAPPDATA` and `APPDATA`, and whatever its `env` list names. Values of listed variables that are 4 bytes or longer are redacted from the check's output and error in the evidence, as for contracts:
+
+```yaml
+checks:
+  # inherit_env: true    # give every check Maslow's whole environment, as before; recorded in the evidence
+  runner:
+    - name: integration
+      kind: command
+      run: "go test ./integration/..."
+      env: [DATABASE_URL, GOFLAGS]
+```
+
+`checks.inherit_env: true` is for migrating: each check result then has `inherited_env: true`, and `maslow evidence summary` names those checks.
+
 Checks, contracts and scenarios can name the requirements they prove with `covers`, a list of IDs with no whitespace such as `acme/app#7`, `REQ-12` or a URL:
 
 ```yaml

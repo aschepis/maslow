@@ -82,6 +82,8 @@ type CheckResult struct {
 	// above then describe the last attempt, and Duration is the total.
 	Attempts []CheckAttempt `json:"attempts,omitempty"`
 	Covers   []string       `json:"covers,omitempty"`
+	// InheritedEnv records that checks.inherit_env gave the check Maslow's whole environment.
+	InheritedEnv bool `json:"inherited_env,omitempty"`
 }
 
 // StatusFlaky marks a check or contract that failed and then passed on a retry.

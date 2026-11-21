@@ -93,7 +93,8 @@
           "items": { "$ref": "#/$defs/checkAttempt" },
           "description": "set only when the check ran more than once; the other fields describe the last attempt, and duration_seconds is the total"
         },
-        "covers": { "$ref": "#/$defs/covers" }
+        "covers": { "$ref": "#/$defs/covers" },
+        "inherited_env": { "type": "boolean", "description": "true when the spec's checks.inherit_env gave the check Maslow's whole environment instead of the scrubbed one (ADR 0046)" }
       }
     },
     "checkAttempt": {

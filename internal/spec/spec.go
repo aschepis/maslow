@@ -107,6 +107,8 @@ type GatedDir struct {
 
 type Checks struct {
 	Runner []CheckRunner `yaml:"runner"`
+	// InheritEnv gives every check Maslow's full environment instead of the scrubbed one (ADR 0046).
+	InheritEnv bool `yaml:"inherit_env,omitempty"`
 }
 
 type CheckRunner struct {
@@ -117,6 +119,7 @@ type CheckRunner struct {
 	Retries int      `yaml:"retries,omitempty"`
 	Tags    []string `yaml:"tags,omitempty"`
 	Covers  []string `yaml:"covers,omitempty"`
+	Env     []string `yaml:"env,omitempty"`
 }
 
 // Profile selects what a run covers. A nil Contracts or Budgets list selects

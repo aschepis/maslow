@@ -148,6 +148,8 @@ import (
 
 #Checks: {
 	runner: [...#CheckRunner]
+	// Gives every check Maslow's whole environment, as before ADR 0046; recorded in evidence.
+	inherit_env?: bool
 }
 
 #CheckRunner: {
@@ -159,7 +161,12 @@ import (
 	retries?: #Retries
 	tags?: [...string]
 	covers?: #Covers
+	// Variables passed to the check beyond the base set; their values are redacted from evidence.
+	env?: #EnvNames
 }
+
+// Names of environment variables a check or contract may read (ADRs 0026 and 0046).
+#EnvNames: [...=~"^[A-Za-z_][A-Za-z0-9_]*$"]
 
 #Retries: int & >=0
 
@@ -185,7 +192,7 @@ import (
 	// Every scenario covers these as well as its own.
 	covers?: #Covers
 	// Environment variables templates may read as {{.env.NAME}}; their values are redacted from evidence.
-	env?: [...=~"^[A-Za-z_][A-Za-z0-9_]*$"]
+	env?: #EnvNames
 	// Base for step URLs starting with "/"; an endpoint audit target replaces it.
 	base_url?: string
 	// Reruns of each failing scenario, inside the contract's setup and teardown.

@@ -1,0 +1,12 @@
+mas: "1.0"
+project:
+  name: check-env
+checks:
+  inherit_env: true
+  runner:
+    - name: deploy-smoke
+      kind: command
+      run: "scripts/smoke.sh"
+      env:
+        - DEPLOY_TOKEN
+        - GOFLAGS

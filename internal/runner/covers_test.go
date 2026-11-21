@@ -57,7 +57,7 @@ func TestCovers_RetriedScenarioKeepsCovers(t *testing.T) {
 }
 
 func TestCovers_CheckCarriesSortedDeduplicatedCovers(t *testing.T) {
-	results := RunChecks([]spec.CheckRunner{{Name: "unit", Kind: "command", Run: "true", Covers: []string{"b", "a", "b"}}})
+	results := RunChecks([]spec.CheckRunner{{Name: "unit", Kind: "command", Run: "true", Covers: []string{"b", "a", "b"}}}, false)
 	if !reflect.DeepEqual(results[0].Covers, []string{"a", "b"}) {
 		t.Errorf("covers = %v, want [a b]", results[0].Covers)
 	}
