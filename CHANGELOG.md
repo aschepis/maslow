@@ -7,7 +7,7 @@ Notable changes to Maslow, newest first. Versions follow [semantic versioning](h
 ### Changed
 
 - **Checks and CLI steps can no longer leave processes running.** On Unix each check and CLI contract step runs in its own process group, and Maslow kills the group when the step ends, normally or at its timeout. A background child holding the output open no longer hangs the step: it fails at its timeout, or 3s after the command exits. **A contract's `setup` step can no longer leave a server running for its scenarios**; start the server outside Maslow instead. A process that calls `setsid` or uses `sudo` still escapes. Windows is unchanged. (#42, ADR 0044)
-- **Ctrl-C stops the running step.** On SIGINT or SIGTERM, `maslow verify` and `maslow audit` kill every running step's process group, print `maslow: interrupted`, and exit 130 or 143. No evidence file is written for an interrupted run. (ADR 0044)
+- **Ctrl-C stops the running step.** On SIGINT or SIGTERM, `maslow verify` and `maslow audit` kill every running step's process group, print `maslow: interrupted`, and exit 130 or 143. No evidence file is written for an interrupted run. (#44, ADR 0044)
 
 ### Added
 
